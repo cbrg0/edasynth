@@ -54,8 +54,8 @@ al., 2016), частота 8 Гц. ЭДА строится программой.
 ## Что запустить на своём компьютере
 
 ```bash
-git clone https://github.com/<user>/eda-acc-synth.git
-cd eda-acc-synth
+git clone https://github.com/cbrg0/edasynth.git
+cd edasynth
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,reference]"
 make before-tag   # данные, тесты, проверка единиц и стадий, сопоставление разметки,

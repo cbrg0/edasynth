@@ -141,8 +141,8 @@ the settings documented here we obtain 0.026 (the earlier settings were not reco
 Requirements: Python ≥ 3.11, git, curl, unzip, ~200 MB disk.
 
 ```bash
-git clone https://github.com/<user>/eda-acc-synth.git
-cd eda-acc-synth
+git clone https://github.com/cbrg0/edasynth.git
+cd edasynth
 
 # Option A (recommended on Apple Silicon): conda-forge has a prebuilt cvxopt
 conda env create -f environment.yml && conda activate edasynth
