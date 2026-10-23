@@ -8,8 +8,7 @@ version = "1.0.0"
 description = "Semi-synthetic test bench: when does a wrist accelerometer help detect motion artifacts in electrodermal activity?"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "MIT"
-license-files = ["LICENSE"]
+license = { text = "MIT" }
 authors = [{ name = "Nuray Doskaliyeva" }]
 dependencies = [
     "numpy>=1.26",
