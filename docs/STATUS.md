@@ -1,6 +1,6 @@
 # Implementation status
 
-Last updated: 23 October 2026, version 1.1.0, before the preregistration tag.
+Last updated: 23 October 2026, version 1.1.1, before the preregistration tag.
 
 This page states for every part of the study whether it exists, whether it has been
 tested and whether it has been run on the data it is meant for. It also lists known
@@ -27,14 +27,19 @@ its numbers are not results.
 Linux, 2 CPU cores, Python 3.13.16, numpy 2.5.3, scipy 1.18.1, scikit-learn 1.9.1,
 pandas 3.0.5, joblib 1.6.0, matplotlib 3.11.2. Three optional packages could not be
 installed there: `cvxopt` (needed by the reference cvxEDA code), `wfdb` and
-`PyWavelets`. PhysioNet could not be reached, so **no raw UTD file was read**. The
-package has not been tested on macOS or Windows.
+`PyWavelets`. PhysioNet could not be reached there, so **no raw UTD file has been
+read by the analysis yet**.
+
+A second environment was used on 23 October 2026: macOS on Apple Silicon, conda,
+Python 3.12, with `wfdb` installed. There the unit tests passed (51 passed, 7 skipped
+because data were not yet downloaded), `make data` downloaded both data sets, and
+`python -m edasynth check-data` verified every file. Windows has not been tested.
 
 ## Data and readers
 
 | Element | Status | Evidence |
 |---|---|---|
-| Download script with checksum verification (`make data`) | BLOCKED | PhysioNet not reachable from the build environment |
+| Download script with checksum verification (`make data`) | PASS | run on macOS: both sources downloaded, `check-data` reports all files verified. The first run exposed a bug (the `shasum` check could not read PhysioNet's checksum format and did not stop the script); fixed in 1.1.1 |
 | Zhang et al. files at commit `7c4bd46` (43 files) | PASS | `python -m edasynth check-data`: 43 of 43 match. The checksum list was computed from the same copy, so it protects later copies; it does not prove the original download. |
 | WFDB format-16 reader with checksum and initial-value checks | PARTIAL | unit tests on files written by the tests; real `noneeg` files BLOCKED; comparison with the `wfdb` package skipped (not installed) |
 | Annotation reader and stage assignment | PARTIAL | unit tests on synthetic annotation files; real annotation files BLOCKED |

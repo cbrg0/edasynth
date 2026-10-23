@@ -3,6 +3,7 @@
 #   1. PhysioNet "Non-EEG Dataset for Assessment of Neurological Status" v1.0.0 (ODC-By 1.0)
 #   2. Zhang et al. (2017) repository IdeasLabUT/EDA-Artifact-Detection at commit 7c4bd46 (BSD)
 # Nothing in data/raw or data/external is ever edited by hand or by code.
+# Requires the package to be installed (pip install -e . or the conda environment).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -22,16 +23,21 @@ if [ ! -f "$noneegDir/SHA256SUMS.txt" ]; then
   cp -R "$src"/. "$noneegDir"/
   rm -rf "$tmp"
 fi
-echo ">> verifying PhysioNet checksums"
-( cd "$noneegDir" && shasum -a 256 -c SHA256SUMS.txt --quiet ) && echo "   all PhysioNet files OK"
 
 if [ ! -d "$zhangDir/.git" ]; then
   echo ">> cloning Zhang et al. repository"
   git clone --quiet https://github.com/IdeasLabUT/EDA-Artifact-Detection "$zhangDir"
 fi
 git -C "$zhangDir" checkout --quiet "$zhangCommit"
-echo ">> verifying Zhang et al. files"
-( cd "$zhangDir" && shasum -a 256 -c ../../checksums/zhang-eda-artifact-detection-7c4bd46.sha256 --quiet ) && echo "   all Zhang files OK"
+
+# Both sources are verified by the package itself. PhysioNet's SHA256SUMS.txt
+# separates hash and file name by a single space, which `shasum -c` rejects, so
+# shasum is not used. A failed check stops the script before PROVENANCE.txt is written.
+echo ">> verifying checksums of both sources"
+if ! "${PYTHON:-python}" -m edasynth check-data; then
+  echo "checksum verification failed: see the MISSING or MISMATCH lines above" >&2
+  exit 1
+fi
 
 cat > data/PROVENANCE.txt <<EOF
 downloaded: $(date -u +%Y-%m-%dT%H:%M:%SZ)

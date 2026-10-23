@@ -8,14 +8,15 @@ in [METHOD.md](METHOD.md); which steps have already been run is listed in
 ## 1. Requirements
 
 - Python 3.11 or newer
-- `git`, `make`, `curl`, `unzip` and `shasum` (used by the download script)
+- `git`, `make`, `curl` and `unzip` (used by the download script)
 - about 200 MB of disk space for data and results
 - for the full study: several CPU cores and, depending on the number of replicates,
   from tens to several hundred CPU hours (see §5.3)
 
-The code was developed and tested on Linux with Python 3.13. It has not been tested on
-macOS or Windows; on Windows, use WSL because the Makefile and the download script
-are written for a Unix shell.
+The unit tests pass on Linux (Python 3.13) and on macOS with Apple Silicon (Python
+3.12, conda environment); `make data` was also run successfully on macOS. Windows has
+not been tested; use WSL there, because the Makefile and the download script are
+written for a Unix shell.
 
 ## 2. Installation
 
@@ -161,7 +162,7 @@ is not copied into this one.
 | Problem | Cause and remedy |
 |---|---|
 | `make data` fails while downloading from PhysioNet | The site may be unreachable from your network. Download the ZIP of version 1.0.0 in a browser from the PhysioNet page of the data set, unpack it into `data/raw/noneeg-1.0.0/` and run `make data` again; it will only verify. |
-| `shasum: command not found` | Install Perl's `shasum`, or replace `shasum -a 256` by `sha256sum` in the script. |
+| `checksum verification failed` at the end of `make data` | A file is missing or differs from the published checksum; the lines above it name the file. Delete the folder in `data/raw/` or `data/external/` and run `make data` again. The script needs the package to be installed, so activate the environment first. |
 | `results/alignment.csv not found` | Run `make align` before `estimate`, `validate`, `realdata --raw` or `figures`. |
 | `stages could not be parsed` | The annotation file has an unexpected number of entries. `make inspect` shows the codes; the stage list is `utdStages` in `src/edasynth/data.py`. |
 | `pip install` fails on `cvxopt` | Install without the `reference` extra, or use conda. |

@@ -124,8 +124,8 @@ synthetic data are not yet realistic enough; see the same file.
 ## Getting started
 
 Requirements: Python 3.11 or newer, `git`, `make`, `curl`, `unzip` and about
-200 MB of disk space. The code was developed and tested on Linux with Python 3.13;
-it has not yet been tested on macOS or Windows.
+200 MB of disk space. The unit tests pass on Linux (Python 3.13) and on macOS with
+Apple Silicon (Python 3.12, conda); Windows has not been tested.
 
 ```bash
 git clone https://github.com/cbrg0/edasynth.git

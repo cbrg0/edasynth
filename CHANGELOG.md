@@ -4,6 +4,17 @@ All notable changes to this project are recorded here. Changes to the method aft
 the preregistration tag must also be released under a new tag
 ([docs/PREREGISTRATION.md](docs/PREREGISTRATION.md)).
 
+## 1.1.1 (23 October 2026)
+
+- `scripts/download-data.sh` verifies both data sources with
+  `python -m edasynth check-data` and stops when a file is missing or differs.
+  PhysioNet's `SHA256SUMS.txt` separates hash and name by one space, which
+  `shasum -c` rejects ("no properly formatted SHA checksum lines found"); the
+  previous script printed that message and continued without verifying. Found on the
+  first run on macOS, where `check-data` then confirmed all files.
+- Documentation: the unit tests and `make data` have now run on macOS (Apple Silicon,
+  Python 3.12); `shasum` is no longer required.
+
 ## 1.1.0 (23 October 2026)
 
 ### Naming without underscores
