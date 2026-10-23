@@ -1,0 +1,20 @@
+# conda / mamba environment (Miniforge recommended on Apple Silicon: cvxopt ships prebuilt there)
+name: edasynth
+channels: [conda-forge]
+dependencies:
+  - python=3.12
+  - numpy
+  - scipy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - pyyaml
+  - joblib
+  - cvxopt>=1.3.1
+  - pywavelets
+  - pytest
+  - ruff
+  - pip
+  - pip:
+      - wfdb
+      - -e .

@@ -1,0 +1,143 @@
+# Main configuration. Every number that can change a result is here.
+# Values marked "decision" are choices of this project (justified in docs/METHOD.md);
+# all others are cited there. This file is frozen by the preregistration tag.
+
+paths:
+  noneeg: data/raw/noneeg-1.0.0           # PhysioNet UTD records (downloaded by scripts/download_data.sh)
+  zhang: data/external/eda-artifact-detection   # Zhang et al. repository at commit 7c4bd46
+  results: results
+  figures: figures
+
+data:
+  exclude_subjects: []          # filled only with documented reasons (alignment failure)
+  alignment_min_r: 0.999        # decision; on AWW the same check gives r = 1.0000
+
+seeds:
+  grid: 20261022
+  power: 7
+  validation: 11
+  detectors: 13
+
+estimation:
+  min_response_amp: 0.05        # uS, minimum response amplitude (Kleckner 2018; Posada-Quintero & Chon 2020)
+  cvxeda:
+    backend: auto               # 'cvxeda' (reference, needs cvxopt) if installed, else 'numpy'
+    tau1: 0.7                   # s (Greco et al., 2016)
+    tau0_min: 2.0               # s (Greco et al., 2016)
+    tau0_max: 4.0
+    tau0_step: 0.1              # decision
+    alpha: 8.0e-4               # Greco et al., 2016 and code default; input is z-scored
+    gamma: 1.0e-2
+    knot_s: 10.0
+  tonic:
+    period_min_s: 45            # Greco et al., 2016 synthetic tonic
+    period_max_s: 90
+    period_step_s: 1            # decision
+  episodes:                     # artifact-episode measurement and class rules (decision, fixed in advance)
+    baseline_s: 2.0
+    min_amp: 0.05
+    shift_sigma: 3.0
+    dropout_level: 0.01
+    saturation_level: 60.0      # uS, upper limit of Kleckner et al. (2018) rule 1
+    flat_min_s: 1.0
+    pn_walk: 0.5
+    walk_stages: [physical, walk]
+  motion:
+    percentile: 99              # decision; sensitivity at 95 and 99.9
+    min_len: 4                  # samples (0.5 s)
+    merge_s: 1.0
+  plausibility:
+    max_rate_per_min: 10.0      # decision; warning only, not a gate (literature range to be verified)
+  reference:
+    window_s: [-1.0, 5.0]       # decision
+  c4:
+    smooth_s: 2.0               # decision: 'fast part' = signal minus 2-s moving mean
+    stages: [physical, walk]
+
+generator:
+  tau1: 0.7
+  kernel_tau_multiple: 10       # Bateman kernel length = 10 tau0 (exp(-10) ~ 5e-5)
+  motion_response_latency_s: [1.0, 5.0]   # Boucsein (2012) as cited in Posada-Quintero & Chon (2020)
+  label_threshold: 0.05         # uS, decision = minimum visible response
+  rho_max: 0.95                 # V2: maximum lost contact fraction
+  saturation_level: 60.0
+  max_artifacts_per_participant: 400
+  allow_fallback_templates: false   # true only in configs/smoke.yaml
+  fallback_templates: {}
+
+features:
+  derivative: central           # as in Zhang et al.'s published script; 'forward' reproduces their stored matrices
+  fb:
+    max_lag_s: 5.0
+    context_s: 5.0
+    median_s: 60.0
+    coh_band: [0.5, 3.0]
+    coh_seg_s: 2.5
+
+models:
+  logreg:
+    C_grid: [0.01, 0.1, 1.0, 10.0]
+    C_selection: inner          # 'inner' or 'fixed'
+    solver: newton-cholesky     # same L2 objective as lbfgs; ~20x faster on these features (measured)
+    inner_folds: 5              # decision: grouped 5-fold inside each training set ('loso' allowed, ~4x slower)
+    C_default: 1.0
+    class_weight: balanced
+    max_iter: 5000
+  rf:
+    n_estimators: 500
+    class_weight: null
+    n_jobs: 1
+
+realdata:                       # settings that reproduce the published-feature baseline
+  models:
+    logreg: {C_grid: [1.0], C_selection: fixed, inner_folds: 5, C_default: 1.0, class_weight: balanced, max_iter: 5000, solver: newton-cholesky}
+    rf: {n_estimators: 500, class_weight: null, n_jobs: -1}
+  n_shuffles: 20
+
+analysis:
+  specificity: 0.95
+  bootstrap_n: 1000
+  decision: {min_delta: 0.01}   # accelerometer 'useful' in a cell: mean delta >= 0.01 and lower 95% bound > 0
+  observed_delta: 0.027         # real UTD difference (stored features, logistic regression)
+  label_noise_kappa: 0.62       # Fleiss kappa of the three UTD experts
+  sensitivity_reference: {c: 0.5, kappa: 1.0, delta_max: 1.0, pi_r: 0.0}
+
+grid:
+  c: [0.0, 0.25, 0.5, 0.75, 1.0]
+  kappa: [0.0, 1.0]
+  delta_max: [1.0, 5.0]
+  pi_r: [0.0, 0.5]
+  compositions: [[C1], [C2], [C3], [C5], [C1, C2, C3, C5]]   # last = mixture in measured UTD shares
+  prevalence: 0.038
+
+variants:
+  c: [0.0, 0.5, 1.0]
+  high_prevalence: 0.15         # AWW rest (Zhang et al., 2017)
+
+pilot:
+  reps: 10
+  half_width: 0.005
+  max_reps: 50
+
+power:
+  n_conditions: 3
+  participants: [5, 10, 15, 20]
+  reps: 50
+
+validation:
+  shift_min_s: 60
+  control_reps: 10
+  g2_participants: 20
+  g2_tau0_max_err_s: 0.3
+  g2_rate_max_rel: 0.2
+  g2_ks_p: 0.05
+  c2st_auc_max: 0.70
+  g5_max_abs_delta: 0.01
+  g7_reference: {auprc_0: 0.449, auprc_1: 0.475, delta: 0.027}
+  g7_max_abs_diff: 0.10
+
+detectors:
+  classes: [C1, C2, C3, C4, C5]
+  kleckner: {fir_seconds: 64, cutoff_hz: 0.35, level_min: 0.05, level_max: 60.0, slope_max: 10.0, transition_s: 5.0}
+  kocielnik: {rise_per_s: 0.20, fall_per_s: 0.10}
+  chen: {levels: 8, delta: 0.01, window_s: 400}

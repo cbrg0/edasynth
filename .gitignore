@@ -1,0 +1,15 @@
+# data are downloaded by scripts/download_data.sh, never committed
+data/raw/
+data/external/
+data/PROVENANCE.txt
+# generated
+results/*
+figures/*
+!results/README.md
+!figures/README.md
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.DS_Store
