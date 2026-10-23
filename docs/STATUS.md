@@ -1,6 +1,6 @@
 # Implementation status
 
-Last updated: 23 October 2026, version 1.1.1, before the preregistration tag.
+Last updated: 23 October 2026, version 1.1.2, before the preregistration tag.
 
 This page states for every part of the study whether it exists, whether it has been
 tested and whether it has been run on the data it is meant for. It also lists known
@@ -41,7 +41,7 @@ because data were not yet downloaded), `make data` downloaded both data sets, an
 |---|---|---|
 | Download script with checksum verification (`make data`) | PASS | run on macOS: both sources downloaded, `check-data` reports all files verified. The first run exposed a bug (the `shasum` check could not read PhysioNet's checksum format and did not stop the script); fixed in 1.1.1 |
 | Zhang et al. files at commit `7c4bd46` (43 files) | PASS | `python -m edasynth check-data`: 43 of 43 match. The checksum list was computed from the same copy, so it protects later copies; it does not prove the original download. |
-| WFDB format-16 reader with checksum and initial-value checks | PARTIAL | unit tests on files written by the tests; real `noneeg` files BLOCKED; comparison with the `wfdb` package skipped (not installed) |
+| WFDB format-16 reader with checksum and initial-value checks | PARTIAL | unit tests on files written by the tests. The first run on the real files (macOS) failed because the headers store checksums as unsigned numbers; fixed in 1.1.2, not yet rerun on the real files |
 | Annotation reader and stage assignment | PARTIAL | unit tests on synthetic annotation files; real annotation files BLOCKED |
 | EDA unit of UTD (header says "NU") | NOT VERIFIED | µS is assumed until `make inspect` is run |
 | UTD label loader | PASS | 9 211 windows, 349 majority artifacts, 20 groups (tests) |

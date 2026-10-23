@@ -7,14 +7,15 @@ from conftest import NONEEG, ZHANG, needsNoneeg, needsZhang
 from edasynth.wfdbio import readAnnotations, readHeader, readRecord
 
 
-def writeRecord(tmp, digital, gains, baselines, names):
+def writeRecord(tmp, digital, gains, baselines, names, unsignedChecksum=False):
     n, k = digital.shape
     digital.astype("<i2").tofile(tmp / "rec.dat")
     lines = [f"rec {k} 8 {n}"]
     for j in range(k):
         col = digital[:, j].astype(np.int64)
         cs = int(col.sum() % 65536)
-        cs = cs - 65536 if cs > 32767 else cs
+        if not unsignedChecksum:
+            cs = cs - 65536 if cs > 32767 else cs
         lines.append(f"rec.dat 16 {gains[j]}({baselines[j]})/NU 16 0 {col[0]} {cs} 0 {names[j]}")
     (tmp / "rec.hea").write_text("\n".join(lines) + "\n# age: 30\n")
 
@@ -28,6 +29,20 @@ def testFormat16RoundtripAndChecksum(tmp_path):
     assert np.allclose(sig[:, 0], (dig[:, 0] + 500) / 2000.5)
     raw = np.fromfile(tmp_path / "rec.dat", dtype="<i2")
     raw[10] += 1
+    raw.tofile(tmp_path / "rec.dat")
+    with pytest.raises(ValueError, match="checksum"):
+        readRecord(tmp_path / "rec")
+
+
+def testChecksumAcceptsUnsignedHeaderValue(tmp_path):
+    # PhysioNet noneeg headers store checksums as unsigned 16-bit numbers (e.g. 57979 for -7557)
+    dig = np.full((10, 1), 30000)  # sum 300000 -> 300000 mod 65536 = 37856, signed -27680
+    writeRecord(tmp_path, dig, [1.0], [0], ["ay"], unsignedChecksum=True)
+    assert " 37856 " in (tmp_path / "rec.hea").read_text()
+    sig, hdr = readRecord(tmp_path / "rec")
+    assert sig.shape == (10, 1)
+    raw = np.fromfile(tmp_path / "rec.dat", dtype="<i2")
+    raw[3] += 1
     raw.tofile(tmp_path / "rec.dat")
     with pytest.raises(ValueError, match="checksum"):
         readRecord(tmp_path / "rec")

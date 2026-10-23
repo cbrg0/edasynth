@@ -4,6 +4,14 @@ All notable changes to this project are recorded here. Changes to the method aft
 the preregistration tag must also be released under a new tag
 ([docs/PREREGISTRATION.md](docs/PREREGISTRATION.md)).
 
+## 1.1.2 (23 October 2026)
+
+- WFDB reader: checksums are compared modulo 2<sup>16</sup>. The PhysioNet noneeg
+  headers store them as unsigned numbers (57979), while the reader computed the signed
+  form of the same value (−7557) and rejected every record. Found by `make test-all`,
+  the first run of the reader on the real files; a new test covers headers with
+  unsigned checksums.
+
 ## 1.1.1 (23 October 2026)
 
 - `scripts/download-data.sh` verifies both data sources with

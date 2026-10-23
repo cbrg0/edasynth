@@ -95,8 +95,18 @@ def readHeader(path: str | Path) -> Header:
 
 
 def checksum16(digital: np.ndarray) -> int:
+    """16-bit checksum of one signal, written as a signed value (-32768 ... 32767)."""
     cs = int(np.sum(digital.astype(np.int64)) % 65536)
     return cs - 65536 if cs > 32767 else cs
+
+
+def checksumsMatch(computed: int, stored: int) -> bool:
+    """Compare checksums modulo 2^16.
+
+    Header writers store the same 16-bit checksum either signed (-7557) or
+    unsigned (57979); the PhysioNet noneeg headers use the unsigned form.
+    """
+    return (computed - stored) % 65536 == 0
 
 
 def readRecord(recordPath: str | Path, verify: bool = True) -> tuple[np.ndarray, Header]:
@@ -124,7 +134,7 @@ def readRecord(recordPath: str | Path, verify: bool = True) -> tuple[np.ndarray,
             if digital[0, k] != s.init:
                 raise ValueError(f"{s.name}: initial value {digital[0, k]} != header {s.init}")
             cs = checksum16(digital[:, k])
-            if cs != s.checksum:
+            if not checksumsMatch(cs, s.checksum):
                 raise ValueError(f"{s.name}: checksum {cs} != header {s.checksum}")
     phys = np.empty(digital.shape, dtype=float)
     for k, s in enumerate(hdr.signals):
