@@ -60,7 +60,7 @@ optional packages.
 make data
 ```
 
-The script `scripts/download_data.sh` downloads:
+The script `scripts/download-data.sh` downloads:
 
 | Data | Source | Saved in |
 |---|---|---|
@@ -112,18 +112,18 @@ The number of CPU cores used by the long steps is set with `JOBS`, for example
 
 | Step | Command | Output in `results/` | What to check |
 |---|---|---|---|
-| Inspect raw files | `make inspect` | `inspect_utd.json` | EDA range plausible for µS; the `stage_error` column empty for every participant |
+| Inspect raw files | `make inspect` | `inspect-utd.json` | EDA range plausible for µS; the `stageError` column empty for every participant |
 | Align labels and signals | `make align` | `alignment.csv`; plots in `figures/alignment/` | `accepted` for each participant; the log line `accepted N/20` |
 | Real-data comparison | `make realdata` | `realdata.json` | logistic regression as in §4; `G7` entry for the recomputed features |
-| Estimate parameters | `make estimate` | `bank_utd.json`, `bank_utd.npz` | `WARNING` lines in the log (response rates, τ<sub>0</sub> at the edge, solver convergence) |
-| Validation checks | `make validate` | `validation_utd.json` | `PASS` or `FAIL` for G1–G7 at the end of the log |
-| Untrained detectors | `make detectors` | `detectors_by_class.csv` | table printed at the end |
-| Pilot | `make pilot` | `pilot_utd.csv`, `pilot_utd_R.json` | the number of replicates *R* |
-| Main grid | `make grid` | `grid_metrics_utd.csv` | progress lines `k/N`; can be restarted |
-| Variants | `make variants` | `variants_metrics_utd.csv` | — |
-| Label noise | `make labelnoise` | `grid_labelnoise_metrics_utd.csv` | — |
-| Analysis | `make analyze` | `grid_summary_utd.csv`, `compatibility_utd.csv`, `sensitivity_utd.csv` | number of compatible cells in the log |
-| Power | `make power` | `protocol_planning_utd.csv` | — |
+| Estimate parameters | `make estimate` | `bank-utd.json`, `bank-utd.npz` | `WARNING` lines in the log (response rates, τ<sub>0</sub> at the edge, solver convergence) |
+| Validation checks | `make validate` | `validation-utd.json` | `PASS` or `FAIL` for G1–G7 at the end of the log |
+| Untrained detectors | `make detectors` | `detectors-by-class.csv` | table printed at the end |
+| Pilot | `make pilot` | `pilot-utd.csv`, `pilot-utd-R.json` | the number of replicates *R* |
+| Main grid | `make grid` | `grid-metrics-utd.csv` | progress lines `k/N`; can be restarted |
+| Variants | `make variants` | `variants-metrics-utd.csv` | — |
+| Label noise | `make labelnoise` | `grid-labelnoise-metrics-utd.csv` | — |
+| Analysis | `make analyze` | `grid-summary-utd.csv`, `compatibility-utd.csv`, `sensitivity-utd.csv` | number of compatible cells in the log |
+| Power | `make power` | `protocol-planning-utd.csv` | — |
 | Figures | `make figures` | `figures/F1…F7` (PDF and PNG) | look at F1 first: the real and synthetic recordings should look alike |
 
 `align` must run before `realdata --raw`, `estimate`, `validate` and `figures`,
@@ -141,16 +141,16 @@ offset it found. The Makefile runs the steps in this order.
 The UTD estimates are extrapolations from the development data and may be off by a
 factor of two or more. The main grid can be split over several sessions because it
 resumes where it stopped. If the cost is too high, reducing the search for the
-regularisation strength (`models.logreg.C_selection: fixed`) shortens each replicate
+regularisation strength (`models.logreg.CSelection: fixed`) shortens each replicate
 considerably; such a change must be made before the tag.
 
 ## 6. Optional cross-checks
 
 | Cross-check | How to enable | Test that runs |
 |---|---|---|
-| Reader against the `wfdb` package | `pip install wfdb` | `test_record_reader_matches_wfdb`, `test_annotation_reader_matches_wfdb_on_real_data` |
-| Haar details against PyWavelets | `pip install PyWavelets` | `test_haar_matches_pywavelets_if_installed` |
-| Built-in cvxEDA solver against the authors' code | install `cvxopt`, download `cvxEDA.py` from https://github.com/lciti/cvxEDA into a folder on your Python path | `test_numpy_and_reference_backends_reach_the_same_objective` |
+| Reader against the `wfdb` package | `pip install wfdb` | `testRecordReaderMatchesWfdb`, `testAnnotationReaderMatchesWfdbOnRealData` |
+| Haar details against PyWavelets | `pip install PyWavelets` | `testHaarMatchesPywaveletsIfInstalled` |
+| Built-in cvxEDA solver against the authors' code | install `cvxopt`, download `cvxEDA.py` from https://github.com/lciti/cvxEDA into a folder on your Python path | `testNumpyAndReferenceBackendsReachTheSameObjective` |
 
 When the authors' cvxEDA code is importable, `decompose` uses it by default
 (`estimation.cvxeda.backend: auto`). Its licence is stated in its own repository; it
@@ -163,7 +163,7 @@ is not copied into this one.
 | `make data` fails while downloading from PhysioNet | The site may be unreachable from your network. Download the ZIP of version 1.0.0 in a browser from the PhysioNet page of the data set, unpack it into `data/raw/noneeg-1.0.0/` and run `make data` again; it will only verify. |
 | `shasum: command not found` | Install Perl's `shasum`, or replace `shasum -a 256` by `sha256sum` in the script. |
 | `results/alignment.csv not found` | Run `make align` before `estimate`, `validate`, `realdata --raw` or `figures`. |
-| `stages could not be parsed` | The annotation file has an unexpected number of entries. `make inspect` shows the codes; the stage list is `UTD_STAGES` in `src/edasynth/data.py`. |
+| `stages could not be parsed` | The annotation file has an unexpected number of entries. `make inspect` shows the codes; the stage list is `utdStages` in `src/edasynth/data.py`. |
 | `pip install` fails on `cvxopt` | Install without the `reference` extra, or use conda. |
 | A grid run was interrupted | Run the same command again; finished replicates are skipped. |
 | Results differ slightly from another machine | Library versions and numerical libraries can change the last digits of model results; the synthetic data themselves are identical for the same seeds. |

@@ -32,7 +32,7 @@ main grid.
    settings, feature parameters, decision rule, compatibility rule, the reference cell
    of the sensitivity analysis and the power settings.
 2. The code in `src/edasynth/` at the tagged commit.
-3. The number of replicates *R* written by the pilot to `results/pilot_utd_R.json`.
+3. The number of replicates *R* written by the pilot to `results/pilot-utd-R.json`.
 
 ## Primary outcome
 

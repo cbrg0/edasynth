@@ -10,7 +10,7 @@ EDA signal in the output is created by the generator's parameters and is
 therefore known exactly.
 
 Clean signal   y0 = s + r + eps            (built on a 64-Hz grid, averaged to 8 Hz)
-Artifacts      y  = y0 + sum_m A_m          (variant V1, additive)
+Artifacts      y  = y0 + sum of all artifacts (variant V1, additive)
                y  = y0 * (1 - rho)          (variant V2, classes C2/C3 only)
 True label     sample corrupted if the artifact moves it by >= threshold (for the
                level shift C3 only the transition counts, not the lasting offset);
@@ -24,8 +24,8 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.signal import fftconvolve
 
-from .data import WIN, stage_type
-from .decompose import bateman, h_max, t_peak
+from .data import WIN, stageType
+from .decompose import bateman, hMax, tPeak
 
 UP = 8  # fine grid = 8 x 8 Hz = 64 Hz
 
@@ -35,20 +35,20 @@ class Condition:
     """One cell of the grid (docs/METHOD.md section 8)."""
 
     c: float = 0.5  # share of artifacts caused by movement
-    kappa: float = 1.0  # amplitude ~ (I_e / median I)^kappa
-    delta_max: float = 1.0  # maximum delay after motion onset, s
-    pi_r: float = 0.0  # share of motion events followed by a real response
+    kappa: float = 1.0  # amplitude ~ (event intensity / median intensity)^kappa
+    deltaMax: float = 1.0  # maximum delay after motion onset, s
+    piR: float = 0.0  # share of motion events followed by a real response
     classes: tuple = ("C1", "C2", "C3", "C5")  # composition
-    class_weights: tuple | None = None  # None = measured UTD shares
+    classWeights: tuple | None = None  # None = measured UTD shares
     variant: str = "V1"
     prevalence: float = 0.038
-    label_rule: str = "any"
+    labelRule: str = "any"
 
     def key(self) -> str:
         cl = "+".join(self.classes)
         return (
-            f"c={self.c}|kappa={self.kappa}|dmax={self.delta_max}|pi_r={self.pi_r}|"
-            f"cls={cl}|{self.variant}|prev={self.prevalence}|{self.label_rule}"
+            f"c={self.c}|kappa={self.kappa}|dmax={self.deltaMax}|piR={self.piR}|"
+            f"cls={cl}|{self.variant}|prev={self.prevalence}|{self.labelRule}"
         )
 
 
@@ -67,22 +67,22 @@ class SynthRecord:
     meta: dict = field(default_factory=dict)
 
 
-def _segments(stage: np.ndarray):
+def segments(stage: np.ndarray):
     starts = np.r_[0, np.where(stage[1:] != stage[:-1])[0] + 1]
     ends = np.r_[starts[1:], stage.size]
     return list(zip(starts, ends, strict=True))
 
 
-def _block_mean(x: np.ndarray, k: int = UP) -> np.ndarray:
+def blockMean(x: np.ndarray, k: int = UP) -> np.ndarray:
     n = x.size // k
     return x[: n * k].reshape(n, k).mean(1)
 
 
-def _trapezoid(nf: int, fs_f: float, t0: float, rise: float, plateau: float, fall: float, height: float):
-    t = np.arange(nf) / fs_f - t0
+def trapezoid(nf: int, fsF: float, t0: float, rise: float, plateau: float, fall: float, height: float):
+    t = np.arange(nf) / fsF - t0
     a = np.zeros(nf)
-    r = max(rise, 1 / fs_f)
-    f = max(fall, 1 / fs_f)
+    r = max(rise, 1 / fsF)
+    f = max(fall, 1 / fsF)
     up = (t >= 0) & (t < r)
     a[up] = t[up] / r
     pl = (t >= r) & (t < r + plateau)
@@ -92,9 +92,9 @@ def _trapezoid(nf: int, fs_f: float, t0: float, rise: float, plateau: float, fal
     return height * a
 
 
-def _step(nf: int, fs_f: float, t0: float, w: float, height: float):
-    t = np.arange(nf) / fs_f - t0
-    w = max(w, 1 / fs_f)
+def stepShape(nf: int, fsF: float, t0: float, w: float, height: float):
+    t = np.arange(nf) / fsF - t0
+    w = max(w, 1 / fsF)
     a = np.clip(t / w, 0, 1)
     return height * a
 
@@ -103,97 +103,99 @@ class Generator:
     """Builds synthetic participants from estimated parameters."""
 
     def __init__(self, library: dict, cfg: dict):
-        self.lib = library  # {"C1": [params...], ..., "class_shares": {...}, "G": float}
+        self.lib = library  # {"C1": [params...], ..., "classShares": {...}, "G": float}
         self.cfg = cfg
         self.g = cfg["generator"]
 
     # ------------------------------------------------------------ clean part
-    def clean(self, motion: dict, phys: dict, rng: np.random.Generator, pi_r: float):
+    def clean(self, motion: dict, phys: dict, rng: np.random.Generator, piR: float):
         fs = motion["fs"]
         n = motion["acc"].shape[0]
         nf = n * UP
-        fs_f = fs * UP
+        fsF = fs * UP
         stage = motion["stage"]
         tau0, tau1 = phys["tau0"], self.g["tau1"]
         # tonic: one fitted quadruple per protocol stage, stitched without jumps
         s = np.zeros(nf)
         level = None
-        for a, b in _segments(stage):
-            typ = stage_type(str(stage[a]))
-            pool = [t for t in phys["tonic"] if t["stage_type"] == typ] or phys["tonic"]
+        for a, b in segments(stage):
+            typ = stageType(str(stage[a]))
+            pool = [t for t in phys["tonic"] if t["stageType"] == typ] or phys["tonic"]
             q4 = pool[rng.integers(len(pool))]
-            tau = np.arange((b - a) * UP) / fs_f
-            seg = q4["b"] * tau + q4["A_s"] * np.sin(2 * np.pi * tau / q4["T_t"] + rng.uniform(0, 2 * np.pi))
+            tau = np.arange((b - a) * UP) / fsF
+            seg = q4["b"] * tau + q4["AS"] * np.sin(2 * np.pi * tau / q4["TT"] + rng.uniform(0, 2 * np.pi))
             start = q4["s0"] if level is None else level
             seg = seg - seg[0] + start
             s[a * UP : b * UP] = seg
             level = seg[-1]
-        # responses: spontaneous (Poisson) and motion-evoked (share pi_r)
+        # responses: spontaneous (Poisson) and motion-evoked (share piR)
         imp = np.zeros(nf)
         responses = []
         areas = np.asarray(phys["areas"], float)
-        for a, b in _segments(stage):
-            typ = stage_type(str(stage[a]))
-            lam = _num(phys["rates"].get(typ, {}).get("rate_per_s"))
+        for a, b in segments(stage):
+            typ = stageType(str(stage[a]))
+            lam = toNumber(phys["rates"].get(typ, {}).get("ratePerS"))
             if not np.isfinite(lam):  # donor has no clean time of this stage type: use its other rate
-                other = [_num(v["rate_per_s"]) for v in phys["rates"].values() if np.isfinite(_num(v["rate_per_s"]))]
+                other = [
+                    toNumber(v["ratePerS"]) for v in phys["rates"].values() if np.isfinite(toNumber(v["ratePerS"]))
+                ]
                 lam = other[0] if other else 0.0
-                self.rate_fallbacks = getattr(self, "rate_fallbacks", 0) + 1
+                self.rateFallbacks = getattr(self, "rateFallbacks", 0) + 1
             dur = (b - a) / fs
             k = rng.poisson(lam * dur) if np.isfinite(lam) else 0
-            for t_k in np.sort(rng.uniform(a / fs, b / fs, k)):
+            for tK in np.sort(rng.uniform(a / fs, b / fs, k)):
                 area = float(areas[rng.integers(areas.size)])
-                responses.append({"t": float(t_k), "area": area, "origin": "spontaneous"})
+                responses.append({"t": float(tK), "area": area, "origin": "spontaneous"})
         for ev in motion["events"]:
-            if rng.random() < pi_r:
-                lat = rng.uniform(*self.g["motion_response_latency_s"])
-                t_k = ev["onset"] / fs + lat
-                if t_k < n / fs:
+            if rng.random() < piR:
+                lat = rng.uniform(*self.g["motionResponseLatencyS"])
+                tK = ev["onset"] / fs + lat
+                if tK < n / fs:
                     area = float(areas[rng.integers(areas.size)])
-                    responses.append({"t": float(t_k), "area": area, "origin": "motion"})
-        hm, tp = h_max(tau0, tau1), t_peak(tau0, tau1)
+                    responses.append({"t": float(tK), "area": area, "origin": "motion"})
+        hm, tp = hMax(tau0, tau1), tPeak(tau0, tau1)
         for r in responses:
-            idx = int(round(r["t"] * fs_f))
+            idx = int(round(r["t"] * fsF))
             if idx < nf:
                 imp[idx] += r["area"]
             r["amp"] = r["area"] * hm
-            r["peak_sample"] = int((r["t"] + tp) * fs)
-        h = bateman(np.arange(0, self.g["kernel_tau_multiple"] * tau0, 1 / fs_f), tau0, tau1)
-        r_f = fftconvolve(imp, h)[:nf]
-        clean8 = _block_mean(s + r_f)
+            r["peakSample"] = int((r["t"] + tp) * fs)
+        h = bateman(np.arange(0, self.g["kernelTauMultiple"] * tau0, 1 / fsF), tau0, tau1)
+        rF = fftconvolve(imp, h)[:nf]
+        clean8 = blockMean(s + rF)
         y0 = clean8 + rng.normal(0.0, phys["sigma"], clean8.size)
         return y0, responses
 
     # ------------------------------------------------------------ artifacts
-    def _template(self, cls: str, rng: np.random.Generator):
+    def drawTemplate(self, cls: str, rng: np.random.Generator):
         pool = self.lib.get(cls) or []
         if pool:
             return dict(pool[rng.integers(len(pool))]), "measured"
-        fb = self.g["fallback_templates"].get(cls)
-        if fb is None or not self.g["allow_fallback_templates"]:
+        fb = self.g["fallbackTemplates"].get(cls)
+        if fb is None or not self.g["allowFallbackTemplates"]:
             raise ValueError(f"no measured {cls} episodes and fallback templates disabled")
         out = {}
         for k, v in fb.items():
             out[k] = rng.uniform(*v) if isinstance(v, list) else v
         return out, "fallback"
 
-    def _artifact_signal(self, cls, prm, t0, scale, n, fs, y0, acc, ev, variant):
-        nf, fs_f = n * UP, fs * UP
+    def artifactSignal(self, cls, prm, t0, scale, n, fs, y0, acc, ev, variant):
+        nf, fsF = n * UP, fs * UP
         if cls == "C1":
-            a = _block_mean(_trapezoid(nf, fs_f, t0, prm["tau_r"], 0.0, prm["tau_f"], prm["A"] * scale))
-            return a, np.abs(a) >= self.g["label_threshold"]
+            a = blockMean(trapezoid(nf, fsF, t0, prm["tauR"], 0.0, prm["tauF"], prm["A"] * scale))
+            return a, np.abs(a) >= self.g["labelThreshold"]
         if cls in ("C2", "C3"):
             if cls == "C2":
-                shape = _trapezoid(nf, fs_f, t0, prm["w"], prm["D"], prm["w"], 1.0)
+                shape = trapezoid(nf, fsF, t0, prm["w"], prm["D"], prm["w"], 1.0)
                 size = -prm["depth"] * scale
             else:
-                shape = _step(nf, fs_f, t0, prm["w"], 1.0)
+                shape = stepShape(nf, fsF, t0, prm["w"], 1.0)
                 size = prm["delta"] * scale
-            shape8 = _block_mean(shape)
+            shape8 = blockMean(shape)
             if variant == "V2":
                 i0 = min(int(t0 * fs), n - 1)
                 lvl = float(np.median(y0[max(0, i0 - int(5 * fs)) : i0 + 1]))
-                rho = np.clip(abs(size) / max(lvl, 1e-6), 0.0, self.g["rho_max"])
+                rho = np.clip(abs(size) / max(lvl, 1e-6), 0.0, self.g["rhoMax"])
                 piece = -y0 * rho * shape8
             else:
                 piece = size * shape8
@@ -204,88 +206,88 @@ class Generator:
                 first = np.argmax(shape8 >= 1) if np.any(shape8 >= 1) else None
                 if first is not None:
                     moving[first] = True
-                return piece, moving & (abs(size) >= self.g["label_threshold"])
-            return piece, np.abs(piece) >= self.g["label_threshold"]
+                return piece, moving & (abs(size) >= self.g["labelThreshold"])
+            return piece, np.abs(piece) >= self.g["labelThreshold"]
         if cls == "C4":
-            k = int(round(self.cfg["estimation"]["c4"]["smooth_s"] * fs))
+            k = int(round(self.cfg["estimation"]["c4"]["smoothS"] * fs))
             mag = np.sqrt((acc**2).sum(1))
             fast = mag - np.convolve(mag, np.ones(k) / k, "same")
             out = np.zeros(n)
             out[ev["onset"] : ev["end"]] = self.lib["G"] * scale * fast[ev["onset"] : ev["end"]]
-            return out, np.abs(out) >= self.g["label_threshold"]
+            return out, np.abs(out) >= self.g["labelThreshold"]
         raise ValueError(cls)
 
     def generate(self, pid: str, motion: dict, phys: dict, cond: Condition, rng: np.random.Generator) -> SynthRecord:
         fs = motion["fs"]
         acc = motion["acc"]
         n = acc.shape[0]
-        y0, responses = self.clean(motion, phys, rng, cond.pi_r)
-        thr = self.g["label_threshold"]
+        y0, responses = self.clean(motion, phys, rng, cond.piR)
+        thr = self.g["labelThreshold"]
         art = np.zeros(n)
         support = np.zeros(n, bool)  # samples labelled as corrupted
-        art_by_cls: dict[str, np.ndarray] = {}
+        artByCls: dict[str, np.ndarray] = {}
         replace = np.zeros(n, bool)
-        replace_val = np.zeros(n)
+        replaceVal = np.zeros(n)
         artifacts = []
         events = motion["events"]
-        med_i = float(np.median([e["intensity"] for e in events])) if events else 1.0
+        medI = float(np.median([e["intensity"] for e in events])) if events else 1.0
         nw = n // WIN
-        shares = cond.class_weights or tuple(self.lib["class_shares"].get(c, 0.0) for c in cond.classes)
+        shares = cond.classWeights or tuple(self.lib["classShares"].get(c, 0.0) for c in cond.classes)
         shares = np.asarray(shares, float)
         shares = shares / shares.sum() if shares.sum() > 0 else np.full(len(cond.classes), 1 / len(cond.classes))
 
-        def positive_windows():
-            m = support | (replace & (np.abs(replace_val - y0) >= thr))
-            return m, _window_labels(m, nw, cond.label_rule)
+        def positiveWindows():
+            m = support | (replace & (np.abs(replaceVal - y0) >= thr))
+            return m, windowLabels(m, nw, cond.labelRule)
 
-        mask, lab = positive_windows()
+        mask, lab = positiveWindows()
         tries = 0
-        while lab.mean() < cond.prevalence and tries < self.g["max_artifacts_per_participant"]:
+        while lab.mean() < cond.prevalence and tries < self.g["maxArtifactsPerParticipant"]:
             tries += 1
             cls = cond.classes[rng.choice(len(cond.classes), p=shares)]
             # C4 has no template: its shape is G * (fast part of |a|) inside a motion event
-            prm, src = ({}, "model_G") if cls == "C4" else self._template(cls, rng)
+            prm, src = ({}, "modelG") if cls == "C4" else self.drawTemplate(cls, rng)
             ev = None
             if cls == "C4":
                 if not events:
                     break
                 ev = events[rng.integers(len(events))]
                 t0, caused = ev["onset"] / fs, True
-                scale = (ev["intensity"] / med_i) ** cond.kappa
+                scale = (ev["intensity"] / medI) ** cond.kappa
             elif events and rng.random() < cond.c:
                 ev = events[rng.integers(len(events))]
-                t0 = ev["onset"] / fs + rng.uniform(0, cond.delta_max)
+                t0 = ev["onset"] / fs + rng.uniform(0, cond.deltaMax)
                 caused = True
-                scale = (ev["intensity"] / med_i) ** cond.kappa
+                scale = (ev["intensity"] / medI) ** cond.kappa
             else:
                 t0, caused, scale = rng.uniform(0, n / fs), False, 1.0
             if cls == "C5":
                 a = int(t0 * fs)
                 b = min(n, a + max(1, int(round(prm["D"] * fs))))
                 replace[a:b] = True
-                replace_val[a:b] = 0.0 if prm.get("kind", "zero") == "zero" else self.g["saturation_level"]
+                replaceVal[a:b] = 0.0 if prm.get("kind", "zero") == "zero" else self.g["saturationLevel"]
             else:
-                piece, sup = self._artifact_signal(cls, prm, t0, scale, n, fs, y0, acc, ev, cond.variant)
+                piece, sup = self.artifactSignal(cls, prm, t0, scale, n, fs, y0, acc, ev, cond.variant)
                 art += piece
                 support |= sup
-                art_by_cls[cls] = art_by_cls.get(cls, np.zeros(n, bool)) | sup
+                artByCls[cls] = artByCls.get(cls, np.zeros(n, bool)) | sup
             artifacts.append(
                 {
                     "cls": cls,
                     "t0": float(t0),
-                    "caused_by_motion": caused,
+                    "causedByMotion": caused,
                     "scale": float(scale),
-                    "event_onset": None if ev is None else int(ev["onset"]),
+                    "eventOnset": None if ev is None else int(ev["onset"]),
                     "template": src,
                     **prm,
                 }
             )
-            mask, lab = positive_windows()
+            mask, lab = positiveWindows()
         y = y0 + art
-        y[replace] = replace_val[replace]
-        class_windows = {c: _window_labels(a, nw, "any") for c, a in art_by_cls.items()}
+        y[replace] = replaceVal[replace]
+        classWindows = {c: windowLabels(a, nw, "any") for c, a in artByCls.items()}
         if replace.any():
-            class_windows["C5"] = _window_labels(replace & (np.abs(replace_val - y0) >= thr), nw, "any")
+            classWindows["C5"] = windowLabels(replace & (np.abs(replaceVal - y0) >= thr), nw, "any")
         q = phys["q"]
         if q > 0:
             y = q * np.round(y / q)
@@ -304,22 +306,22 @@ class Generator:
             artifacts=artifacts,
             responses=responses,
             meta={
-                "motion_donor": motion["pid"],
-                "physiology_donor": phys["pid"],
+                "motionDonor": motion["pid"],
+                "physiologyDonor": phys["pid"],
                 "condition": cond.key(),
                 "q": q,
-                "q_acc": motion.get("q_acc", 0.0),
-                "class_windows": class_windows,
+                "qAcc": motion.get("qAcc", 0.0),
+                "classWindows": classWindows,
             },
         )
 
 
-def _num(x) -> float:
+def toNumber(x) -> float:
     """Number from the bank; JSON null (missing estimate) becomes NaN."""
     return float("nan") if x is None else float(x)
 
 
-def _window_labels(mask: np.ndarray, nw: int, rule: str) -> np.ndarray:
+def windowLabels(mask: np.ndarray, nw: int, rule: str) -> np.ndarray:
     m = mask[: nw * WIN].reshape(nw, WIN)
     if rule == "any":
         return m.any(1).astype(int)

@@ -163,7 +163,7 @@ configs/default.yaml       every number that can change a result, with its sourc
 configs/smoke.yaml         small settings for the development run
 src/edasynth/              the Python package (one module per method step)
 tests/                     unit tests; tests that need downloaded data skip without it
-scripts/download_data.sh   downloads both data sets at fixed versions, verifies checksums
+scripts/download-data.sh   downloads both data sets at fixed versions, verifies checksums
 data/                      downloaded data (not committed) and the checksum list
 results/, figures/         generated outputs (not committed)
 Makefile                   one target per step of the study (`make help` lists them)
@@ -198,7 +198,7 @@ A complete list, including open design decisions, is in
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | work on the code: architecture, tests, conventions |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | look up a term |
 | [docs/REFERENCES.md](docs/REFERENCES.md) | find every source and what it is used for |
-| [docs/README_RU.md](docs/README_RU.md) | read a short overview in Russian |
+| [docs/README-RU.md](docs/README-RU.md) | read a short overview in Russian |
 | [CHANGELOG.md](CHANGELOG.md) | see what changed between versions |
 
 ## Licence and citation

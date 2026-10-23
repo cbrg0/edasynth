@@ -90,7 +90,7 @@ Several groups have built artifact detectors or cleaning methods:
   changes faster than ±10 µS/s, skin temperature outside 30–40 °C, and the 5 s
   around any of these are marked invalid.
 - Hossain et al. (2022) compared EDA from several body sites and defined an
-  artifact index, P_n, the share of signal power above 0.4 Hz. They observed that
+  artifact index, P<sub>n</sub>, the share of signal power above 0.4 Hz. They observed that
   walking artifacts in foot EDA were largely high-frequency and could be filtered
   out.
 - Amin et al. (2024) used the accelerometer as a noise reference for reducing

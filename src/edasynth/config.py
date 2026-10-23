@@ -12,10 +12,10 @@ from typing import Any
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+repoRoot = Path(__file__).resolve().parents[2]
 
 
-def load_config(path: str | Path | None = None, overrides: dict | None = None) -> dict:
+def loadConfig(path: str | Path | None = None, overrides: dict | None = None) -> dict:
     """Load a YAML config and apply optional nested overrides.
 
     Args:
@@ -25,12 +25,12 @@ def load_config(path: str | Path | None = None, overrides: dict | None = None) -
     Returns:
         Plain nested dict.
     """
-    path = Path(path) if path else REPO_ROOT / "configs" / "default.yaml"
+    path = Path(path) if path else repoRoot / "configs" / "default.yaml"
     with path.open(encoding="utf-8") as fh:
         cfg = yaml.safe_load(fh)
     if overrides:
         cfg = merge(cfg, overrides)
-    cfg["_config_path"] = str(path)
+    cfg["configPath"] = str(path)
     return cfg
 
 
@@ -45,10 +45,19 @@ def merge(base: dict, extra: dict) -> dict:
     return out
 
 
+def key(*parts) -> str:
+    """Join name parts without separators, capitalising every part after the first.
+
+    ``key("auprc", "F0")`` gives ``"auprcF0"``; used for result columns and keys.
+    """
+    words = [str(p) for p in parts if str(p)]
+    return words[0] + "".join(w[:1].upper() + w[1:] for w in words[1:]) if words else ""
+
+
 def resolve(cfg: dict, key: str) -> Path:
     """Resolve a path entry from ``cfg['paths']`` relative to the repository root."""
     p = Path(cfg["paths"][key])
-    return p if p.is_absolute() else REPO_ROOT / p
+    return p if p.is_absolute() else repoRoot / p
 
 
 def get(cfg: dict, dotted: str, default: Any = None) -> Any:

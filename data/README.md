@@ -1,7 +1,7 @@
 # Data
 
 This folder receives the two public data sets used by the study. They are not stored
-in the repository; `make data` (script `scripts/download_data.sh`) downloads them at
+in the repository; `make data` (script `scripts/download-data.sh`) downloads them at
 fixed versions and checks every file against a list of SHA-256 checksums. Only that
 checksum list is part of the repository.
 

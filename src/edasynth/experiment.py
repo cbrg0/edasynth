@@ -18,29 +18,30 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import cohen_kappa_score
 
+from .config import key
 from .data import WIN
 from .features import f0, fa, fa4, fb
 from .generator import Condition, Generator, derangement
 from .models import (
     auprc,
     auroc,
-    bootstrap_participants,
-    loso_predict,
-    sensitivity_at_specificity,
-    threshold_at_specificity,
+    bootstrapParticipants,
+    losoPredict,
+    sensitivityAtSpecificity,
+    thresholdAtSpecificity,
 )
 
-FEATURE_SETS = {
+featureSets = {
     "F0": ("F0",),
     "F0+FA": ("F0", "FA"),
     "F0+FA4": ("F0", "FA4"),
     "F0+FB": ("F0", "FB"),
 }
-DELTAS = {"dA": "F0+FA", "dA4": "F0+FA4", "dB": "F0+FB"}
+deltas = {"dA": "F0+FA", "dA4": "F0+FA4", "dB": "F0+FB"}
 
 
 # ------------------------------------------------------------------ bank
-def load_bank(path: str | Path) -> dict:
+def loadBank(path: str | Path) -> dict:
     """Load the estimated parameters and motion donors written by ``cli estimate``."""
     path = Path(path)
     meta = json.loads(path.with_suffix(".json").read_text())
@@ -54,60 +55,60 @@ def load_bank(path: str | Path) -> dict:
             {
                 "pid": pid,
                 "fs": m["fs"],
-                "acc": arrays[f"acc_{pid}"],
-                "stage": arrays[f"stage_{pid}"],
+                "acc": arrays[f"acc{pid}"],
+                "stage": arrays[f"stage{pid}"],
                 "events": m["events"],
-                "q_acc": m["q_acc"],
+                "qAcc": m["qAcc"],
             }
         )
     return {"motion": motion, "phys": meta["phys"], "library": meta["library"], "source": meta["source"]}
 
 
 # ------------------------------------------------------------------ data sets
-def features_for(rec, cfg: dict) -> dict:
+def featuresFor(rec, cfg: dict) -> dict:
     fcfg = cfg["features"]
     fs = rec.fs
     return {
         "F0": f0(rec.y, fcfg["derivative"]),
         "FA": fa(rec.acc, fcfg["derivative"]),
         "FA4": fa4(rec.acc),
-        "FB": fb(rec.y, rec.acc, fs, max(rec.meta["q"], 1e-6), max(rec.meta["q_acc"], 1e-6), **fcfg["fb"]),
+        "FB": fb(rec.y, rec.acc, fs, max(rec.meta["q"], 1e-6), max(rec.meta["qAcc"], 1e-6), **fcfg["fb"]),
     }
 
 
-def make_dataset(
+def makeDataset(
     bank: dict,
     cond: Condition,
     cfg: dict,
     seed: int,
-    n_participants: int | None = None,
-    acc_shift: bool = False,
+    nParticipants: int | None = None,
+    accShift: bool = False,
 ) -> dict:
     """Generate one replicate and its features.
 
-    ``acc_shift`` circularly shifts each accelerometer record by a random lag of
-    at least ``validation.shift_min_s`` *after* generation (negative control):
+    ``accShift`` circularly shifts each accelerometer record by a random lag of
+    at least ``validation.shiftMinS`` *after* generation (negative control):
     movement stays real but no longer lines up with the artifacts.
     """
     rng = np.random.default_rng(seed)
-    shift_rng = np.random.default_rng([seed, 1])
+    shiftRng = np.random.default_rng([seed, 1])
     gen = Generator(bank["library"], cfg)
     motion = bank["motion"]
     phys = bank["phys"]
-    n_all = len(motion)
-    order = np.arange(n_all)
-    if n_participants is not None and n_participants < n_all:
-        order = rng.choice(n_all, n_participants, replace=False)
-    perm = derangement(n_all, rng)
+    nAll = len(motion)
+    order = np.arange(nAll)
+    if nParticipants is not None and nParticipants < nAll:
+        order = rng.choice(nAll, nParticipants, replace=False)
+    perm = derangement(nAll, rng)
     recs, feats, ys, groups = [], [], [], []
     for gi, k in enumerate(order):
         m = motion[k]
         p = phys[int(perm[k])]
         rec = gen.generate(f"syn{gi:02d}", m, p, cond, rng)
-        if acc_shift:  # separate stream, so the generated EDA and labels are identical to the unshifted data set
-            lag = int(shift_rng.integers(int(cfg["validation"]["shift_min_s"] * m["fs"]), rec.acc.shape[0] - 1))
+        if accShift:  # separate stream, so the generated EDA and labels are identical to the unshifted data set
+            lag = int(shiftRng.integers(int(cfg["validation"]["shiftMinS"] * m["fs"]), rec.acc.shape[0] - 1))
             rec.acc = np.roll(rec.acc, lag, axis=0)
-        f = features_for(rec, cfg)
+        f = featuresFor(rec, cfg)
         nw = f["F0"].shape[0]
         recs.append(rec)
         feats.append(f)
@@ -118,18 +119,18 @@ def make_dataset(
     return out
 
 
-def apply_label_noise(y: np.ndarray, kappa_target: float, rng: np.random.Generator) -> tuple[np.ndarray, float]:
-    """Flip labels symmetrically until Cohen's kappa with the truth is about ``kappa_target``.
+def applyLabelNoise(y: np.ndarray, kappaTarget: float, rng: np.random.Generator) -> tuple[np.ndarray, float]:
+    """Flip labels symmetrically until Cohen's kappa with the truth is about ``kappaTarget``.
 
     Simplest model of imperfect expert labelling (an assumption, tested separately).
     """
     lo, hi = 0.0, 0.5
-    for _ in range(30):
+    for iteration in range(30):
         f = 0.5 * (lo + hi)
         flip = rng.random(y.size) < f
         yn = np.where(flip, 1 - y, y)
         k = cohen_kappa_score(y, yn)
-        if k > kappa_target:
+        if k > kappaTarget:
             lo = f
         else:
             hi = f
@@ -142,35 +143,35 @@ def evaluate(
 ) -> list[dict]:
     """Metrics for every model x feature set, plus the differences that form the map."""
     y = ds["y"] if labels is None else labels
-    y_true = ds["y"]
+    yTrue = ds["y"]
     g = ds["groups"]
     spec = cfg["analysis"]["specificity"]
     rows = []
     for model in models:
         preds = {}
-        for name, parts in FEATURE_SETS.items():
+        for name, parts in featureSets.items():
             X = np.hstack([ds[p] for p in parts])
-            preds[name], chosen = loso_predict(X, y, g, model, cfg, seed)
-        row = {"model": model, "n_windows": int(y_true.size), "n_positive": int(y_true.sum())}
+            preds[name], chosen = losoPredict(X, y, g, model, cfg, seed)
+        row = {"model": model, "nWindows": int(yTrue.size), "nPositive": int(yTrue.sum())}
         for name, s in preds.items():
-            row[f"auprc_{name}"] = auprc(y_true, s)
-            row[f"auroc_{name}"] = auroc(y_true, s)
-            row[f"sens95_{name}"] = sensitivity_at_specificity(y_true, s, spec)
-            lost = lost_responses(ds["records"], s, threshold_at_specificity(y_true, s, spec))
-            row[f"lost_spont_{name}"] = lost["spontaneous"]
-            row[f"lost_motion_{name}"] = lost["motion"]
-            for cls, frac in detected_by_class(ds["records"], s, threshold_at_specificity(y_true, s, spec)).items():
-                row[f"det_{cls}_{name}"] = frac
-        for d, name in DELTAS.items():
-            row[d] = row[f"auprc_{name}"] - row["auprc_F0"]
-            row[f"{d}_auroc"] = row[f"auroc_{name}"] - row["auroc_F0"]
-        row["dB_minus_dA4"] = row["dB"] - row["dA4"]
-        row["_preds"] = preds
+            row[key("auprc", name)] = auprc(yTrue, s)
+            row[key("auroc", name)] = auroc(yTrue, s)
+            row[key("sens95", name)] = sensitivityAtSpecificity(yTrue, s, spec)
+            lost = lostResponses(ds["records"], s, thresholdAtSpecificity(yTrue, s, spec))
+            row[key("lostSpont", name)] = lost["spontaneous"]
+            row[key("lostMotion", name)] = lost["motion"]
+            for cls, frac in detectedByClass(ds["records"], s, thresholdAtSpecificity(yTrue, s, spec)).items():
+                row[key("det", cls, name)] = frac
+        for d, name in deltas.items():
+            row[d] = row[key("auprc", name)] - row["auprcF0"]
+            row[key(d, "auroc")] = row[key("auroc", name)] - row["aurocF0"]
+        row["dBMinusDA4"] = row["dB"] - row["dA4"]
+        row["predictions"] = preds
         rows.append(row)
     return rows
 
 
-def _offsets(records):
+def recordOffsets(records):
     off, out = 0, []
     for r in records:
         out.append(off)
@@ -178,79 +179,79 @@ def _offsets(records):
     return out
 
 
-def lost_responses(records, scores: np.ndarray, thr: float) -> dict:
+def lostResponses(records, scores: np.ndarray, thr: float) -> dict:
     """Share of true responses whose peak lies in a window flagged as artifact."""
     res = {"spontaneous": [], "motion": []}
-    for r, off in zip(records, _offsets(records), strict=True):
+    for r, off in zip(records, recordOffsets(records), strict=True):
         nw = r.labels.size
         for resp in r.responses:
-            w = resp["peak_sample"] // WIN
+            w = resp["peakSample"] // WIN
             if 0 <= w < nw and resp["amp"] >= 0.05:
                 res[resp["origin"]].append(scores[off + w] > thr)
     return {k: (float(np.mean(v)) if v else float("nan")) for k, v in res.items()}
 
 
-def detected_by_class(records, scores: np.ndarray, thr: float) -> dict:
+def detectedByClass(records, scores: np.ndarray, thr: float) -> dict:
     """Share of windows positive for each artifact class that the model flags."""
     hits: dict = {}
-    for r, off in zip(records, _offsets(records), strict=True):
+    for r, off in zip(records, recordOffsets(records), strict=True):
         nw = r.labels.size
-        for cls, lab in r.meta["class_windows"].items():
+        for cls, lab in r.meta["classWindows"].items():
             idx = np.where(lab[:nw] == 1)[0]
             hits.setdefault(cls, []).extend((scores[off + idx] > thr).tolist())
     return {k: float(np.mean(v)) for k, v in hits.items() if v}
 
 
 # ------------------------------------------------------------------ grid
-def grid_conditions(cfg: dict) -> list[Condition]:
+def gridConditions(cfg: dict) -> list[Condition]:
     gcfg = cfg["grid"]
     out = []
     for c, kappa, dmax, pir, comp in itertools.product(
-        gcfg["c"], gcfg["kappa"], gcfg["delta_max"], gcfg["pi_r"], gcfg["compositions"]
+        gcfg["c"], gcfg["kappa"], gcfg["deltaMax"], gcfg["piR"], gcfg["compositions"]
     ):
         out.append(
-            Condition(c=c, kappa=kappa, delta_max=dmax, pi_r=pir, classes=tuple(comp), prevalence=gcfg["prevalence"])
+            Condition(c=c, kappa=kappa, deltaMax=dmax, piR=pir, classes=tuple(comp), prevalence=gcfg["prevalence"])
         )
     return out
 
 
-def variant_conditions(cfg: dict) -> list[Condition]:
-    """Extra variants on part of the grid (c in {0, .5, 1}, kappa=1, delta_max=1, pi_r=0)."""
+def variantConditions(cfg: dict) -> list[Condition]:
+    """Extra variants on part of the grid (c in {0, .5, 1}, kappa=1, deltaMax=1, piR=0)."""
     v = cfg["variants"]
-    base = dict(kappa=1.0, delta_max=1.0, pi_r=0.0)
+    base = dict(kappa=1.0, deltaMax=1.0, piR=0.0)
     out = []
     for c in v["c"]:
         mix = tuple(cfg["grid"]["compositions"][-1])
         out.append(Condition(c=c, classes=("C2",), variant="V2", **base))
         out.append(Condition(c=c, classes=("C3",), variant="V2", **base))
-        out.append(Condition(c=c, classes=mix, prevalence=v["high_prevalence"], **base))
-        out.append(Condition(c=c, classes=mix, label_rule="majority", **base))
+        out.append(Condition(c=c, classes=mix, prevalence=v["highPrevalence"], **base))
+        out.append(Condition(c=c, classes=mix, labelRule="majority", **base))
     out.append(Condition(c=1.0, classes=("C4",), **base))
     return out
 
 
-def run_cell(bank, cond: Condition, cfg: dict, rep: int, models: tuple, label_noise: float | None = None) -> list[dict]:
-    seed = cfg["seeds"]["grid"] * 1_000_003 + (zlib.crc32(cond.key().encode()) % 100_000) * 101 + rep
-    ds = make_dataset(bank, cond, cfg, seed)
+def runCell(bank, cond: Condition, cfg: dict, rep: int, models: tuple, labelNoise: float | None = None) -> list[dict]:
+    seed = cfg["seeds"]["grid"] * 1000003 + (zlib.crc32(cond.key().encode()) % 100000) * 101 + rep
+    ds = makeDataset(bank, cond, cfg, seed)
     labels = None
-    if label_noise is not None:
-        labels, _ = apply_label_noise(ds["y"], label_noise, np.random.default_rng(seed + 7))
+    if labelNoise is not None:
+        labels, unused = applyLabelNoise(ds["y"], labelNoise, np.random.default_rng(seed + 7))
     rows = evaluate(ds, cfg, models, seed, labels)
     for r in rows:
-        r.pop("_preds")
+        r.pop("predictions")
         r.update(asdict(cond))
         r["classes"] = "+".join(cond.classes)
         r["rep"] = rep
         r["seed"] = seed
-        r["prevalence_observed"] = float(ds["y"].mean())
-        r["n_windows"] = int(ds["y"].size)
-        r["label_noise_kappa"] = label_noise
+        r["prevalenceObserved"] = float(ds["y"].mean())
+        r["nWindows"] = int(ds["y"].size)
+        r["labelNoiseKappa"] = labelNoise
     return rows
 
 
-def required_reps(sd_delta: float, half_width: float, cap: int) -> int:
+def requiredReps(sdDelta: float, halfWidth: float, cap: int) -> int:
     """R = ceil((1.96 s / h)^2), limited to [2, cap] (docs/METHOD.md section 8)."""
-    return int(min(cap, max(2, np.ceil((1.96 * sd_delta / half_width) ** 2))))
+    return int(min(cap, max(2, np.ceil((1.96 * sdDelta / halfWidth) ** 2))))
 
 
 def summarise(df: pd.DataFrame, by: list[str], value: str, rule: dict) -> pd.DataFrame:
@@ -268,7 +269,7 @@ def summarise(df: pd.DataFrame, by: list[str], value: str, rule: dict) -> pd.Dat
                 "lo": m - h,
                 "hi": m + h,
                 "n": n,
-                "useful": bool(m >= rule["min_delta"] and (m - h) > 0) if n > 1 else False,
+                "useful": bool(m >= rule["minDelta"] and (m - h) > 0) if n > 1 else False,
             }
         )
 
@@ -285,17 +286,17 @@ def compatibility(df: pd.DataFrame, observed: float, by: list[str], value: str =
     return df.groupby(by)[value].apply(f).unstack()
 
 
-def bootstrap_power(bank, cond: Condition, cfg: dict, n_part: int, reps: int, models=("logreg",)) -> dict:
+def bootstrapPower(bank, cond: Condition, cfg: dict, nPart: int, reps: int, models=("logreg",)) -> dict:
     """Goal 6: share of replicates whose participant-bootstrap CI of dA4 and dB excludes 0."""
     res = {"dA4": [], "dB": []}
     for rep in range(reps):
-        seed = cfg["seeds"]["power"] * 7919 + n_part * 1009 + rep
-        ds = make_dataset(bank, cond, cfg, seed, n_participants=n_part)
+        seed = cfg["seeds"]["power"] * 7919 + nPart * 1009 + rep
+        ds = makeDataset(bank, cond, cfg, seed, nParticipants=nPart)
         row = evaluate(ds, cfg, models, seed)[0]
-        p = row["_preds"]
+        p = row["predictions"]
         for d, name in (("dA4", "F0+FA4"), ("dB", "F0+FB")):
-            lo, hi, _ = bootstrap_participants(
-                ds["y"], p["F0"], p[name], ds["groups"], cfg["analysis"]["bootstrap_n"], seed
+            lo, hi, unused = bootstrapParticipants(
+                ds["y"], p["F0"], p[name], ds["groups"], cfg["analysis"]["bootstrapN"], seed
             )
             res[d].append(lo > 0)
     return {d: float(np.mean(v)) for d, v in res.items()}

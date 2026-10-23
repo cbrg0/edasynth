@@ -7,20 +7,20 @@ what it contains. How to run the commands is described in
 
 | File | Written by | Contents |
 |---|---|---|
-| `inspect_utd.json` | `python -m edasynth inspect` | per participant: number of samples, EDA range, annotation codes, stage parsing errors |
-| `alignment.csv` | `python -m edasynth align` | per participant: window counts, best shift, correlations, `accepted`, `offset_samples` |
-| `realdata.json` | `python -m edasynth realdata --stored --raw` | real-data comparison on the published features (`stored_*`) and on recomputed features (`raw_logreg`, `G7`) |
-| `bank_utd.json`, `bank_utd.npz` | `python -m edasynth estimate --source utd` | measured parameters, artifact templates, acceleration of the movement donors, git commit |
-| `validation_utd.json` | `python -m edasynth validate --source utd --pytest` | numbers and pass/fail of checks G1–G7 |
-| `detectors_by_class.csv` | `python -m edasynth detectors --source utd` | sensitivity, specificity and AUPRC of each untrained detector by artifact class |
-| `pilot_utd.csv`, `pilot_utd_R.json` | `python -m edasynth pilot --source utd` | pilot replicates; the number of replicates *R* |
-| `grid_metrics_utd.csv` | `python -m edasynth grid --source utd` | one row per cell and replicate: all measures for all feature sets |
-| `variants_metrics_utd.csv` | `python -m edasynth grid --source utd --variants` | the same for the variants |
-| `grid_labelnoise_metrics_utd.csv` | `python -m edasynth grid --source utd --label-noise` | the same with noisy training labels |
-| `grid_summary_utd.csv` | `python -m edasynth analyze --source utd` | per cell: mean gain, 95 % interval, number of replicates, decision |
-| `compatibility_utd.csv` | same | per cell of the mixture: central 95 % range of Δ<sub>A4</sub> and whether the real gain lies inside |
-| `sensitivity_utd.csv` | same | range of the mean gain when one parameter is varied |
-| `protocol_planning_utd.csv` | `python -m edasynth power --source utd` | power by number of participants |
+| `inspect-utd.json` | `python -m edasynth inspect` | per participant: number of samples, EDA range, annotation codes, stage parsing errors |
+| `alignment.csv` | `python -m edasynth align` | per participant: window counts, best shift, correlations, `accepted`, `offsetSamples` |
+| `realdata.json` | `python -m edasynth realdata --stored --raw` | real-data comparison on the published features (`stored*`) and on recomputed features (`rawLogreg`, `G7`) |
+| `bank-utd.json`, `bank-utd.npz` | `python -m edasynth estimate --source utd` | measured parameters, artifact templates, acceleration of the movement donors, git commit |
+| `validation-utd.json` | `python -m edasynth validate --source utd --pytest` | numbers and pass/fail of checks G1–G7 |
+| `detectors-by-class.csv` | `python -m edasynth detectors --source utd` | sensitivity, specificity and AUPRC of each untrained detector by artifact class |
+| `pilot-utd.csv`, `pilot-utd-R.json` | `python -m edasynth pilot --source utd` | pilot replicates; the number of replicates *R* |
+| `grid-metrics-utd.csv` | `python -m edasynth grid --source utd` | one row per cell and replicate: all measures for all feature sets |
+| `variants-metrics-utd.csv` | `python -m edasynth grid --source utd --variants` | the same for the variants |
+| `grid-labelnoise-metrics-utd.csv` | `python -m edasynth grid --source utd --label-noise` | the same with noisy training labels |
+| `grid-summary-utd.csv` | `python -m edasynth analyze --source utd` | per cell: mean gain, 95 % interval, number of replicates, decision |
+| `compatibility-utd.csv` | same | per cell of the mixture: central 95 % range of Δ<sub>A4</sub> and whether the real gain lies inside |
+| `sensitivity-utd.csv` | same | range of the mean gain when one parameter is varied |
+| `protocol-planning-utd.csv` | `python -m edasynth power --source utd` | power by number of participants |
 
 `results/smoke/` holds the same files for the development run on AWW
 (`make smoke`). **Its numbers are not results**; see

@@ -27,7 +27,7 @@ guessing.
 Zhang et al. (2017). Used here only to develop and test the code.
 
 **Bank.** The file of parameters measured on real recordings
-(`results/bank_<source>.json` and `.npz`), from which the generator draws.
+(`results/bank-<source>.json` and `.npz`), from which the generator draws.
 
 **Bateman function.** The shape used for one skin-conductance response,
 *h*(*t*) = e<sup>−*t*/τ0</sup> − e<sup>−*t*/τ1</sup>: a rise with time constant τ<sub>1</sub>

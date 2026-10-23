@@ -14,7 +14,7 @@ Two backends solve the same problem:
             here: put the file on the Python path yourself (see README) and
             check its licence there. Imported as ``cvxEDA`` (or ``cvxeda``).
 ``numpy``   a projected accelerated-gradient solver written for this project,
-            dependency-free. ``tests/test_decompose.py`` checks that it recovers
+            dependency-free. ``tests/testModelsAndDecompose.py`` checks that it recovers
             known inputs and, when ``cvxeda`` is installed, that it reaches the same
             objective value as the reference.
 """
@@ -35,18 +35,18 @@ def bateman(t: np.ndarray, tau0: float, tau1: float = 0.7) -> np.ndarray:
     return np.where(t >= 0, np.exp(-tp / tau0) - np.exp(-tp / tau1), 0.0)
 
 
-def t_peak(tau0: float, tau1: float = 0.7) -> float:
+def tPeak(tau0: float, tau1: float = 0.7) -> float:
     """Time of the maximum of the Bateman function: ln(tau0/tau1) tau0 tau1 / (tau0 - tau1)."""
     return float(np.log(tau0 / tau1) * tau0 * tau1 / (tau0 - tau1))
 
 
-def h_max(tau0: float, tau1: float = 0.7) -> float:
+def hMax(tau0: float, tau1: float = 0.7) -> float:
     """Height of the Bateman function at its peak."""
-    return float(bateman(np.array([t_peak(tau0, tau1)]), tau0, tau1)[0])
+    return float(bateman(np.array([tPeak(tau0, tau1)]), tau0, tau1)[0])
 
 
 # ----------------------------------------------------------------- operators
-def arma_coefficients(delta: float, tau0: float, tau1: float) -> np.ndarray:
+def armaCoefficients(delta: float, tau0: float, tau1: float) -> np.ndarray:
     """Denominator of the bilinear-transformed Bateman filter (paper eqs. 5-7)."""
     a1 = 1.0 / min(tau1, tau0)
     a0 = 1.0 / max(tau1, tau0)
@@ -59,13 +59,13 @@ def arma_coefficients(delta: float, tau0: float, tau1: float) -> np.ndarray:
     ) / ((a1 - a0) * delta**2)
 
 
-def spline_basis(n: int, delta: float, knot_s: float = 10.0) -> sparse.csc_matrix:
-    """Cubic B-spline regressors with knots every ``knot_s`` seconds.
+def splineBasis(n: int, delta: float, knotS: float = 10.0) -> sparse.csc_matrix:
+    """Cubic B-spline regressors with knots every ``knotS`` seconds.
 
     The cubic B-spline is obtained by convolving two triangles of half-width
     equal to the knot spacing; columns are centred on the knots 0, k, 2k, ...
     """
-    k = int(round(knot_s / delta))
+    k = int(round(knotS / delta))
     knots = np.arange(0, n + k // 2, k)
     tri = np.concatenate((np.arange(1.0, k), np.arange(k, 0.0, -1.0)))
     spl = np.convolve(tri, tri, "full")
@@ -83,7 +83,7 @@ def spline_basis(n: int, delta: float, knot_s: float = 10.0) -> sparse.csc_matri
     )
 
 
-class _Phasic:
+class Phasic:
     """K p = M A^-1 p and its transpose, applied by recursive filtering."""
 
     def __init__(self, ar: np.ndarray):
@@ -101,10 +101,10 @@ class _Phasic:
         return lfilter([1.0], self.ar, z)[::-1]
 
 
-def _numpy_solve(y, delta, tau0, tau1, alpha, gamma, knot_s, max_iter, tol, p0=None):
+def numpySolve(y, delta, tau0, tau1, alpha, gamma, knotS, maxIter, tol, p0=None):
     n = y.size
-    K = _Phasic(arma_coefficients(delta, tau0, tau1))
-    B = spline_basis(n, delta, knot_s)
+    K = Phasic(armaCoefficients(delta, tau0, tau1))
+    B = splineBasis(n, delta, knotS)
     C = np.column_stack([np.ones(n), np.arange(1.0, n + 1.0) / n])
     W = sparse.hstack([B, sparse.csc_matrix(C)]).tocsc()
     nB = B.shape[1]
@@ -117,7 +117,7 @@ def _numpy_solve(y, delta, tau0, tau1, alpha, gamma, knot_s, max_iter, tol, p0=N
 
     # Lipschitz constant of p -> K^T K p by power iteration
     v = np.random.default_rng(0).standard_normal(n)
-    for _ in range(50):
+    for iteration in range(50):
         v = K.T(K(v))
         v /= np.linalg.norm(v)
     L = float(np.dot(v, K.T(K(v)))) * 1.05
@@ -128,24 +128,24 @@ def _numpy_solve(y, delta, tau0, tau1, alpha, gamma, knot_s, max_iter, tol, p0=N
         return 0.5 * e @ e + alpha * p.sum() + 0.5 * gamma * z[:nB] @ z[:nB], z
 
     x = np.zeros(n) if p0 is None else np.maximum(p0, 0.0)
-    x_prev, y_pt, t_k, f_prev = x.copy(), x.copy(), 1.0, np.inf
+    xPrev, yPt, tK, fPrev = x.copy(), x.copy(), 1.0, np.inf
     it = 0
-    for it in range(max_iter):
-        res = y - K(y_pt)
+    for it in range(maxIter):
+        res = y - K(yPt)
         z = tonic(res)
         grad = -K.T(res - W @ z)
-        x = np.maximum(y_pt - (grad + alpha) / L, 0.0)
+        x = np.maximum(yPt - (grad + alpha) / L, 0.0)
         # gradient-based adaptive restart (O'Donoghue & Candes, 2015)
-        if np.dot(y_pt - x, x - x_prev) > 0:
-            t_k = 1.0
-        t_next = 0.5 * (1 + np.sqrt(1 + 4 * t_k**2))
-        y_pt = x + ((t_k - 1) / t_next) * (x - x_prev)
-        x_prev, t_k = x, t_next
+        if np.dot(yPt - x, x - xPrev) > 0:
+            tK = 1.0
+        tNext = 0.5 * (1 + np.sqrt(1 + 4 * tK**2))
+        yPt = x + ((tK - 1) / tNext) * (x - xPrev)
+        xPrev, tK = x, tNext
         if it % 50 == 49:
-            f_new, _ = obj(x)
-            if abs(f_prev - f_new) <= tol * max(1.0, abs(f_new)):
+            fNew, unused = obj(x)
+            if abs(fPrev - fNew) <= tol * max(1.0, abs(fNew)):
                 break
-            f_prev = f_new
+            fPrev = fNew
     p = x
     f, z = obj(p)
     r = K(p)
@@ -156,7 +156,7 @@ def _numpy_solve(y, delta, tau0, tau1, alpha, gamma, knot_s, max_iter, tol, p0=N
     return {"r": r, "p": p, "t": t, "e": y - r - t, "obj": f, "iterations": it + 1, "kkt": kkt}
 
 
-def _reference_module():
+def referenceModule():
     """The reference cvxEDA implementation, if the user has put it on the path."""
     try:
         import cvxEDA as mod  # type: ignore  # noqa: N813 - name of the authors' file
@@ -175,9 +175,9 @@ def decompose(
     tau1: float = 0.7,
     alpha: float = 8e-4,
     gamma: float = 1e-2,
-    knot_s: float = 10.0,
+    knotS: float = 10.0,
     backend: str = "auto",
-    max_iter: int = 20000,
+    maxIter: int = 20000,
     tol: float = 1e-10,
     p0: np.ndarray | None = None,
 ) -> dict:
@@ -185,14 +185,14 @@ def decompose(
     y = np.asarray(y, dtype=float)
     if backend in ("auto", "cvxeda"):
         try:
-            cvxeda = _reference_module()
-            r, p, t, _l, _d, e, obj = cvxeda.cvxEDA(
-                y, delta, tau0=tau0, tau1=tau1, delta_knot=knot_s, alpha=alpha, gamma=gamma
+            cvxeda = referenceModule()
+            r, p, t, unusedL, unusedD, e, obj = cvxeda.cvxEDA(
+                y, delta, tau0=tau0, tau1=tau1, delta_knot=knotS, alpha=alpha, gamma=gamma
             )
             return {"r": r, "p": p, "t": t, "e": e, "obj": float(np.ravel(obj)[0]), "backend": "cvxeda"}
         except ImportError:
             if backend == "cvxeda":
                 raise
-    out = _numpy_solve(y, delta, tau0, tau1, alpha, gamma, knot_s, max_iter, tol, p0)
+    out = numpySolve(y, delta, tau0, tau1, alpha, gamma, knotS, maxIter, tol, p0)
     out["backend"] = "numpy"
     return out

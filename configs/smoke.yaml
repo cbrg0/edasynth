@@ -9,82 +9,82 @@ paths:
   results: results/smoke
   figures: figures/smoke
 
-data: {exclude_subjects: [], alignment_min_r: 0.999}
+data: {excludeSubjects: [], alignmentMinR: 0.999}
 seeds: {grid: 1, power: 2, validation: 3, detectors: 4}
 
 estimation:
-  min_response_amp: 0.05
-  cvxeda: {backend: auto, tau1: 0.7, tau0_min: 2.0, tau0_max: 4.0, tau0_step: 1.0, alpha: 8.0e-4, gamma: 1.0e-2, knot_s: 10.0}
-  tonic: {period_min_s: 45, period_max_s: 90, period_step_s: 5}
-  episodes: {baseline_s: 2.0, min_amp: 0.05, shift_sigma: 3.0, dropout_level: 0.01, saturation_level: 60.0, flat_min_s: 1.0, pn_walk: 0.5, walk_stages: [physical, walk]}
-  motion: {percentile: 99, min_len: 4, merge_s: 1.0}
-  plausibility: {max_rate_per_min: 10.0}
-  reference: {window_s: [-1.0, 5.0]}
-  c4: {smooth_s: 2.0, stages: [physical, walk]}
+  minResponseAmp: 0.05
+  cvxeda: {backend: auto, tau1: 0.7, tau0Min: 2.0, tau0Max: 4.0, tau0Step: 1.0, alpha: 8.0e-4, gamma: 1.0e-2, knotS: 10.0}
+  tonic: {periodMinS: 45, periodMaxS: 90, periodStepS: 5}
+  episodes: {baselineS: 2.0, minAmp: 0.05, shiftSigma: 3.0, dropoutLevel: 0.01, saturationLevel: 60.0, flatMinS: 1.0, pnWalk: 0.5, walkStages: [physical, walk]}
+  motion: {percentile: 99, minLen: 4, mergeS: 1.0}
+  plausibility: {maxRatePerMin: 10.0}
+  reference: {windowS: [-1.0, 5.0]}
+  c4: {smoothS: 2.0, stages: [physical, walk]}
 
 generator:
   tau1: 0.7
-  kernel_tau_multiple: 10
-  motion_response_latency_s: [1.0, 5.0]
-  label_threshold: 0.05
-  rho_max: 0.95
-  saturation_level: 60.0
-  max_artifacts_per_participant: 400
-  allow_fallback_templates: true      # smoke only: AWW may lack some classes
-  fallback_templates:                 # placeholder shapes for the smoke run only; not used in real runs
-    C1: {A: [0.1, 1.0], tau_r: [0.2, 1.0], tau_f: [0.5, 3.0]}
+  kernelTauMultiple: 10
+  motionResponseLatencyS: [1.0, 5.0]
+  labelThreshold: 0.05
+  rhoMax: 0.95
+  saturationLevel: 60.0
+  maxArtifactsPerParticipant: 400
+  allowFallbackTemplates: true      # smoke only: AWW may lack some classes
+  fallbackTemplates:                 # placeholder shapes for the smoke run only; not used in real runs
+    C1: {A: [0.1, 1.0], tauR: [0.2, 1.0], tauF: [0.5, 3.0]}
     C2: {depth: [0.1, 1.0], w: [0.125, 1.0], D: [1.0, 5.0]}
     C3: {delta: [-0.8, 0.8], w: [0.125, 1.0]}
     C5: {D: [1.0, 5.0], kind: zero}
 
 features:
   derivative: central
-  fb: {max_lag_s: 5.0, context_s: 5.0, median_s: 60.0, coh_band: [0.5, 3.0], coh_seg_s: 2.5}
+  fb: {maxLagS: 5.0, contextS: 5.0, medianS: 60.0, cohBand: [0.5, 3.0], cohSegS: 2.5}
 
 models:
-  logreg: {C_grid: [0.1, 1.0], C_selection: inner, inner_folds: 3, C_default: 1.0, class_weight: balanced, max_iter: 2000, solver: newton-cholesky}
-  rf: {n_estimators: 50, class_weight: null, n_jobs: 1}
+  logreg: {CGrid: [0.1, 1.0], CSelection: inner, innerFolds: 3, CDefault: 1.0, classWeight: balanced, maxIter: 2000, solver: newton-cholesky}
+  rf: {nEstimators: 50, classWeight: null, nJobs: 1}
 
 realdata:
   models:
-    logreg: {C_grid: [1.0], C_selection: fixed, inner_folds: 5, C_default: 1.0, class_weight: balanced, max_iter: 5000, solver: newton-cholesky}
-    rf: {n_estimators: 50, class_weight: null, n_jobs: -1}
-  n_shuffles: 2
+    logreg: {CGrid: [1.0], CSelection: fixed, innerFolds: 5, CDefault: 1.0, classWeight: balanced, maxIter: 5000, solver: newton-cholesky}
+    rf: {nEstimators: 50, classWeight: null, nJobs: -1}
+  nShuffles: 2
 
 analysis:
   specificity: 0.95
-  bootstrap_n: 200
-  decision: {min_delta: 0.01}
-  observed_delta: 0.027
-  label_noise_kappa: 0.62
-  sensitivity_reference: {c: 0.5, kappa: 1.0, delta_max: 1.0, pi_r: 0.0}
+  bootstrapN: 200
+  decision: {minDelta: 0.01}
+  observedDelta: 0.027
+  labelNoiseKappa: 0.62
+  sensitivityReference: {c: 0.5, kappa: 1.0, deltaMax: 1.0, piR: 0.0}
 
 grid:
   c: [0.0, 1.0]
   kappa: [1.0]
-  delta_max: [1.0]
-  pi_r: [0.0, 0.5]
+  deltaMax: [1.0]
+  piR: [0.0, 0.5]
   compositions: [[C1], [C1, C2, C3, C5]]
   prevalence: 0.038
 
-variants: {c: [0.0, 1.0], high_prevalence: 0.15}
-pilot: {reps: 2, half_width: 0.005, max_reps: 3}
-power: {n_conditions: 1, participants: [5, 11], reps: 2}
+variants: {c: [0.0, 1.0], highPrevalence: 0.15}
+pilot: {reps: 2, halfWidth: 0.005, maxReps: 3}
+power: {nConditions: 1, participants: [5, 11], reps: 2}
 
 validation:
-  shift_min_s: 60
-  control_reps: 3
-  g2_participants: 3
-  g2_tau0_max_err_s: 0.3
-  g2_rate_max_rel: 0.2
-  g2_ks_p: 0.05
-  c2st_auc_max: 0.70
-  g5_max_abs_delta: 0.01
-  g7_reference: {auprc_0: 0.449, auprc_1: 0.475, delta: 0.027}
-  g7_max_abs_diff: 0.10
+  shiftMinS: 60
+  controlReps: 3
+  g2Participants: 3
+  g2Tau0MaxErrS: 0.3
+  g2RateMaxRel: 0.2
+  g2KsP: 0.05
+  c2stAucMax: 0.70
+  g5MaxAbsDelta: 0.01
+  g7Reference: {auprc0: 0.449, auprc1: 0.475, delta: 0.027}
+  g7MaxAbsDiff: 0.10
 
 detectors:
   classes: [C1, C2, C3, C4, C5]
-  kleckner: {fir_seconds: 64, cutoff_hz: 0.35, level_min: 0.05, level_max: 60.0, slope_max: 10.0, transition_s: 5.0}
-  kocielnik: {rise_per_s: 0.20, fall_per_s: 0.10}
-  chen: {levels: 8, delta: 0.01, window_s: 400}
+  kleckner: {firSeconds: 64, cutoffHz: 0.35, levelMin: 0.05, levelMax: 60.0, slopeMax: 10.0, transitionS: 5.0}
+  kocielnik: {risePerS: 0.20, fallPerS: 0.10}
+  chen: {levels: 8, delta: 0.01, windowS: 400}

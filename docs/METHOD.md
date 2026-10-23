@@ -59,7 +59,7 @@ this design. Goal 1 (validation) must succeed before the others are interpreted.
 
 ## 2. Data
 
-Module `edasynth.data`, readers in `edasynth.io_wfdb`; download with `make data`.
+Module `edasynth.data`, readers in `edasynth.wfdbio`; download with `make data`.
 
 ### 2.1 UTD recordings
 
@@ -78,7 +78,7 @@ The header gives the EDA unit as "NU" (no unit). Treating the values as µS is a
 assumption until `make inspect` has been run on the raw files
 ([STATUS.md](STATUS.md)).
 
-The reader in `io_wfdb.py` decodes the WFDB format 16 and checks every channel
+The reader in `wfdbio.py` decodes the WFDB format 16 and checks every channel
 against the initial value and checksum stored in the header, so a corrupted or
 misread file stops the pipeline.
 
@@ -120,7 +120,7 @@ fails is excluded, with the reason recorded in `results/alignment.csv`.
 ## 3. Measuring parameters on real recordings
 
 Module `edasynth.estimation`, command `estimate`, output
-`results/bank_utd.json` and `.npz` (the "bank").
+`results/bank-utd.json` and `.npz` (the "bank").
 
 The literature gives the shape of a skin-conductance response, but not the noise
 level, response rate, artifact shapes or movement statistics of this particular
@@ -204,7 +204,7 @@ z-scoring is a **[decision]** of this project, made so that the same α and γ w
 for recordings with different levels.
 
 The authors' reference implementation (lciti, n.d.) needs the `cvxopt` package. The
-package also contains an independent solver (`decompose._numpy_solve`, accelerated
+package also contains an independent solver (`decompose.numpySolve`, accelerated
 projected gradient with exact elimination of the tonic variables) that solves the
 same problem without extra dependencies and reports how well the optimality
 (KKT) conditions are met. Its agreement with the reference implementation has not
@@ -217,7 +217,7 @@ departs from that rule** and chooses the τ<sub>0</sub> with the smallest value 
 whole objective above **[decision]**. On synthetic records with known τ<sub>0</sub>
 the residual norm was almost the same for all τ<sub>0</sub> and pointed to the wrong
 end of the range, while the objective recovered the true value within 0.5 s (test
-`test_tau0_selection_recovers_known_value`). The residual norm is still stored.
+`testTau0SelectionRecoversKnownValue`). The residual norm is still stored.
 
 ### 3.4 Responses and response rates
 

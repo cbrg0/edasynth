@@ -4,14 +4,14 @@
 # This file is frozen by the preregistration tag (docs/PREREGISTRATION.md).
 
 paths:
-  noneeg: data/raw/noneeg-1.0.0           # PhysioNet UTD records (downloaded by scripts/download_data.sh)
+  noneeg: data/raw/noneeg-1.0.0           # PhysioNet UTD records (downloaded by scripts/download-data.sh)
   zhang: data/external/eda-artifact-detection   # Zhang et al. repository at commit 7c4bd46
   results: results
   figures: figures
 
 data:
-  exclude_subjects: []          # filled only with documented reasons (alignment failure)
-  alignment_min_r: 0.999        # decision; on AWW the same check gives r = 1.0000
+  excludeSubjects: []          # filled only with documented reasons (alignment failure)
+  alignmentMinR: 0.999        # decision; on AWW the same check gives r = 1.0000
 
 seeds:
   grid: 20261022
@@ -20,125 +20,125 @@ seeds:
   detectors: 13
 
 estimation:
-  min_response_amp: 0.05        # uS, accepted minimum response amplitude (Kleckner et al., 2018; Boucsein et al., 2012, via Posada-Quintero & Chon, 2020)
+  minResponseAmp: 0.05        # uS, accepted minimum response amplitude (Kleckner et al., 2018; Boucsein et al., 2012, via Posada-Quintero & Chon, 2020)
   cvxeda:
     backend: auto               # authors' cvxEDA.py if importable (needs cvxopt), else the built-in solver
     tau1: 0.7                   # s (Greco et al., 2016)
-    tau0_min: 2.0               # s, range of Greco et al. (2016)
-    tau0_max: 4.0
-    tau0_step: 0.1              # decision; tau0 chosen by the smallest objective (departs from Greco et al., who used the residual norm)
+    tau0Min: 2.0               # s, range of Greco et al. (2016)
+    tau0Max: 4.0
+    tau0Step: 0.1              # decision; tau0 chosen by the smallest objective (departs from Greco et al., who used the residual norm)
     alpha: 8.0e-4               # Greco et al. (2016); z-scoring the input is a decision of this project
     gamma: 1.0e-2
-    knot_s: 10.0
+    knotS: 10.0
   tonic:
-    period_min_s: 45            # period range of the synthetic tonic of Greco et al. (2016)
-    period_max_s: 90
-    period_step_s: 1            # decision
+    periodMinS: 45            # period range of the synthetic tonic of Greco et al. (2016)
+    periodMaxS: 90
+    periodStepS: 1            # decision
   episodes:                     # artifact-episode measurement and class rules (decision, fixed in advance)
-    baseline_s: 2.0
-    min_amp: 0.05
-    shift_sigma: 3.0
-    dropout_level: 0.01
-    saturation_level: 60.0      # uS, upper limit of Kleckner et al. (2018) rule 1; dropout_level is a decision
-    flat_min_s: 1.0
-    pn_walk: 0.5
-    walk_stages: [physical, walk]
+    baselineS: 2.0
+    minAmp: 0.05
+    shiftSigma: 3.0
+    dropoutLevel: 0.01
+    saturationLevel: 60.0      # uS, upper limit of Kleckner et al. (2018) rule 1; dropoutLevel is a decision
+    flatMinS: 1.0
+    pnWalk: 0.5
+    walkStages: [physical, walk]
   motion:
     percentile: 99              # decision; sensitivity at 95 and 99.9
-    min_len: 4                  # samples (0.5 s)
-    merge_s: 1.0
+    minLen: 4                  # samples (0.5 s)
+    mergeS: 1.0
   plausibility:
-    max_rate_per_min: 10.0      # decision; warning only, not a gate (literature range to be verified)
+    maxRatePerMin: 10.0      # decision; warning only, not a gate (literature range to be verified)
   reference:
-    window_s: [-1.0, 5.0]       # decision
+    windowS: [-1.0, 5.0]       # decision
   c4:
-    smooth_s: 2.0               # decision: 'fast part' = signal minus 2-s moving mean
+    smoothS: 2.0               # decision: 'fast part' = signal minus 2-s moving mean
     stages: [physical, walk]
 
 generator:
   tau1: 0.7
-  kernel_tau_multiple: 10       # Bateman kernel length = 10 tau0 (exp(-10) ~ 5e-5)
-  motion_response_latency_s: [1.0, 5.0]   # stimulus latency of Boucsein et al. (2012), via Posada-Quintero & Chon (2020); use for movement is an assumption
-  label_threshold: 0.05         # uS, decision = minimum visible response
-  rho_max: 0.95                 # V2: maximum lost contact fraction
-  saturation_level: 60.0
-  max_artifacts_per_participant: 400
-  allow_fallback_templates: false   # true only in configs/smoke.yaml
-  fallback_templates: {}
+  kernelTauMultiple: 10       # Bateman kernel length = 10 tau0 (exp(-10) ~ 5e-5)
+  motionResponseLatencyS: [1.0, 5.0]   # stimulus latency of Boucsein et al. (2012), via Posada-Quintero & Chon (2020); use for movement is an assumption
+  labelThreshold: 0.05         # uS, decision = minimum visible response
+  rhoMax: 0.95                 # V2: maximum lost contact fraction
+  saturationLevel: 60.0
+  maxArtifactsPerParticipant: 400
+  allowFallbackTemplates: false   # true only in configs/smoke.yaml
+  fallbackTemplates: {}
 
 features:
   derivative: central           # as in the published script of Zhang et al.; 'forward' reproduces their stored matrices
   fb:
-    max_lag_s: 5.0
-    context_s: 5.0
-    median_s: 60.0
-    coh_band: [0.5, 3.0]
-    coh_seg_s: 2.5
+    maxLagS: 5.0
+    contextS: 5.0
+    medianS: 60.0
+    cohBand: [0.5, 3.0]
+    cohSegS: 2.5
 
 models:
   logreg:
-    C_grid: [0.01, 0.1, 1.0, 10.0]
-    C_selection: inner          # 'inner' or 'fixed'
+    CGrid: [0.01, 0.1, 1.0, 10.0]
+    CSelection: inner          # 'inner' or 'fixed'
     solver: newton-cholesky     # same L2 objective as lbfgs; ~20x faster on these features (measured)
-    inner_folds: 5              # decision: grouped 5-fold inside each training set ('loso' allowed, ~4x slower)
-    C_default: 1.0
-    class_weight: balanced
-    max_iter: 5000
+    innerFolds: 5              # decision: grouped 5-fold inside each training set ('loso' allowed, ~4x slower)
+    CDefault: 1.0
+    classWeight: balanced
+    maxIter: 5000
   rf:
-    n_estimators: 500
-    class_weight: null
-    n_jobs: 1
+    nEstimators: 500
+    classWeight: null
+    nJobs: 1
 
 realdata:                       # settings that reproduce the published-feature baseline
   models:
-    logreg: {C_grid: [1.0], C_selection: fixed, inner_folds: 5, C_default: 1.0, class_weight: balanced, max_iter: 5000, solver: newton-cholesky}
-    rf: {n_estimators: 500, class_weight: null, n_jobs: -1}
-  n_shuffles: 20
+    logreg: {CGrid: [1.0], CSelection: fixed, innerFolds: 5, CDefault: 1.0, classWeight: balanced, maxIter: 5000, solver: newton-cholesky}
+    rf: {nEstimators: 500, classWeight: null, nJobs: -1}
+  nShuffles: 20
 
 analysis:
   specificity: 0.95
-  bootstrap_n: 1000
-  decision: {min_delta: 0.01}   # accelerometer 'useful' in a cell: mean delta >= 0.01 and lower 95% bound > 0
-  observed_delta: 0.027         # real UTD difference (stored features, logistic regression)
-  label_noise_kappa: 0.62       # measured Fleiss kappa of the three UTD experts; its use as a target is an assumption
-  sensitivity_reference: {c: 0.5, kappa: 1.0, delta_max: 1.0, pi_r: 0.0}
+  bootstrapN: 1000
+  decision: {minDelta: 0.01}   # accelerometer 'useful' in a cell: mean delta >= 0.01 and lower 95% bound > 0
+  observedDelta: 0.027         # real UTD difference (stored features, logistic regression)
+  labelNoiseKappa: 0.62       # measured Fleiss kappa of the three UTD experts; its use as a target is an assumption
+  sensitivityReference: {c: 0.5, kappa: 1.0, deltaMax: 1.0, piR: 0.0}
 
 grid:
   c: [0.0, 0.25, 0.5, 0.75, 1.0]
   kappa: [0.0, 1.0]
-  delta_max: [1.0, 5.0]
-  pi_r: [0.0, 0.5]
+  deltaMax: [1.0, 5.0]
+  piR: [0.0, 0.5]
   compositions: [[C1], [C2], [C3], [C5], [C1, C2, C3, C5]]   # last = mixture in measured UTD shares
   prevalence: 0.038
 
 variants:
   c: [0.0, 0.5, 1.0]
-  high_prevalence: 0.15         # AWW resting data (Zhang et al., 2017)
+  highPrevalence: 0.15         # AWW resting data (Zhang et al., 2017)
 
 pilot:
   reps: 10
-  half_width: 0.005
-  max_reps: 50
+  halfWidth: 0.005
+  maxReps: 50
 
 power:
-  n_conditions: 3
+  nConditions: 3
   participants: [5, 10, 15, 20]
   reps: 50
 
 validation:
-  shift_min_s: 60
-  control_reps: 10
-  g2_participants: 20
-  g2_tau0_max_err_s: 0.3
-  g2_rate_max_rel: 0.2
-  g2_ks_p: 0.05
-  c2st_auc_max: 0.70
-  g5_max_abs_delta: 0.01
-  g7_reference: {auprc_0: 0.449, auprc_1: 0.475, delta: 0.027}
-  g7_max_abs_diff: 0.10
+  shiftMinS: 60
+  controlReps: 10
+  g2Participants: 20
+  g2Tau0MaxErrS: 0.3
+  g2RateMaxRel: 0.2
+  g2KsP: 0.05
+  c2stAucMax: 0.70
+  g5MaxAbsDelta: 0.01
+  g7Reference: {auprc0: 0.449, auprc1: 0.475, delta: 0.027}
+  g7MaxAbsDiff: 0.10
 
 detectors:
   classes: [C1, C2, C3, C4, C5]
-  kleckner: {fir_seconds: 64, cutoff_hz: 0.35, level_min: 0.05, level_max: 60.0, slope_max: 10.0, transition_s: 5.0}
-  kocielnik: {rise_per_s: 0.20, fall_per_s: 0.10}
-  chen: {levels: 8, delta: 0.01, window_s: 400}
+  kleckner: {firSeconds: 64, cutoffHz: 0.35, levelMin: 0.05, levelMax: 60.0, slopeMax: 10.0, transitionS: 5.0}
+  kocielnik: {risePerS: 0.20, fallPerS: 0.10}
+  chen: {levels: 8, delta: 0.01, windowS: 400}

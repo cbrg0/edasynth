@@ -10,38 +10,38 @@ from __future__ import annotations
 
 import numpy as np
 
-from .data import WIN, Recording, stage_type
-from .decompose import decompose, h_max
-from .features import haar_details, jerk, windows
+from .data import WIN, Recording, stageType
+from .decompose import decompose, hMax
+from .features import haarDetails, jerk, windows
 
 
 # ---------------------------------------------------------------- clean windows
-def clean_windows(rec: Recording) -> np.ndarray:
+def cleanWindows(rec: Recording) -> np.ndarray:
     """Windows that all three experts called clean AND whose neighbours did too.
 
     One window on each side corresponds to the 5-s transition zone of
     Kleckner et al. (2018); label errors concentrate at artifact borders.
     """
-    unan_clean = rec.labels3.sum(1) == 0
-    ok = unan_clean.copy()
-    ok[1:] &= unan_clean[:-1]
-    ok[:-1] &= unan_clean[1:]
+    unanClean = rec.labels3.sum(1) == 0
+    ok = unanClean.copy()
+    ok[1:] &= unanClean[:-1]
+    ok[:-1] &= unanClean[1:]
     return ok
 
 
-def window_mask_to_samples(mask: np.ndarray, n: int) -> np.ndarray:
+def windowMaskToSamples(mask: np.ndarray, n: int) -> np.ndarray:
     m = np.zeros(n, bool)
     m[: mask.size * WIN] = np.repeat(mask, WIN)
     return m
 
 
-def window_stage(rec: Recording) -> np.ndarray:
+def windowStage(rec: Recording) -> np.ndarray:
     """Stage of each window (stage of its first sample)."""
-    return rec.stage[: rec.n_windows * WIN : WIN]
+    return rec.stage[: rec.nWindows * WIN : WIN]
 
 
 # ---------------------------------------------------------------- noise, quantisation
-def noise_sigma(rec: Recording, clean: np.ndarray, with_source: bool = False):
+def noiseSigma(rec: Recording, clean: np.ndarray, withSource: bool = False):
     """sigma = median(|d1|) / 0.6745 over clean rest windows (Donoho & Johnstone, 1994).
 
     A recording without any clean rest window (e.g. an AWW walking day) falls back
@@ -49,25 +49,25 @@ def noise_sigma(rec: Recording, clean: np.ndarray, with_source: bool = False):
     windows may contain fast physiological or mechanical changes, so the fallback
     can overestimate sigma.
     """
-    st = window_stage(rec)
-    sel = clean & np.array([stage_type(s) == "rest" for s in st])
-    source = "clean_rest"
+    st = windowStage(rec)
+    sel = clean & np.array([stageType(s) == "rest" for s in st])
+    source = "cleanRest"
     if not sel.any():
-        sel, source = clean.copy(), "clean_all_fallback"
+        sel, source = clean.copy(), "cleanAllFallback"
     w = windows(rec.eda)[sel]
     if w.size == 0:
         sigma, source = float("nan"), "none"
     else:
-        d1 = haar_details(w)[0]
+        d1 = haarDetails(w)[0]
         sigma = float(np.median(np.abs(d1)) / 0.6745)
-    return (sigma, source) if with_source else sigma
+    return (sigma, source) if withSource else sigma
 
 
-def quantisation_step(x: np.ndarray, decimals: int = 9, min_share: float = 0.01) -> float:
+def quantisationStep(x: np.ndarray, decimals: int = 9, minShare: float = 0.01) -> float:
     """Quantisation step of a recorded signal.
 
     The smallest non-zero absolute difference between neighbouring samples that
-    occurs in at least ``min_share`` of all non-zero differences (rare tiny values
+    occurs in at least ``minShare`` of all non-zero differences (rare tiny values
     from rounding noise are ignored).
     """
     d = np.round(np.abs(np.diff(x)), decimals)
@@ -75,19 +75,19 @@ def quantisation_step(x: np.ndarray, decimals: int = 9, min_share: float = 0.01)
     if d.size == 0:
         return 0.0
     vals, counts = np.unique(d, return_counts=True)
-    ok = vals[counts >= min_share * d.size]
+    ok = vals[counts >= minShare * d.size]
     return float(ok.min()) if ok.size else float(vals[np.argmax(counts)])
 
 
 # ---------------------------------------------------------------- decomposition
-def decompose_participant(rec: Recording, clean: np.ndarray, cfg: dict) -> dict:
+def decomposeParticipant(rec: Recording, clean: np.ndarray, cfg: dict) -> dict:
     """z-score the whole record, decompose with each tau0 on the grid, keep the best.
 
     tau0 is chosen by the smallest value of the cvxEDA objective (fit plus
     sparsity and smoothness penalties) on the whole record [decision]. The
     residual norm alone was tried first and rejected: it is almost flat in tau0
     and pointed to the wrong end of the grid on synthetic records with known
-    tau0 (tests/test_estimation.py::test_tau0_selection_recovers_known_value).
+    tau0 (tests/testEstimation.py::testTau0SelectionRecoversKnownValue).
     The residual norm on clean samples is still stored for reference. The
     result is converted back to signal units.
     """
@@ -95,9 +95,9 @@ def decompose_participant(rec: Recording, clean: np.ndarray, cfg: dict) -> dict:
     y = rec.eda.astype(float)
     mu, sd = float(y.mean()), float(y.std())
     z = (y - mu) / sd
-    mask = window_mask_to_samples(clean, rec.n)
-    best, p_warm = None, None
-    grid = np.round(np.arange(c["tau0_min"], c["tau0_max"] + 1e-9, c["tau0_step"]), 3)
+    mask = windowMaskToSamples(clean, rec.n)
+    best, pWarm = None, None
+    grid = np.round(np.arange(c["tau0Min"], c["tau0Max"] + 1e-9, c["tau0Step"]), 3)
     scores = {}
     for tau0 in grid:
         out = decompose(
@@ -107,36 +107,36 @@ def decompose_participant(rec: Recording, clean: np.ndarray, cfg: dict) -> dict:
             c["tau1"],
             c["alpha"],
             c["gamma"],
-            c["knot_s"],
+            c["knotS"],
             backend=c["backend"],
-            p0=p_warm,
+            p0=pWarm,
         )
-        p_warm = out["p"]
+        pWarm = out["p"]
         err = float(out["obj"])
-        scores[float(tau0)] = {"objective": err, "residual_clean": float(np.linalg.norm(out["e"][mask]))}
+        scores[float(tau0)] = {"objective": err, "residualClean": float(np.linalg.norm(out["e"][mask]))}
         if best is None or err < best[1]:
             best = (float(tau0), err, out)
-    tau0, _, out = best
+    tau0, bestScore, out = best
     return {
         "tau0": tau0,
-        "tau0_scores": scores,
+        "tau0Scores": scores,
         "kkt": out.get("kkt"),
         "iterations": out.get("iterations"),
         "r": sd * out["r"],
         "p": sd * out["p"],
         "t": sd * out["t"] + mu,
         "backend": out["backend"],
-        "tau0_at_bound": tau0 in (grid[0], grid[-1]),
+        "tau0AtBound": tau0 in (grid[0], grid[-1]),
     }
 
 
-def scr_events(r: np.ndarray, fs: float, tau0: float, tau1: float, min_amp: float) -> list[dict]:
-    """Responses as peaks of the phasic component r with trough-to-peak height >= ``min_amp``.
+def scrEvents(r: np.ndarray, fs: float, tau0: float, tau1: float, minAmp: float) -> list[dict]:
+    """Responses as peaks of the phasic component r with trough-to-peak height >= ``minAmp``.
 
     Height A is the peak's prominence (rise above the deepest point between it and
     the neighbouring higher peaks); onset is the latest lowest sample in the 5 s
     before the peak. The area that reproduces this height in the generator is
-    a = A / h_max(tau0).
+    a = A / hMax(tau0).
 
     Counting runs of non-zero driver p was tried first and rejected: on noisy,
     quantised recordings the cvxEDA driver is dense (most samples non-zero at the
@@ -146,8 +146,8 @@ def scr_events(r: np.ndarray, fs: float, tau0: float, tau1: float, min_amp: floa
     """
     from scipy.signal import find_peaks
 
-    pk, prop = find_peaks(r, prominence=min_amp)
-    hm = h_max(tau0, tau1)
+    pk, prop = find_peaks(r, prominence=minAmp)
+    hm = hMax(tau0, tau1)
     back = int(round(5 * fs))
     events = []
     for k, A in zip(pk, prop["prominences"], strict=True):
@@ -158,8 +158,8 @@ def scr_events(r: np.ndarray, fs: float, tau0: float, tau1: float, min_amp: floa
     return events
 
 
-def events_to_phasic(events: list[dict], n: int, fs: float, tau0: float, tau1: float) -> np.ndarray:
-    """Sum of Bateman responses a_k h(t - t_k) at the detected onsets (signal units)."""
+def eventsToPhasic(events: list[dict], n: int, fs: float, tau0: float, tau1: float) -> np.ndarray:
+    """Sum of Bateman responses, size times h(t - onset), over the detected responses (signal units)."""
     from scipy.signal import fftconvolve
 
     from .decompose import bateman
@@ -171,30 +171,30 @@ def events_to_phasic(events: list[dict], n: int, fs: float, tau0: float, tau1: f
     return fftconvolve(imp, h)[:n]
 
 
-def response_rates(rec: Recording, events: list[dict], clean: np.ndarray) -> dict:
+def responseRates(rec: Recording, events: list[dict], clean: np.ndarray) -> dict:
     """Maximum-likelihood Poisson rate per stage type: K / T over clean windows."""
-    st = window_stage(rec)
+    st = windowStage(rec)
     out = {}
     for g in ("rest", "load"):
-        sel = clean & np.array([stage_type(s) == g for s in st])
+        sel = clean & np.array([stageType(s) == g for s in st])
         T = sel.sum() * WIN / rec.fs
-        win_of = np.array([e["onset"] // WIN for e in events], dtype=int)
-        K = int(np.isin(win_of, np.where(sel)[0]).sum())
-        out[g] = {"K": K, "T_s": float(T), "rate_per_s": (K / T) if T > 0 else float("nan")}
+        winOf = np.array([e["onset"] // WIN for e in events], dtype=int)
+        K = int(np.isin(winOf, np.where(sel)[0]).sum())
+        out[g] = {"K": K, "TS": float(T), "ratePerS": (K / T) if T > 0 else float("nan")}
     return out
 
 
-def fit_tonic(t: np.ndarray, fs: float, period_grid: np.ndarray) -> dict:
-    """Least-squares fit of s0 + b*tau + A_s sin(2 pi tau / T + phi).
+def fitTonic(t: np.ndarray, fs: float, periodGrid: np.ndarray) -> dict:
+    """Least-squares fit of s0 + b*tau + AS sin(2 pi tau / T + phi).
 
     The form is a project decision (slow trend plus one slow oscillation); a
     published source for the sinusoidal term has not been verified.
     """
     tau = np.arange(t.size) / fs
     best = None
-    for T in period_grid:
+    for T in periodGrid:
         X = np.column_stack([np.ones_like(tau), tau, np.sin(2 * np.pi * tau / T), np.cos(2 * np.pi * tau / T)])
-        coef, *_ = np.linalg.lstsq(X, t, rcond=None)
+        coef, *rest = np.linalg.lstsq(X, t, rcond=None)
         resid = t - X @ coef
         sse = float(resid @ resid)
         if best is None or sse < best[0]:
@@ -204,30 +204,30 @@ def fit_tonic(t: np.ndarray, fs: float, period_grid: np.ndarray) -> dict:
     return {
         "s0": float(coef[0]),
         "b": float(coef[1]),
-        "A_s": float(np.hypot(coef[2], coef[3])),
-        "T_t": float(T),
+        "AS": float(np.hypot(coef[2], coef[3])),
+        "TT": float(T),
         "r2": 1 - sse / sst if sst > 0 else float("nan"),
     }
 
 
-def tonic_by_stage(rec: Recording, t: np.ndarray, cfg: dict) -> list[dict]:
+def tonicByStage(rec: Recording, t: np.ndarray, cfg: dict) -> list[dict]:
     c = cfg["estimation"]["tonic"]
-    grid = np.arange(c["period_min_s"], c["period_max_s"] + 1e-9, c["period_step_s"])
+    grid = np.arange(c["periodMinS"], c["periodMaxS"] + 1e-9, c["periodStepS"])
     out = []
     names = rec.stage
     starts = np.r_[0, np.where(names[1:] != names[:-1])[0] + 1]
     ends = np.r_[starts[1:], rec.n]
     for s, e in zip(starts, ends, strict=True):
-        if (e - s) / rec.fs < 2 * c["period_max_s"]:
+        if (e - s) / rec.fs < 2 * c["periodMaxS"]:
             continue  # too short to identify a 45-90 s oscillation
-        fit = fit_tonic(t[s:e], rec.fs, grid)
-        fit.update(stage=str(names[s]), stage_type=stage_type(str(names[s])))
+        fit = fitTonic(t[s:e], rec.fs, grid)
+        fit.update(stage=str(names[s]), stageType=stageType(str(names[s])))
         out.append(fit)
     return out
 
 
 # ---------------------------------------------------------------- artifacts
-def artifact_episodes(rec: Recording, sigma: float, cfg: dict) -> list[dict]:
+def artifactEpisodes(rec: Recording, sigma: float, cfg: dict) -> list[dict]:
     """Measure every run of majority-artifact windows and assign a class.
 
     Local baseline: straight line between the medians of the 2 s before and after
@@ -238,17 +238,17 @@ def artifact_episodes(rec: Recording, sigma: float, cfg: dict) -> list[dict]:
     maj = rec.majority()
     y = rec.eda
     fs = rec.fs
-    pad = int(round(c["baseline_s"] * fs))
+    pad = int(round(c["baselineS"] * fs))
     eps = []
     k = 0
     while k < maj.size:
         if not maj[k]:
             k += 1
             continue
-        s_w = k
+        sW = k
         while k < maj.size and maj[k]:
             k += 1
-        s, e = s_w * WIN, k * WIN
+        s, e = sW * WIN, k * WIN
         pre = y[max(0, s - pad) : s]
         post = y[e : min(y.size, e + pad)]
         if pre.size == 0 or post.size == 0:
@@ -256,8 +256,8 @@ def artifact_episodes(rec: Recording, sigma: float, cfg: dict) -> list[dict]:
         b0, b1 = float(np.median(pre)), float(np.median(post))
         base = np.linspace(b0, b1, e - s)
         dev = y[s:e] - base
-        i_max = int(np.argmax(np.abs(dev)))
-        A = float(dev[i_max])
+        iMax = int(np.argmax(np.abs(dev)))
+        A = float(dev[iMax])
         absd = np.abs(dev)
         above10 = np.where(absd >= 0.1 * abs(A))[0]
         above90 = np.where(absd >= 0.9 * abs(A))[0]
@@ -272,38 +272,38 @@ def artifact_episodes(rec: Recording, sigma: float, cfg: dict) -> list[dict]:
             "pid": rec.pid,
             "start": s,
             "end": e,
-            "duration_s": (e - s) / fs,
+            "durationS": (e - s) / fs,
             "amp": A,
-            "max_slope": float(np.max(np.abs(np.diff(y[s:e]))) * fs) if e - s > 1 else 0.0,
-            "rise_s": float(rise),
-            "return_s": float(ret),
+            "maxSlope": float(np.max(np.abs(np.diff(y[s:e]))) * fs) if e - s > 1 else 0.0,
+            "riseS": float(rise),
+            "returnS": float(ret),
             "pn": pn,
             "shift": float(shift),
             "stage": str(rec.stage[s]) if rec.stage is not None else "",
         }
-        ep["cls"] = classify_episode(ep, y[s:e], sigma, c)
+        ep["cls"] = classifyEpisode(ep, y[s:e], sigma, c)
         eps.append(ep)
     return eps
 
 
-def classify_episode(ep: dict, seg: np.ndarray, sigma: float, c: dict) -> str:
+def classifyEpisode(ep: dict, seg: np.ndarray, sigma: float, c: dict) -> str:
     """Rules fixed in advance (configs: estimation.episodes); order matters."""
     flat = np.diff(seg) == 0
-    run = longest_run(flat) / 8.0
-    if (seg.min() <= c["dropout_level"] or seg.max() >= c["saturation_level"]) or (
-        run >= c["flat_min_s"] and (seg.min() <= c["dropout_level"] + 1e-9)
+    run = longestRun(flat) / 8.0
+    if (seg.min() <= c["dropoutLevel"] or seg.max() >= c["saturationLevel"]) or (
+        run >= c["flatMinS"] and (seg.min() <= c["dropoutLevel"] + 1e-9)
     ):
         return "C5"
-    if abs(ep["amp"]) < c["min_amp"]:
+    if abs(ep["amp"]) < c["minAmp"]:
         return "unclassified"
-    if abs(ep["shift"]) > c["shift_sigma"] * sigma and abs(ep["shift"]) >= c["min_amp"]:
+    if abs(ep["shift"]) > c["shiftSigma"] * sigma and abs(ep["shift"]) >= c["minAmp"]:
         return "C3"
-    if ep["pn"] >= c["pn_walk"] and ep["stage"] in c["walk_stages"]:
+    if ep["pn"] >= c["pnWalk"] and ep["stage"] in c["walkStages"]:
         return "C4"
     return "C2" if ep["amp"] < 0 else "C1"
 
 
-def longest_run(mask: np.ndarray) -> int:
+def longestRun(mask: np.ndarray) -> int:
     best = cur = 0
     for v in mask:
         cur = cur + 1 if v else 0
@@ -311,38 +311,38 @@ def longest_run(mask: np.ndarray) -> int:
     return best
 
 
-def template_parameters(ep: dict) -> dict:
+def templateParameters(ep: dict) -> dict:
     """Convert episode measurements into the parameters of the generator templates.
 
     For linear edges the 10-90 % time is 0.8 of the full edge time.
     """
-    tr = max(ep["rise_s"] / 0.8, 1 / 64)
-    tf = max(ep["return_s"] / 0.8, 1 / 64)
+    tr = max(ep["riseS"] / 0.8, 1 / 64)
+    tf = max(ep["returnS"] / 0.8, 1 / 64)
     cls = ep["cls"]
     if cls == "C1":
-        return {"A": abs(ep["amp"]), "tau_r": tr, "tau_f": tf}
+        return {"A": abs(ep["amp"]), "tauR": tr, "tauF": tf}
     if cls == "C2":
         w = tr
-        return {"depth": abs(ep["amp"]), "w": w, "D": max(ep["duration_s"] - 2 * w, 0.0)}
+        return {"depth": abs(ep["amp"]), "w": w, "D": max(ep["durationS"] - 2 * w, 0.0)}
     if cls == "C3":
         return {"delta": ep["shift"], "w": tr}
     if cls == "C5":
-        return {"D": ep["duration_s"], "kind": "zero" if ep["amp"] < 0 else "saturation"}
+        return {"D": ep["durationS"], "kind": "zero" if ep["amp"] < 0 else "saturation"}
     return {}
 
 
 # ---------------------------------------------------------------- motion
-def motion_events(rec: Recording, cfg: dict) -> tuple[list[dict], float]:
+def motionEvents(rec: Recording, cfg: dict) -> tuple[list[dict], float]:
     """Events where the jerk exceeds the participant's own rest percentile.
 
-    Runs of j above theta lasting >= min_len samples are kept first; kept runs
-    closer than ``merge_s`` are then merged (merging isolated single-sample
+    Runs of j above theta lasting >= minLen samples are kept first; kept runs
+    closer than ``mergeS`` are then merged (merging isolated single-sample
     exceedances first would create spurious events).
     Returns the events (onset, end, intensity = max jerk) and theta.
     """
     c = cfg["estimation"]["motion"]
     j = jerk(rec.acc, rec.fs)
-    rest = np.array([stage_type(str(s)) == "rest" for s in rec.stage])
+    rest = np.array([stageType(str(s)) == "rest" for s in rec.stage])
     theta = float(np.percentile(j[rest] if rest.any() else j, c["percentile"]))
     above = j > theta
     runs = []
@@ -352,12 +352,12 @@ def motion_events(rec: Recording, cfg: dict) -> tuple[list[dict], float]:
             s = k
             while k < above.size and above[k]:
                 k += 1
-            if k - s >= c["min_len"]:  # length rule applies to raw runs, before merging
+            if k - s >= c["minLen"]:  # length rule applies to raw runs, before merging
                 runs.append([s, k])
         else:
             k += 1
     merged = []
-    gap = int(round(c["merge_s"] * rec.fs))
+    gap = int(round(c["mergeS"] * rec.fs))
     for r in runs:
         if merged and r[0] - merged[-1][1] < gap:
             merged[-1][1] = r[1]
@@ -367,66 +367,66 @@ def motion_events(rec: Recording, cfg: dict) -> tuple[list[dict], float]:
     return ev, theta
 
 
-def utd_reference_point(episodes: list[dict], events: list[dict], fs: float, cfg: dict) -> dict:
+def utdReferencePoint(episodes: list[dict], events: list[dict], fs: float, cfg: dict) -> dict:
     """Describe how the UTD labels relate to movement (not reality itself)."""
-    lo, hi = cfg["estimation"]["reference"]["window_s"]
-    on_e = np.array([e["onset"] for e in events]) / fs
+    lo, hi = cfg["estimation"]["reference"]["windowS"]
+    onE = np.array([e["onset"] for e in events]) / fs
     delays, linked = [], 0
     for ep in episodes:
         t = ep["start"] / fs
-        d = t - on_e
+        d = t - onE
         ok = d[(d >= lo) & (d <= hi)]
         if ok.size:
             linked += 1
             delays.append(float(ok.min()))
     followed = 0
     st = np.array([ep["start"] for ep in episodes]) / fs
-    for t in on_e:
+    for t in onE:
         d = st - t
         if np.any((d >= lo) & (d <= hi)):
             followed += 1
     return {
-        "n_episodes": len(episodes),
-        "n_motion_events": len(events),
-        "share_episodes_after_motion": linked / len(episodes) if episodes else float("nan"),
-        "share_motion_followed_by_artifact": followed / len(events) if events else float("nan"),
-        "delays_s": delays,
+        "nEpisodes": len(episodes),
+        "nMotionEvents": len(events),
+        "shareEpisodesAfterMotion": linked / len(episodes) if episodes else float("nan"),
+        "shareMotionFollowedByArtifact": followed / len(events) if events else float("nan"),
+        "delaysS": delays,
     }
 
 
-def walking_gain(rec: Recording, cfg: dict) -> dict:
+def walkingGain(rec: Recording, cfg: dict) -> dict:
     """Regress the fast part of EDA on the fast part of |a| in walking windows (class C4)."""
     c = cfg["estimation"]["c4"]
-    k = int(round(c["smooth_s"] * rec.fs))
+    k = int(round(c["smoothS"] * rec.fs))
     kern = np.ones(k) / k
     mag = np.sqrt((rec.acc**2).sum(1))
     fe = rec.eda - np.convolve(rec.eda, kern, "same")
-    fa_ = mag - np.convolve(mag, kern, "same")
+    fastAcc = mag - np.convolve(mag, kern, "same")
     sel = np.array([str(s) in c["stages"] for s in rec.stage])
     if sel.sum() < 10 * k:
         return {"G": float("nan"), "r2": float("nan"), "n": int(sel.sum())}
-    x, y = fa_[sel], fe[sel]
+    x, y = fastAcc[sel], fe[sel]
     G = float(np.dot(x, y) / np.dot(x, x))
     r2 = float(1 - ((y - G * x) ** 2).sum() / ((y - y.mean()) ** 2).sum())
     return {"G": G, "r2": r2, "n": int(sel.sum())}
 
 
 # ---------------------------------------------------------------- plausibility
-def plausibility_warnings(rates: dict, dec: dict, cfg: dict) -> list[str]:
+def plausibilityWarnings(rates: dict, dec: dict, cfg: dict) -> list[str]:
     """Flags for values outside commonly reported ranges. Warnings, not gates.
 
-    A response rate above ``max_rate_per_min`` (a project decision, set well
+    A response rate above ``maxRatePerMin`` (a project decision, set well
     above the few responses per minute usually described at rest; the exact
     literature range is still to be verified) suggests that the driver is
     absorbing artifacts or noise. tau0 at the edge of its grid means the optimum
     may lie outside it.
     """
-    c = cfg["estimation"].get("plausibility", {"max_rate_per_min": 10.0})
+    c = cfg["estimation"].get("plausibility", {"maxRatePerMin": 10.0})
     w = []
     for g, v in rates.items():
-        if np.isfinite(v["rate_per_s"]) and 60 * v["rate_per_s"] > c["max_rate_per_min"]:
-            w.append(f"{g} response rate {60 * v['rate_per_s']:.1f}/min above {c['max_rate_per_min']}/min")
-    if dec["tau0_at_bound"]:
+        if np.isfinite(v["ratePerS"]) and 60 * v["ratePerS"] > c["maxRatePerMin"]:
+            w.append(f"{g} response rate {60 * v['ratePerS']:.1f}/min above {c['maxRatePerMin']}/min")
+    if dec["tau0AtBound"]:
         w.append(f"tau0 = {dec['tau0']} at the edge of its grid")
     if dec.get("kkt") is not None and dec["kkt"] > 1e-3:
         w.append(f"decomposition not converged (KKT violation {dec['kkt']:.2e})")
@@ -434,51 +434,51 @@ def plausibility_warnings(rates: dict, dec: dict, cfg: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------- one participant
-def estimate_participant(rec: Recording, cfg: dict) -> dict:
+def estimateParticipant(rec: Recording, cfg: dict) -> dict:
     """Run steps 3.1-3.7 for one labelled recording."""
-    clean = clean_windows(rec)
-    sigma, sigma_source = noise_sigma(rec, clean, with_source=True)
+    clean = cleanWindows(rec)
+    sigma, sigmaSource = noiseSigma(rec, clean, withSource=True)
     if not np.isfinite(sigma):
         raise ValueError(f"{rec.pid}: no clean windows to estimate the noise level")
-    q = quantisation_step(rec.eda)
-    q_acc = quantisation_step(rec.acc[:, 0])
-    dec = decompose_participant(rec, clean, cfg)
+    q = quantisationStep(rec.eda)
+    qAcc = quantisationStep(rec.acc[:, 0])
+    dec = decomposeParticipant(rec, clean, cfg)
     c = cfg["estimation"]
-    ev = scr_events(dec["r"], rec.fs, dec["tau0"], c["cvxeda"]["tau1"], c["min_response_amp"])
-    rates = response_rates(rec, ev, clean)
+    ev = scrEvents(dec["r"], rec.fs, dec["tau0"], c["cvxeda"]["tau1"], c["minResponseAmp"])
+    rates = responseRates(rec, ev, clean)
     # The generator rebuilds the signal as tonic + detected responses. cvxEDA's
     # phasic part also holds activity below the response threshold, so its tonic
     # alone sits too low (on AWW by several uS). The level the generator needs is
-    # therefore the signal without the detected responses: t + r - r_events.
-    r_ev = events_to_phasic(ev, rec.n, rec.fs, dec["tau0"], c["cvxeda"]["tau1"])
-    tonic = tonic_by_stage(rec, dec["t"] + dec["r"] - r_ev, cfg)
+    # therefore the signal without the detected responses: t + r - rEvents.
+    rEv = eventsToPhasic(ev, rec.n, rec.fs, dec["tau0"], c["cvxeda"]["tau1"])
+    tonic = tonicByStage(rec, dec["t"] + dec["r"] - rEv, cfg)
     # noise floor for episode classification: the measured sigma can be 0 when the
     # noise is smaller than the quantisation step; rounding alone has sd q / sqrt(12)
-    eps = artifact_episodes(rec, max(sigma, q / np.sqrt(12.0)), cfg)
-    mev, theta = motion_events(rec, cfg)
-    ref = utd_reference_point(eps, mev, rec.fs, cfg)
+    eps = artifactEpisodes(rec, max(sigma, q / np.sqrt(12.0)), cfg)
+    mev, theta = motionEvents(rec, cfg)
+    ref = utdReferencePoint(eps, mev, rec.fs, cfg)
     return {
         "pid": rec.pid,
-        "n_samples": rec.n,
-        "n_clean_windows": int(clean.sum()),
+        "nSamples": rec.n,
+        "nCleanWindows": int(clean.sum()),
         "sigma": sigma,
-        "sigma_source": sigma_source,
+        "sigmaSource": sigmaSource,
         "q": q,
-        "q_acc": q_acc,
+        "qAcc": qAcc,
         "tau0": dec["tau0"],
-        "tau0_at_bound": dec["tau0_at_bound"],
-        "tau0_scores": dec["tau0_scores"],
-        "decomposition_backend": dec["backend"],
-        "decomposition_kkt": dec["kkt"],
-        "decomposition_iterations": dec["iterations"],
-        "warnings": plausibility_warnings(rates, dec, cfg),
+        "tau0AtBound": dec["tau0AtBound"],
+        "tau0Scores": dec["tau0Scores"],
+        "decompositionBackend": dec["backend"],
+        "decompositionKkt": dec["kkt"],
+        "decompositionIterations": dec["iterations"],
+        "warnings": plausibilityWarnings(rates, dec, cfg),
         "areas": [e["area"] for e in ev],
         "amps": [e["amp"] for e in ev],
         "rates": rates,
         "tonic": tonic,
         "episodes": eps,
-        "motion_events": mev,
-        "motion_theta": theta,
+        "motionEvents": mev,
+        "motionTheta": theta,
         "reference": ref,
-        "c4": walking_gain(rec, cfg),
+        "c4": walkingGain(rec, cfg),
     }

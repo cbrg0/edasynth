@@ -1,6 +1,6 @@
 # Implementation status
 
-Last updated: 23 October 2026, version 1.0.1, before the preregistration tag.
+Last updated: 23 October 2026, version 1.1.0, before the preregistration tag.
 
 This page states for every part of the study whether it exists, whether it has been
 tested and whether it has been run on the data it is meant for. It also lists known
@@ -112,7 +112,7 @@ Details in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
 7. **Computing cost of the main grid.** Extrapolated from the development run, the
    main grid needs roughly 70 CPU hours with 10 replicates and roughly 350 with 50
    ([REPRODUCING.md §5.3](REPRODUCING.md#53-computing-time)). On the development data
-   the spread of Δ between replicates (SD 0.042) would call for more than the cap of
+   the spread of Δ between replicates (SD about 0.04) would call for more than the cap of
    50 replicates. Whether the run is
    feasible on the available hardware, or the design has to be reduced, has to be
    decided before the tag.

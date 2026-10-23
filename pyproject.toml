@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "edasynth"
-version = "1.0.1"
+version = "1.1.0"
 description = "Semi-synthetic test bench: when does a wrist accelerometer help detect motion artifacts in electrodermal activity?"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -32,6 +32,8 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+python_files = ["test*.py"]
+python_functions = ["test*"]
 addopts = "-q --strict-markers"
 markers = ["slow: needs downloaded data and minutes; deselect with -m 'not slow'"]
 
@@ -41,3 +43,5 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "B", "I"]
+# B007: unused loop variables keep descriptive names instead of "_" (project naming rule)
+ignore = ["B007"]

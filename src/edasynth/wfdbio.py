@@ -4,7 +4,7 @@ Only what the dataset needs is implemented: signal format 16 (little-endian
 16-bit integers, channels interleaved) and MIT-format annotation files (.atr).
 The reader verifies every signal against the checksum and initial value stored in
 the header, so a wrong byte order, channel order or gain is detected immediately.
-If the official ``wfdb`` package is installed, ``tests/test_io_wfdb.py`` also
+If the official ``wfdb`` package is installed, ``tests/testIoAndData.py`` also
 compares both readers on the real files.
 
 Physical value = (digital value - baseline) / gain   (WFDB convention).
@@ -18,7 +18,7 @@ from pathlib import Path
 
 import numpy as np
 
-_SIG_RE = re.compile(
+sigPattern = re.compile(
     r"^(?P<file>\S+)\s+(?P<fmt>\d+)\s+"
     r"(?P<gain>[-+0-9.eE]+)(?:\((?P<baseline>-?\d+)\))?(?:/(?P<units>\S+))?\s+"
     r"(?P<res>\d+)\s+(?P<zero>-?\d+)\s+(?P<init>-?\d+)\s+(?P<checksum>-?\d+)\s+"
@@ -35,8 +35,8 @@ class SignalSpec:
     gain: float
     baseline: int
     units: str
-    adc_res: int
-    adc_zero: int
+    adcRes: int
+    adcZero: int
     init: int
     checksum: int
     name: str
@@ -47,9 +47,9 @@ class Header:
     """Parsed WFDB header."""
 
     record: str
-    n_sig: int
+    nSig: int
     fs: float
-    n_samples: int
+    nSamples: int
     signals: list[SignalSpec]
     comments: list[str] = field(default_factory=list)
 
@@ -62,17 +62,17 @@ class Header:
         return {s.name: s.units for s in self.signals}
 
 
-def read_header(path: str | Path) -> Header:
+def readHeader(path: str | Path) -> Header:
     """Parse a ``.hea`` file."""
     path = Path(path)
     lines = path.read_text(encoding="utf-8").splitlines()
     comments = [ln[1:].strip() for ln in lines if ln.startswith("#")]
     body = [ln for ln in lines if ln.strip() and not ln.startswith("#")]
     rec = body[0].split()
-    record, n_sig, fs, n_samples = rec[0], int(rec[1]), float(rec[2]), int(rec[3])
+    record, nSig, fs, nSamples = rec[0], int(rec[1]), float(rec[2]), int(rec[3])
     sigs = []
-    for ln in body[1 : 1 + n_sig]:
-        m = _SIG_RE.match(ln.strip())
+    for ln in body[1 : 1 + nSig]:
+        m = sigPattern.match(ln.strip())
         if m is None:
             raise ValueError(f"cannot parse signal line: {ln!r}")
         gain = float(m["gain"])
@@ -84,46 +84,46 @@ def read_header(path: str | Path) -> Header:
                 gain=gain if gain != 0 else 200.0,  # WFDB default gain
                 baseline=baseline,
                 units=m["units"] or "mV",
-                adc_res=int(m["res"]),
-                adc_zero=int(m["zero"]),
+                adcRes=int(m["res"]),
+                adcZero=int(m["zero"]),
                 init=int(m["init"]),
                 checksum=int(m["checksum"]),
                 name=m["name"].strip(),
             )
         )
-    return Header(record, n_sig, fs, n_samples, sigs, comments)
+    return Header(record, nSig, fs, nSamples, sigs, comments)
 
 
-def _checksum16(digital: np.ndarray) -> int:
+def checksum16(digital: np.ndarray) -> int:
     cs = int(np.sum(digital.astype(np.int64)) % 65536)
     return cs - 65536 if cs > 32767 else cs
 
 
-def read_record(record_path: str | Path, verify: bool = True) -> tuple[np.ndarray, Header]:
+def readRecord(recordPath: str | Path, verify: bool = True) -> tuple[np.ndarray, Header]:
     """Read a format-16 record.
 
     Args:
-        record_path: path without extension, e.g. ``data/raw/noneeg/Subject1_AccTempEDA``.
+        recordPath: path without extension, e.g. ``data/raw/noneeg/Subject1_AccTempEDA``.
         verify: check initial values and checksums against the header.
 
     Returns:
-        ``(signals, header)`` where ``signals`` has shape (n_samples, n_sig) in physical units.
+        ``(signals, header)`` where ``signals`` has shape (nSamples, nSig) in physical units.
     """
-    record_path = Path(record_path)
-    hdr = read_header(record_path.with_suffix(".hea"))
+    recordPath = Path(recordPath)
+    hdr = readHeader(recordPath.with_suffix(".hea"))
     files = {s.file for s in hdr.signals}
     if len(files) != 1 or any(s.fmt != 16 for s in hdr.signals):
         raise NotImplementedError("only single-file format-16 records are supported")
-    dat = record_path.parent / files.pop()
+    dat = recordPath.parent / files.pop()
     raw = np.fromfile(dat, dtype="<i2")
-    if raw.size != hdr.n_samples * hdr.n_sig:
-        raise ValueError(f"{dat.name}: {raw.size} values, header expects {hdr.n_samples * hdr.n_sig}")
-    digital = raw.reshape(hdr.n_samples, hdr.n_sig)
+    if raw.size != hdr.nSamples * hdr.nSig:
+        raise ValueError(f"{dat.name}: {raw.size} values, header expects {hdr.nSamples * hdr.nSig}")
+    digital = raw.reshape(hdr.nSamples, hdr.nSig)
     if verify:
         for k, s in enumerate(hdr.signals):
             if digital[0, k] != s.init:
                 raise ValueError(f"{s.name}: initial value {digital[0, k]} != header {s.init}")
-            cs = _checksum16(digital[:, k])
+            cs = checksum16(digital[:, k])
             if cs != s.checksum:
                 raise ValueError(f"{s.name}: checksum {cs} != header {s.checksum}")
     phys = np.empty(digital.shape, dtype=float)
@@ -144,7 +144,7 @@ class Annotation:
     num: int = 0
 
 
-def read_annotations(path: str | Path) -> list[Annotation]:
+def readAnnotations(path: str | Path) -> list[Annotation]:
     """Read an MIT-format annotation file (e.g. ``.atr``).
 
     Format: a stream of 16-bit little-endian words; the top 6 bits hold the code

@@ -4,6 +4,30 @@ All notable changes to this project are recorded here. Changes to the method aft
 the preregistration tag must also be released under a new tag
 ([docs/PREREGISTRATION.md](docs/PREREGISTRATION.md)).
 
+## 1.1.0 (23 October 2026)
+
+### Naming without underscores
+
+This release renames things that users of 1.0.x refer to; result files and
+configuration files written for 1.0.x are not read by 1.1.0.
+
+- All identifiers written by the project use lower camel case (for example
+  `deltaMax`, `piR`, `loadConfig`), including configuration keys, keys of the
+  parameter bank and result columns (`auprcF0`, `lostMotionF0+FB`).
+- Output files and figures use hyphens: `bank-utd.json`, `grid-metrics-utd.csv`,
+  `pilot-utd-R.json`, `F4-map-C1.pdf`; `scripts/download-data.sh`;
+  `docs/README-RU.md`; module `edasynth.wfdbio` (was `io_wfdb`); test files
+  `tests/testEstimation.py` and so on, collected through `python_files` and
+  `python_functions` in `pyproject.toml`.
+- Figure labels write symbols with proper subscripts (κ, δ<sub>max</sub>,
+  π<sub>r</sub>, Δ<sub>A4</sub>).
+- The seed of a grid replicate is derived from the condition key, whose text changed
+  (for example `pi_r=` became `piR=`). Replicates of 1.1.0 therefore differ from those
+  of 1.0.x; the validation checks and the real-data result use other seeds and are
+  unchanged (verified by rerunning both).
+- `docs/DEVELOPMENT.md` documents the naming rule and its exceptions (Python, library
+  interfaces, external data file names).
+
 ## 1.0.1 (23 October 2026)
 
 ### Documentation
@@ -14,7 +38,7 @@ the preregistration tag must also be released under a new tag
   `docs/REPRODUCING.md` (installation, data, every step, computing time,
   troubleshooting) and `docs/DEVELOPMENT.md` (architecture and conventions).
   `README.md`, `docs/METHOD.md`, `docs/STATUS.md`, `docs/PREREGISTRATION.md`,
-  `docs/GLOSSARY.md`, `docs/REFERENCES.md`, `docs/README_RU.md` and the README files in
+  `docs/GLOSSARY.md`, `docs/REFERENCES.md`, `docs/README-RU.md` and the README files in
   `data/`, `results/` and `figures/` were rewritten.
 - Source attributions were checked against the publications. Corrections:
   - The tonic form (linear trend plus a sinusoid with a period of 45–90 s) is that of
@@ -40,7 +64,7 @@ the preregistration tag must also be released under a new tag
 - The offset found by the label–signal alignment is now applied. Before, a participant
   accepted with a shift was used without it in estimation, validation, the real-data
   comparison on recomputed features and the figures. `Recording.cropped` and
-  `results/alignment.csv` (`offset_samples`, `n_windows_after_offset`) were added, and a
+  `results/alignment.csv` (`offsetSamples`, `nWindowsAfterOffset`) were added, and a
   participant is accepted only if enough windows remain after the offset.
 - Features recomputed from the raw UTD signals for check G7 are now z-scored within each
   participant, like the published feature matrices they are compared with.

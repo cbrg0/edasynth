@@ -9,13 +9,13 @@ SRC  = --source utd
         pilot grid variants labelnoise analyze power figures before-tag after-tag all smoke clean-results
 
 help:               ## list the targets with a one-line description
-	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | sed -E 's/:.*## /\t/'
+	@grep -E '^[a-zA-Z-]+:.*## ' Makefile | sed -E 's/:.*## /\t/'
 
 install:            ## editable install with test and reference extras
 	$(PY) -m pip install -e ".[dev,reference]"
 
 data:               ## download and verify both data sources
-	bash scripts/download_data.sh
+	bash scripts/download-data.sh
 
 check:              ## re-verify checksums of downloaded data
 	$(RUN) check-data

@@ -12,17 +12,17 @@ from scipy.signal import firwin, welch
 from .features import WIN, windows
 
 
-def _dilate(mask: np.ndarray, k: int) -> np.ndarray:
+def dilate(mask: np.ndarray, k: int) -> np.ndarray:
     if k <= 0:
         return mask
     return np.convolve(mask.astype(float), np.ones(2 * k + 1), "same") > 0
 
 
-def to_windows(sample_mask: np.ndarray) -> np.ndarray:
-    return windows(sample_mask).any(1).astype(int)
+def toWindows(sampleMask: np.ndarray) -> np.ndarray:
+    return windows(sampleMask).any(1).astype(int)
 
 
-def slope_score(y: np.ndarray, fs: float) -> np.ndarray:
+def slopeScore(y: np.ndarray, fs: float) -> np.ndarray:
     """Continuous score: maximum |dy/dt| (forward difference) in each window."""
     v = np.zeros_like(y)
     v[1:] = np.abs(np.diff(y)) * fs
@@ -36,14 +36,14 @@ def kleckner(y: np.ndarray, fs: float, cfg: dict) -> np.ndarray:
     (cut-off 0.35 Hz, 64 s long, matching the duration of the authors' filter).
     """
     c = cfg["detectors"]["kleckner"]
-    taps = int(round(c["fir_seconds"] * fs)) | 1
-    h = firwin(taps, c["cutoff_hz"], fs=fs)
+    taps = int(round(c["firSeconds"] * fs)) | 1
+    h = firwin(taps, c["cutoffHz"], fs=fs)
     yf = np.convolve(np.pad(y, taps // 2, mode="edge"), h, "valid")
     slope = np.zeros_like(yf)
     slope[1:] = np.diff(yf) * fs
-    bad = (yf < c["level_min"]) | (yf > c["level_max"]) | (np.abs(slope) > c["slope_max"])
-    bad = _dilate(bad, int(round(c["transition_s"] * fs)))
-    return to_windows(bad)
+    bad = (yf < c["levelMin"]) | (yf > c["levelMax"]) | (np.abs(slope) > c["slopeMax"])
+    bad = dilate(bad, int(round(c["transitionS"] * fs)))
+    return toWindows(bad)
 
 
 def kocielnik(y: np.ndarray, fs: float, cfg: dict) -> np.ndarray:
@@ -52,11 +52,11 @@ def kocielnik(y: np.ndarray, fs: float, cfg: dict) -> np.ndarray:
     rel = np.zeros_like(y)
     base = np.where(np.abs(y[:-1]) > 1e-9, y[:-1], np.nan)
     rel[1:] = (np.diff(y) / base) * fs
-    bad = (rel > c["rise_per_s"]) | (rel < -c["fall_per_s"])
-    return to_windows(np.nan_to_num(bad, nan=True).astype(bool))
+    bad = (rel > c["risePerS"]) | (rel < -c["fallPerS"])
+    return toWindows(np.nan_to_num(bad, nan=True).astype(bool))
 
 
-def pn_score(y: np.ndarray, fs: float) -> np.ndarray:
+def pnScore(y: np.ndarray, fs: float) -> np.ndarray:
     """Share of power above 0.4 Hz in each window (Hossain et al., 2022, eq. 1)."""
     out = []
     for w in windows(y):
@@ -67,7 +67,7 @@ def pn_score(y: np.ndarray, fs: float) -> np.ndarray:
 
 
 # ------------------------------------------------------------- Chen et al. (2015)
-def swt_haar(x: np.ndarray, levels: int) -> list[np.ndarray]:
+def swtHaar(x: np.ndarray, levels: int) -> list[np.ndarray]:
     """Undecimated (stationary) Haar transform, periodic extension; details d1..dJ."""
     a = np.asarray(x, float)
     out = []
@@ -79,12 +79,12 @@ def swt_haar(x: np.ndarray, levels: int) -> list[np.ndarray]:
     return out
 
 
-def _em_scale_mixture(d: np.ndarray, iters: int = 200):
+def emScaleMixture(d: np.ndarray, iters: int = 200):
     """EM for gamma N(0, s2) + (1 - gamma) N(0, c2 s2) with c2 > 1."""
     v = d**2
     s2 = np.median(v) / 0.4549 + 1e-12
     c2, g = 10.0, 0.9
-    for _ in range(iters):
+    for iteration in range(iters):
         p1 = g * np.exp(-v / (2 * s2)) / np.sqrt(s2)
         p2 = (1 - g) * np.exp(-v / (2 * c2 * s2)) / np.sqrt(c2 * s2)
         w = p1 / (p1 + p2 + 1e-300)
@@ -94,14 +94,14 @@ def _em_scale_mixture(d: np.ndarray, iters: int = 200):
     return g, s2, c2
 
 
-def _mixture_quantile(prob: float, g: float, s2: float, c2: float) -> float:
+def mixtureQuantile(prob: float, g: float, s2: float, c2: float) -> float:
     from scipy.stats import norm
 
     def cdf(x):
         return g * norm.cdf(x / np.sqrt(s2)) + (1 - g) * norm.cdf(x / np.sqrt(c2 * s2))
 
     lo, hi = -50 * np.sqrt(c2 * s2), 50 * np.sqrt(c2 * s2)
-    for _ in range(100):
+    for iteration in range(100):
         mid = 0.5 * (lo + hi)
         if cdf(mid) < prob:
             lo = mid
@@ -110,7 +110,7 @@ def _mixture_quantile(prob: float, g: float, s2: float, c2: float) -> float:
     return 0.5 * (lo + hi)
 
 
-def chen_swt(y: np.ndarray, fs: float, cfg: dict) -> np.ndarray:
+def chenSwt(y: np.ndarray, fs: float, cfg: dict) -> np.ndarray:
     """Windows whose SWT coefficients fall outside the Gaussian-mixture thresholds.
 
     Haar, 8 levels, delta = 0.01, local windows of L = 400 s (Chen et al., 2015).
@@ -118,31 +118,31 @@ def chen_swt(y: np.ndarray, fs: float, cfg: dict) -> np.ndarray:
     at least one coefficient inside it was zeroed is our rule.
     """
     c = cfg["detectors"]["chen"]
-    J, delta, L = c["levels"], c["delta"], int(c["window_s"] * fs)
+    J, delta, L = c["levels"], c["delta"], int(c["windowS"] * fs)
     n = y.size
     m = 2**J
     npad = int(np.ceil(n / m) * m)
     x = np.pad(y, (0, npad - n), mode="symmetric")
-    det = swt_haar(x, J)
+    det = swtHaar(x, J)
     bad = np.zeros(npad, bool)
     for d in det:
         for s in range(0, npad, L):
             seg = d[s : s + L]
             if seg.size < 16:
                 continue
-            g, s2, c2 = _em_scale_mixture(seg)
-            lo = _mixture_quantile(delta / 2, g, s2, c2)
-            hi = _mixture_quantile(1 - delta / 2, g, s2, c2)
+            g, s2, c2 = emScaleMixture(seg)
+            lo = mixtureQuantile(delta / 2, g, s2, c2)
+            hi = mixtureQuantile(1 - delta / 2, g, s2, c2)
             bad[s : s + L] |= (seg < lo) | (seg > hi)
-    return to_windows(bad[:n])
+    return toWindows(bad[:n])
 
 
-def run_all(y: np.ndarray, fs: float, cfg: dict) -> dict:
+def runAll(y: np.ndarray, fs: float, cfg: dict) -> dict:
     """Scores (continuous) and flags (binary) of every detector for one recording."""
     return {
-        "slope": ("score", slope_score(y, fs)),
-        "pn": ("score", pn_score(y, fs)),
+        "slope": ("score", slopeScore(y, fs)),
+        "pn": ("score", pnScore(y, fs)),
         "kleckner": ("flag", kleckner(y, fs, cfg)),
         "kocielnik": ("flag", kocielnik(y, fs, cfg)),
-        "chen_swt": ("flag", chen_swt(y, fs, cfg)),
+        "chenSwt": ("flag", chenSwt(y, fs, cfg)),
     }

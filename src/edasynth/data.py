@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .io_wfdb import read_annotations, read_record
+from .wfdbio import readAnnotations, readRecord
 
 WIN = 40  # samples per 5-s window at 8 Hz
 
@@ -35,7 +35,7 @@ class Recording:
     acc: np.ndarray  # (n, 3) columns x, y, z in g
     temp: np.ndarray | None = None
     stage: np.ndarray | None = None  # per-sample stage name
-    labels3: np.ndarray | None = None  # (n_windows, 3) expert labels 0/1
+    labels3: np.ndarray | None = None  # (nWindows, 3) expert labels 0/1
     units: dict = field(default_factory=dict)
     meta: dict = field(default_factory=dict)
 
@@ -44,7 +44,7 @@ class Recording:
         return int(self.eda.size)
 
     @property
-    def n_windows(self) -> int:
+    def nWindows(self) -> int:
         return self.n // WIN
 
     def cropped(self, offset: int) -> "Recording":
@@ -65,7 +65,7 @@ class Recording:
             stage=cut(self.stage),
             labels3=self.labels3,
             units=self.units,
-            meta={**self.meta, "alignment_offset_samples": int(offset)},
+            meta={**self.meta, "alignmentOffsetSamples": int(offset)},
         )
 
     def majority(self) -> np.ndarray:
@@ -76,7 +76,7 @@ class Recording:
 
 
 # --------------------------------------------------------------------------- UTD
-UTD_STAGES = [
+utdStages = [
     "relax1",
     "physical",
     "relax2",
@@ -88,12 +88,12 @@ UTD_STAGES = [
 ]
 
 
-def stage_type(name: str) -> str:
+def stageType(name: str) -> str:
     """Map a protocol stage to the two types used for parameter estimation."""
     return "rest" if name.startswith("relax") or name == "rest" else "load"
 
 
-def assign_stages(n: int, annotations: list, stages: list[str] = UTD_STAGES) -> np.ndarray:
+def assignStages(n: int, annotations: list, stages: list[str] = utdStages) -> np.ndarray:
     """Turn transition annotations into a per-sample stage label.
 
     The PhysioNet page states that the annotation file "indicates the time
@@ -111,7 +111,7 @@ def assign_stages(n: int, annotations: list, stages: list[str] = UTD_STAGES) -> 
     else:
         raise ValueError(
             f"{len(t)} annotations; expected {len(stages)} or {len(stages) - 1}. "
-            "Inspect the .atr file (scripts/01_inspect_utd.py) and adjust configs."
+            "Inspect the .atr file (python -m edasynth inspect) and adjust the stage list."
         )
     out = np.empty(n, dtype=object)
     starts = [*starts, n]
@@ -121,12 +121,12 @@ def assign_stages(n: int, annotations: list, stages: list[str] = UTD_STAGES) -> 
     return out
 
 
-def load_utd_labels(zhang_root: str | Path) -> pd.DataFrame:
+def loadUtdLabels(zhangRoot: str | Path) -> pd.DataFrame:
     """Expert labels of Zhang et al. for UTD: one row per 5-s window.
 
     Columns: group (0-19), window (index within participant), e1, e2, e3, majority.
     """
-    root = Path(zhang_root) / "UTDallas"
+    root = Path(zhangRoot) / "UTDallas"
     groups = pd.read_csv(root / "UTD_groups.csv", header=None)[0].astype(int).to_numpy()
     all3 = pd.read_csv(root / "UTD_label_All3.csv", header=None).to_numpy().astype(int)
     maj = pd.read_csv(root / "UTD_label.csv", header=None)[0].astype(int).to_numpy()
@@ -138,22 +138,22 @@ def load_utd_labels(zhang_root: str | Path) -> pd.DataFrame:
     return df
 
 
-def load_utd_stored_features(zhang_root: str | Path) -> tuple[np.ndarray, np.ndarray]:
+def loadUtdStoredFeatures(zhangRoot: str | Path) -> tuple[np.ndarray, np.ndarray]:
     """Published feature matrices (already z-scored within participant): EDA 24, ACC 96."""
-    root = Path(zhang_root) / "UTDallas"
+    root = Path(zhangRoot) / "UTDallas"
     eda = pd.read_csv(root / "UTD_eda.csv", header=None).to_numpy(float)
     acc = pd.read_csv(root / "UTD_acc.csv", header=None).to_numpy(float)
     return eda, acc
 
 
-def load_utd_participant(noneeg_root: str | Path, subject: int, labels: pd.DataFrame | None = None) -> Recording:
+def loadUtdParticipant(noneegRoot: str | Path, subject: int, labels: pd.DataFrame | None = None) -> Recording:
     """Load ``Subject{subject}_AccTempEDA`` (1-based) with stages and, if given, labels.
 
     Group ``g`` in the label files corresponds to ``Subject{g+1}``; this mapping
     is verified by :mod:`edasynth.alignment` before any use.
     """
-    rec = Path(noneeg_root) / f"Subject{subject}_AccTempEDA"
-    sig, hdr = read_record(rec)
+    rec = Path(noneegRoot) / f"Subject{subject}_AccTempEDA"
+    sig, hdr = readRecord(rec)
     idx = {name: k for k, name in enumerate(hdr.names)}
     acc = sig[:, [idx["ax"], idx["ay"], idx["az"]]]
     r = Recording(
@@ -163,14 +163,14 @@ def load_utd_participant(noneeg_root: str | Path, subject: int, labels: pd.DataF
         acc=acc,
         temp=sig[:, idx["temp"]],
         units=hdr.units,
-        meta={"header_comments": hdr.comments, "n_samples": hdr.n_samples},
+        meta={"headerComments": hdr.comments, "nSamples": hdr.nSamples},
     )
     try:
-        ann = read_annotations(rec.with_suffix(".atr"))
+        ann = readAnnotations(rec.with_suffix(".atr"))
         r.meta["annotations"] = [(a.sample, a.code, a.aux) for a in ann]
-        r.stage = assign_stages(r.n, ann)
+        r.stage = assignStages(r.n, ann)
     except (FileNotFoundError, ValueError) as err:
-        r.meta["stage_error"] = str(err)
+        r.meta["stageError"] = str(err)
     if labels is not None:
         g = labels[labels.group == subject - 1]
         r.labels3 = g[["e1", "e2", "e3"]].to_numpy()
@@ -178,7 +178,7 @@ def load_utd_participant(noneeg_root: str | Path, subject: int, labels: pd.DataF
 
 
 # --------------------------------------------------------------------------- AWW
-AWW_FILES = [  # order used by Zhang et al. (FeatureMatrix_AWW.py): 5 walking, 6 resting
+awwFiles = [  # order used by Zhang et al. (FeatureMatrix_AWW.py): 5 walking, 6 resting
     "2013_04_24_1hour_walk&chat&drink",
     "2013_05_06 - 1hour_walking",
     "2013_05_28_1hour_walking",
@@ -193,14 +193,14 @@ AWW_FILES = [  # order used by Zhang et al. (FeatureMatrix_AWW.py): 5 walking, 6
 ]
 
 
-def _aww_columns(path: Path) -> list[str]:
+def awwColumns(path: Path) -> list[str]:
     with path.open(encoding="latin-1") as fh:
-        rows = [next(csv.reader(fh)) for _ in range(8)]
+        rows = [next(csv.reader(fh)) for iteration in range(8)]
     header = rows[6][0]
     return [c.strip() for c in header.split("|")]
 
 
-def load_aww(zhang_root: str | Path) -> list[Recording]:
+def loadAww(zhangRoot: str | Path) -> list[Recording]:
     """Load the 11 AWW recordings with expert labels.
 
     The raw file header lists columns as ``Z-axis | Y-axis | X-axis | Battery |
@@ -208,11 +208,11 @@ def load_aww(zhang_root: str | Path) -> list[Recording]:
     Label coding follows Zhang et al.: 0 (not labelled) is treated as clean,
     then 1 -> clean (0) and 2 -> artifact (1).
     """
-    root = Path(zhang_root) / "AlanWalksWales" / "Raw"
+    root = Path(zhangRoot) / "AlanWalksWales" / "Raw"
     out = []
-    for name in AWW_FILES:
+    for name in awwFiles:
         f = root / f"{name}.csv"
-        cols = _aww_columns(f)
+        cols = awwColumns(f)
         data = np.loadtxt(f, delimiter=",", skiprows=8)
         col = {c.split("-")[0].split("(")[0].strip().lower(): k for k, c in enumerate(cols)}
         lab = np.loadtxt(root / f"{name}_Epochs.csv", delimiter=",", skiprows=1, usecols=(3, 4, 5))

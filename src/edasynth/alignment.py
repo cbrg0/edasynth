@@ -8,7 +8,7 @@ window belongs to which piece of signal. Two checks are applied per participant:
    the participant (exactly as in Zhang's script) correlate >= 0.999 with the
    first four columns of the published matrix. If not, shifts of 1-10 windows and
    0-39 samples are searched; a participant that still fails is excluded.
-Accepted participants are used with the offset found here (``offset_samples``):
+Accepted participants are used with the offset found here (``offsetSamples``):
 every later step drops that many samples from the start of the raw record.
 """
 
@@ -21,48 +21,48 @@ from .data import WIN
 from .features import stats4, windows
 
 
-def amplitude_z(eda: np.ndarray, offset: int = 0, n_windows: int | None = None) -> np.ndarray:
+def amplitudeZ(eda: np.ndarray, offset: int = 0, nWindows: int | None = None) -> np.ndarray:
     w = windows(eda[offset:])
-    if n_windows is not None:
-        w = w[:n_windows]
+    if nWindows is not None:
+        w = w[:nWindows]
     return stats.zscore(stats4(w), axis=0)
 
 
-def check_participant(eda: np.ndarray, stored4: np.ndarray, threshold: float) -> dict:
+def checkParticipant(eda: np.ndarray, stored4: np.ndarray, threshold: float) -> dict:
     """Return window counts, best shift and per-feature correlations."""
-    n_lab = stored4.shape[0]
-    n_raw = eda.size // WIN
+    nLab = stored4.shape[0]
+    nRaw = eda.size // WIN
 
-    def corr_at(off_samples: int, off_windows: int):
-        z = amplitude_z(eda, off_samples + off_windows * WIN)
-        m = min(z.shape[0], n_lab)
+    def corrAt(offSamples: int, offWindows: int):
+        z = amplitudeZ(eda, offSamples + offWindows * WIN)
+        m = min(z.shape[0], nLab)
         if m < 10:
             return np.full(4, -1.0)
-        z = stats.zscore(stats4(windows(eda[off_samples + off_windows * WIN :])[:m]), axis=0)
+        z = stats.zscore(stats4(windows(eda[offSamples + offWindows * WIN :])[:m]), axis=0)
         ref = stats.zscore(stored4[:m], axis=0)
         return np.array([np.corrcoef(z[:, k], ref[:, k])[0, 1] for k in range(4)])
 
-    r0 = corr_at(0, 0)
-    best = {"shift_samples": 0, "shift_windows": 0, "r": r0}
+    r0 = corrAt(0, 0)
+    best = {"shiftSamples": 0, "shiftWindows": 0, "r": r0}
     if r0.min() < threshold:
         for ow in range(-10, 11):
-            for os_ in range(0, WIN):
-                if ow * WIN + os_ < 0:
+            for sampleShift in range(0, WIN):
+                if ow * WIN + sampleShift < 0:
                     continue
-                r = corr_at(os_, ow)
+                r = corrAt(sampleShift, ow)
                 if r.min() > best["r"].min():
-                    best = {"shift_samples": os_, "shift_windows": ow, "r": r}
-    offset = best["shift_windows"] * WIN + best["shift_samples"]
-    n_after = (eda.size - offset) // WIN
+                    best = {"shiftSamples": sampleShift, "shiftWindows": ow, "r": r}
+    offset = best["shiftWindows"] * WIN + best["shiftSamples"]
+    nAfter = (eda.size - offset) // WIN
     return {
-        "n_windows_raw": int(n_raw),
-        "n_windows_after_offset": int(n_after),
-        "offset_samples": int(offset),
-        "n_windows_labels": int(n_lab),
-        "count_match": bool(n_raw == n_lab),
-        "shift_samples": int(best["shift_samples"]),
-        "shift_windows": int(best["shift_windows"]),
-        "r_min": float(best["r"].min()),
+        "nWindowsRaw": int(nRaw),
+        "nWindowsAfterOffset": int(nAfter),
+        "offsetSamples": int(offset),
+        "nWindowsLabels": int(nLab),
+        "countMatch": bool(nRaw == nLab),
+        "shiftSamples": int(best["shiftSamples"]),
+        "shiftWindows": int(best["shiftWindows"]),
+        "rMin": float(best["r"].min()),
         "r": [float(x) for x in best["r"]],
-        "accepted": bool(best["r"].min() >= threshold and n_after >= n_lab),
+        "accepted": bool(best["r"].min() >= threshold and nAfter >= nLab),
     }
