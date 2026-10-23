@@ -1,9 +1,8 @@
-"""Trained models, out-of-participant evaluation and metrics (method step 7).
+"""Trained models, out-of-participant evaluation and metrics (docs/METHOD.md section 6).
 
 All evaluation is leave-one-participant-out (LOSO): the test participant never
-contributes to scaling, hyper-parameter choice or fitting (Hammerla & Ploetz,
-2015, as cited in Zhang et al., 2017). Metrics are computed on the pooled
-out-of-fold predictions.
+contributes to scaling, hyper-parameter choice or fitting. Metrics are computed on
+the pooled out-of-fold predictions. See docs/METHOD.md section 6.
 """
 
 from __future__ import annotations

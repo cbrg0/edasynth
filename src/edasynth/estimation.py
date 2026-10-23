@@ -1,4 +1,4 @@
-"""Estimating generator parameters from real labelled recordings (method step 3).
+"""Estimating generator parameters from real labelled recordings (docs/METHOD.md section 3).
 
 Everything the literature does not provide (noise level, quantisation step,
 response rate and size, tonic amplitudes, artifact shapes, motion events) is

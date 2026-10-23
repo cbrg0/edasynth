@@ -1,45 +1,79 @@
 # Preregistration of the synthetic experiment
 
-Status: **draft until the git tag `prereg-synth-v1` exists on GitHub.** The tag's
-date is the public proof that everything below was fixed before the main grid
-(`make grid`) was run. Validation (`make validate`) and the pilot (`make pilot`)
-are run before tagging; the grid, variants, analysis and power runs after it.
+## Why this file exists
 
-## Fixed by the tag
+The main experiment produces 200 cells, several measures and several variants. With
+that many numbers, some will look interesting by chance. To prevent the analysis from
+being shaped by the results, the rules for running and judging the experiment are
+fixed **before** the main grid is run, and the moment of fixing is made public with a
+git tag pushed to GitHub. The tag's date shows that the rules existed before the
+results.
 
-1. `configs/default.yaml` in full: grid, thresholds, seeds, model settings,
-   feature parameters (including the four coupling features F_B), decision rule,
-   compatibility rule, sensitivity reference, power settings.
+**Current state: draft.** The tag `prereg-synth-v1` does not exist yet. Several design
+questions are still open ([STATUS.md](STATUS.md#open-design-decisions-to-settle-before-the-tag-prereg-synth-v1));
+they have to be settled, and this file updated, before the tag is created.
+
+## Order of work
+
+1. Before the tag: data checks (`inspect`, `align`), parameter estimation
+   (`estimate`), the validation checks G1–G7 (`validate`), the untrained detectors and
+   the pilot that sets the number of replicates (`pilot`). This is `make before-tag`.
+2. The tag `prereg-synth-v1` is created and pushed.
+3. After the tag: the main grid, the variants, the label-noise runs, the analysis, the
+   power analysis and the figures. This is `make after-tag`.
+
+The validation checks and the pilot are run before the tag because they test the
+generator and determine the number of replicates; they do not use the outcome of the
+main grid.
+
+## What the tag fixes
+
+1. `configs/default.yaml` in full: grid, thresholds of the checks, seeds, model
+   settings, feature parameters, decision rule, compatibility rule, the reference cell
+   of the sensitivity analysis and the power settings.
 2. The code in `src/edasynth/` at the tagged commit.
-3. The number of replicates R written by the pilot to `results/pilot_utd_R.json`.
+3. The number of replicates *R* written by the pilot to `results/pilot_utd_R.json`.
 
 ## Primary outcome
 
-For each of the 200 cells: mean Δ_A4 and Δ_B (AUPRC difference against F0,
-logistic regression, leave-one-participant-out) over R replicates with a 95 %
-t-interval. A cell counts as "accelerometer useful" when mean Δ ≥ 0.01 and the
-lower bound > 0. All cells are reported; no cell is singled out post hoc as a
-finding.
+For each of the 200 cells: the mean gains Δ<sub>A4</sub> and Δ<sub>B</sub> (AUPRC with
+the feature set minus AUPRC with EDA features only; logistic regression;
+leave-one-participant-out) over *R* replicates, with a 95 % *t*-interval. A cell counts
+as **accelerometer useful** when the mean gain is at least 0.01 and the lower bound of
+the interval is above 0. All cells are reported; no single cell is presented as the
+finding after the results are known.
 
-## Secondary outcomes (all pre-specified)
+## Secondary outcomes
 
-* Δ_A (96 features, Zhang's setting) and Δ_B − Δ_A4 (kind of features at equal count).
-* Random forest Δ on the same cells (robustness).
-* AUROC differences (comparison with Zhang et al., qualitative only).
-* Sensitivity at specificity 0.95; share of real responses flagged as artifacts
-  (spontaneous and motion-evoked separately); share of each artifact class detected.
-* Variants: V2 multiplicative contact loss, 15 % prevalence, majority labels, C4 only.
-* Goal 5: compatibility of each cell with the real Δ = 0.027; label-noise variant.
-* Goal 6: one-factor sensitivity ranges; power for 5, 10, 15, 20 participants.
+All of these are specified in advance and reported whatever their values:
 
-## Gates that must pass before the grid
+- Δ<sub>A</sub> (the 96 acceleration features of Zhang et al., 2017) and
+  Δ<sub>B</sub> − Δ<sub>A4</sub> (kind of acceleration information at equal number of
+  features);
+- the random-forest gains in the same cells, as a robustness check;
+- differences in the area under the ROC curve, for qualitative comparison with Zhang
+  et al. (2017);
+- sensitivity at 95 % specificity; the share of genuine responses flagged as artifacts,
+  separately for spontaneous and movement-evoked responses; the detection rate per
+  artifact class;
+- the variants: multiplicative contact loss (V2), 15 % prevalence, majority labelling
+  rule, C4 only;
+- goal 5: whether each cell is compatible with the real gain Δ = 0.027, with and
+  without the label-noise variant;
+- goal 6: the one-factor sensitivity ranges and the power for 5, 10, 15 and 20
+  participants.
 
-G1-G7 as defined in `docs/METHOD.md` §8 with the thresholds in the config. If a
-gate fails, the generator or estimation is corrected, the correction is recorded
-in `CHANGELOG.md`, and all gates are rerun. Thresholds are not changed to make a
-gate pass.
+Definitions of all measures are in [METHOD.md §6](METHOD.md#6-models-and-performance-measures).
+
+## Checks that must pass before the main grid
+
+The checks G1–G7 of [METHOD.md §7](METHOD.md#7-validation-checks-g1g7), with the
+thresholds in `configs/default.yaml`. If a check fails, the generator or the estimation
+is corrected, the correction is recorded in `CHANGELOG.md`, and all checks are run
+again. **Thresholds are not changed to make a check pass.**
 
 ## Changes after the tag
 
-Made openly: a new tag `prereg-synth-v2` with the reason in `CHANGELOG.md`. Any
-analysis designed after seeing results is labelled *post hoc* wherever reported.
+Any change after the tag is made openly: a new tag (`prereg-synth-v2`, and so on) with
+the reason in `CHANGELOG.md`. Any analysis designed after seeing results is labelled
+*post hoc* wherever it is reported.

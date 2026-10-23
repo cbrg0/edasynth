@@ -85,6 +85,17 @@ def _utd(cfg, with_labels=True):
     return recs
 
 
+def _utd_aligned(cfg):
+    """UTD recordings accepted by `align`, with the alignment offset applied."""
+    path = _results(cfg) / "alignment.csv"
+    if not path.exists():
+        raise SystemExit("results/alignment.csv not found: run `python -m edasynth align` first")
+    align = pd.read_csv(path)
+    ok = align[align.accepted]
+    off = dict(zip(ok.pid, ok.offset_samples, strict=True))
+    return [r.cropped(int(off[r.pid])) for r in _utd(cfg) if r.pid in off]
+
+
 def cmd_inspect(cfg, args):
     """Units, ranges, annotation codes and stage parsing for every UTD record."""
     from .data import stage_type
@@ -131,7 +142,7 @@ def cmd_inspect(cfg, args):
 
 
 def cmd_align(cfg, args):
-    """Check that the expert labels line up with the raw signals (step 2)."""
+    """Check that the expert labels line up with the raw signals (docs/METHOD.md section 2.4)."""
     from .alignment import check_participant
     from .data import load_utd_labels, load_utd_stored_features
 
@@ -157,7 +168,9 @@ def cmd_align(cfg, args):
 
         from .figures import CB, _save
 
-        for r in _utd(cfg):
+        offsets = dict(zip(df.pid, df.offset_samples, strict=True))
+        for r0 in _utd(cfg):
+            r = r0.cropped(int(offsets.get(r0.pid, 0)))
             fig, ax = plt.subplots(3, 1, figsize=(12, 5), sharex=True)
             t = np.arange(r.n) / r.fs / 60
             ax[0].plot(t, r.eda, lw=0.6, color=CB[0])
@@ -202,15 +215,14 @@ def cmd_realdata(cfg, args):
         res["stored_shuffled"] = shuffled_control(eda, acc[:, :4], y, g, rcfg, cfg["realdata"]["n_shuffles"], 0)
         res["stored_single_feature_auprc"] = single_feature_auprc(eda, y)
     if args.raw:
+        from scipy import stats
+
         acc_rows, eda_rows, yy, gg = [], [], [], []
-        align = pd.read_csv(_results(cfg) / "alignment.csv")
-        ok = set(align.loc[align.accepted, "pid"])
-        for r in _utd(cfg):
-            if r.pid not in ok:
-                continue
+        for r in _utd_aligned(cfg):
             nw = r.labels3.shape[0]
-            eda_rows.append(f0(r.eda, cfg["features"]["derivative"])[:nw])
-            acc_rows.append(fa4(r.acc)[:nw])
+            # z-scored within participant, as in the published feature matrices
+            eda_rows.append(np.nan_to_num(stats.zscore(f0(r.eda, cfg["features"]["derivative"])[:nw], axis=0)))
+            acc_rows.append(np.nan_to_num(stats.zscore(fa4(r.acc)[:nw], axis=0)))
             yy.append(r.majority())
             gg.append(np.full(nw, int(r.pid[1:])))
         E, A = np.vstack(eda_rows), np.vstack(acc_rows)
@@ -242,13 +254,11 @@ def _realdata_cfg(cfg):
 
 # ------------------------------------------------------------------ estimation
 def cmd_estimate(cfg, args):
-    """Estimate generator parameters (step 3) and write the bank."""
+    """Estimate generator parameters (docs/METHOD.md section 3) and write the bank."""
     from .bank import build_bank
 
     if args.source == "utd":
-        align = pd.read_csv(_results(cfg) / "alignment.csv")
-        ok = set(align.loc[align.accepted, "pid"])
-        recs = [r for r in _utd(cfg) if r.pid in ok]
+        recs = _utd_aligned(cfg)
         bad = [r.pid for r in recs if r.stage is None]
         if bad:
             raise SystemExit(f"stages could not be parsed for {bad}; run `inspect` first")
@@ -364,9 +374,7 @@ def cmd_validate(cfg, args):
     if "G3" in args.gates or "G4" in args.gates:
         if args.source == "utd":
             log("G3/G4 realism")
-            align = pd.read_csv(_results(cfg) / "alignment.csv")
-            ok = set(align.loc[align.accepted, "pid"])
-            rep.update(V.g3_g4_realism([r for r in _utd(cfg) if r.pid in ok], bank, cfg, seed))
+            rep.update(V.g3_g4_realism(_utd_aligned(cfg), bank, cfg, seed))
         else:
             from .data import load_aww
 
@@ -544,7 +552,7 @@ def cmd_figures(cfg, args):
     ds = make_dataset(bank, Condition(c=0.5, classes=mix), cfg, 12345)
     syn = ds["records"][0]
     if args.source == "utd":
-        reals = _utd(cfg)
+        reals = _utd_aligned(cfg)
     else:
         from .data import load_aww
 

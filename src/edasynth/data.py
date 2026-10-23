@@ -47,6 +47,27 @@ class Recording:
     def n_windows(self) -> int:
         return self.n // WIN
 
+    def cropped(self, offset: int) -> "Recording":
+        """The same recording without its first ``offset`` samples (labels unchanged).
+
+        Used when the alignment check found that the expert windows start
+        ``offset`` samples after the beginning of the raw record.
+        """
+        if offset <= 0:
+            return self
+        cut = lambda a: None if a is None else a[offset:]  # noqa: E731
+        return Recording(
+            pid=self.pid,
+            fs=self.fs,
+            eda=self.eda[offset:],
+            acc=self.acc[offset:],
+            temp=cut(self.temp),
+            stage=cut(self.stage),
+            labels3=self.labels3,
+            units=self.units,
+            meta={**self.meta, "alignment_offset_samples": int(offset)},
+        )
+
     def majority(self) -> np.ndarray:
         """Majority label (at least two of three experts) per window."""
         if self.labels3 is None:

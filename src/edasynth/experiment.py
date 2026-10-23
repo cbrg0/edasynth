@@ -1,4 +1,4 @@
-"""Building synthetic data sets and evaluating them (method steps 5-9).
+"""Building synthetic data sets and evaluating them (docs/METHOD.md sections 5-8).
 
 One *replicate* of one *condition* is a data set of synthetic participants whose
 motion donors are the real participants (each used once) and whose physiology
@@ -249,7 +249,7 @@ def run_cell(bank, cond: Condition, cfg: dict, rep: int, models: tuple, label_no
 
 
 def required_reps(sd_delta: float, half_width: float, cap: int) -> int:
-    """R = ceil((1.96 s / h)^2), capped (method eq. 16)."""
+    """R = ceil((1.96 s / h)^2), limited to [2, cap] (docs/METHOD.md section 8)."""
     return int(min(cap, max(2, np.ceil((1.96 * sd_delta / half_width) ** 2))))
 
 

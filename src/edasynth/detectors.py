@@ -1,4 +1,4 @@
-"""Untrained EDA-only detectors used as reference points (method step 7.3, goal 2).
+"""Untrained EDA-only detectors used as reference points (docs/METHOD.md section 9, goal 2).
 
 None of them sees the accelerometer. They show which artifact classes are caught
 without movement information; they are not part of the map.

@@ -1,4 +1,4 @@
-"""Estimation (step 3) runs on a labelled recording and recovers what was planted."""
+"""Estimation (docs/METHOD.md section 3) runs on a labelled recording and recovers what was planted."""
 
 import numpy as np
 import pytest

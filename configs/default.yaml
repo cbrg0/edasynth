@@ -1,6 +1,7 @@
 # Main configuration. Every number that can change a result is here.
-# Values marked "decision" are choices of this project (justified in docs/METHOD.md);
-# all others are cited there. This file is frozen by the preregistration tag.
+# Values marked "decision" are choices of this project; all others are measured or cited.
+# docs/METHOD.md explains every value (parameter table in section 11).
+# This file is frozen by the preregistration tag (docs/PREREGISTRATION.md).
 
 paths:
   noneeg: data/raw/noneeg-1.0.0           # PhysioNet UTD records (downloaded by scripts/download_data.sh)
@@ -19,18 +20,18 @@ seeds:
   detectors: 13
 
 estimation:
-  min_response_amp: 0.05        # uS, minimum response amplitude (Kleckner 2018; Posada-Quintero & Chon 2020)
+  min_response_amp: 0.05        # uS, accepted minimum response amplitude (Kleckner et al., 2018; Boucsein et al., 2012, via Posada-Quintero & Chon, 2020)
   cvxeda:
-    backend: auto               # 'cvxeda' (reference, needs cvxopt) if installed, else 'numpy'
+    backend: auto               # authors' cvxEDA.py if importable (needs cvxopt), else the built-in solver
     tau1: 0.7                   # s (Greco et al., 2016)
-    tau0_min: 2.0               # s (Greco et al., 2016)
+    tau0_min: 2.0               # s, range of Greco et al. (2016)
     tau0_max: 4.0
-    tau0_step: 0.1              # decision
-    alpha: 8.0e-4               # Greco et al., 2016 and code default; input is z-scored
+    tau0_step: 0.1              # decision; tau0 chosen by the smallest objective (departs from Greco et al., who used the residual norm)
+    alpha: 8.0e-4               # Greco et al. (2016); z-scoring the input is a decision of this project
     gamma: 1.0e-2
     knot_s: 10.0
   tonic:
-    period_min_s: 45            # Greco et al., 2016 synthetic tonic
+    period_min_s: 45            # period range of the synthetic tonic of Greco et al. (2016)
     period_max_s: 90
     period_step_s: 1            # decision
   episodes:                     # artifact-episode measurement and class rules (decision, fixed in advance)
@@ -38,7 +39,7 @@ estimation:
     min_amp: 0.05
     shift_sigma: 3.0
     dropout_level: 0.01
-    saturation_level: 60.0      # uS, upper limit of Kleckner et al. (2018) rule 1
+    saturation_level: 60.0      # uS, upper limit of Kleckner et al. (2018) rule 1; dropout_level is a decision
     flat_min_s: 1.0
     pn_walk: 0.5
     walk_stages: [physical, walk]
@@ -57,7 +58,7 @@ estimation:
 generator:
   tau1: 0.7
   kernel_tau_multiple: 10       # Bateman kernel length = 10 tau0 (exp(-10) ~ 5e-5)
-  motion_response_latency_s: [1.0, 5.0]   # Boucsein (2012) as cited in Posada-Quintero & Chon (2020)
+  motion_response_latency_s: [1.0, 5.0]   # stimulus latency of Boucsein et al. (2012), via Posada-Quintero & Chon (2020); use for movement is an assumption
   label_threshold: 0.05         # uS, decision = minimum visible response
   rho_max: 0.95                 # V2: maximum lost contact fraction
   saturation_level: 60.0
@@ -66,7 +67,7 @@ generator:
   fallback_templates: {}
 
 features:
-  derivative: central           # as in Zhang et al.'s published script; 'forward' reproduces their stored matrices
+  derivative: central           # as in the published script of Zhang et al.; 'forward' reproduces their stored matrices
   fb:
     max_lag_s: 5.0
     context_s: 5.0
@@ -99,7 +100,7 @@ analysis:
   bootstrap_n: 1000
   decision: {min_delta: 0.01}   # accelerometer 'useful' in a cell: mean delta >= 0.01 and lower 95% bound > 0
   observed_delta: 0.027         # real UTD difference (stored features, logistic regression)
-  label_noise_kappa: 0.62       # Fleiss kappa of the three UTD experts
+  label_noise_kappa: 0.62       # measured Fleiss kappa of the three UTD experts; its use as a target is an assumption
   sensitivity_reference: {c: 0.5, kappa: 1.0, delta_max: 1.0, pi_r: 0.0}
 
 grid:
@@ -112,7 +113,7 @@ grid:
 
 variants:
   c: [0.0, 0.5, 1.0]
-  high_prevalence: 0.15         # AWW rest (Zhang et al., 2017)
+  high_prevalence: 0.15         # AWW resting data (Zhang et al., 2017)
 
 pilot:
   reps: 10

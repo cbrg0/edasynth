@@ -5,8 +5,11 @@ JOBS ?= 4
 RUN  = $(PY) -m edasynth
 SRC  = --source utd
 
-.PHONY: install data check test test-all inspect align realdata estimate validate detectors \
+.PHONY: help install data check test test-all inspect align realdata estimate validate detectors \
         pilot grid variants labelnoise analyze power figures before-tag after-tag all smoke clean-results
+
+help:               ## list the targets with a one-line description
+	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | sed -E 's/:.*## /\t/'
 
 install:            ## editable install with test and reference extras
 	$(PY) -m pip install -e ".[dev,reference]"
@@ -23,40 +26,40 @@ test:               ## G1: unit tests (fast)
 test-all:           ## all tests, including those that need the downloaded data
 	$(PY) -m pytest
 
-inspect:            ## step 2.1: units, ranges, annotation codes
+inspect:            ## METHOD 2.1: units, ranges and annotation codes of the raw files
 	$(RUN) inspect
 
-align:              ## step 2.2-2.6: labels vs raw signal, plots per participant
+align:              ## METHOD 2.4: expert labels vs raw signal, one plot per participant
 	$(RUN) align --plots
 
 realdata:           ## real-data baseline: published features and recomputed features (G7)
 	$(RUN) realdata --stored --raw
 
-estimate:           ## step 3: generator parameters from UTD
+estimate:           ## METHOD 3: measure generator parameters on UTD
 	$(RUN) estimate $(SRC) --jobs $(JOBS)
 
-validate:           ## step 8: gates G1-G7
+validate:           ## METHOD 7: validation checks G1-G7
 	$(RUN) validate $(SRC) --pytest
 
-detectors:          ## goal 2: untrained EDA-only detectors by artifact class
+detectors:          ## METHOD 9 / goal 2: untrained EDA-only detectors by artifact class
 	$(RUN) detectors $(SRC) --reps 5
 
-pilot:              ## step 9.2: pilot and number of replicates R
+pilot:              ## METHOD 8: pilot and number of replicates R
 	$(RUN) pilot $(SRC) --jobs $(JOBS)
 
-grid:               ## step 9: main grid (resumable)
+grid:               ## METHOD 8: main grid (resumable)
 	$(RUN) grid $(SRC) --jobs $(JOBS)
 
-variants:           ## step 6.2 variants (V2, 15 %, majority rule, C4)
+variants:           ## METHOD 8: variants (V2, 15 % prevalence, majority rule, C4)
 	$(RUN) grid $(SRC) --variants --jobs $(JOBS)
 
-labelnoise:         ## goal 5: expert-like label noise on the main grid
+labelnoise:         ## METHOD 8 / goal 5: main grid with noisy training labels
 	$(RUN) grid $(SRC) --label-noise --jobs $(JOBS)
 
-analyze:            ## map summary, compatibility with UTD (goal 5), sensitivity (goal 6A)
+analyze:            ## METHOD 8: map summary, compatibility (goal 5), sensitivity (goal 6)
 	$(RUN) analyze $(SRC)
 
-power:              ## goal 6B: participants needed for the two-hand protocol
+power:              ## METHOD 8 / goal 6: power by number of participants
 	$(RUN) power $(SRC) --jobs $(JOBS)
 
 figures:            ## F1-F7

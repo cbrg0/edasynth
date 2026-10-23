@@ -1,109 +1,141 @@
 # Implementation status
 
-Updated: 2026-10-23, version 1.0.0, before the preregistration tag.
+Last updated: 23 October 2026, version 1.0.1, before the preregistration tag.
 
-Statuses mean exactly this and nothing more:
+This page states for every part of the study whether it exists, whether it has been
+tested and whether it has been run on the data it is meant for. It also lists known
+problems and the design decisions that are still open.
 
-| Status | Meaning |
+## How to read the status labels
+
+| Label | Meaning |
 |---|---|
 | **PASS** | The code was run and the stated check succeeded. |
 | **FAIL** | The code was run and the stated check did not succeed. |
-| **PARTIAL** | Run and checked on part of the inputs only (named in the row). |
-| **BLOCKED** | Could not be run in the build environment; the reason is named. |
-| **NOT RUN** | Could be run, was not run yet. |
+| **PARTIAL** | Run and checked on part of the inputs only; the row says which part. |
+| **BLOCKED** | Could not be run where the repository was built; the row gives the reason. |
+| **NOT RUN** | Could be run, but has not been run yet. |
 | **NOT IMPLEMENTED** | No code exists. |
-| **NOT VERIFIED** | Code exists and runs, but its correctness has no independent check yet. |
+| **NOT VERIFIED** | The code runs, but its correctness has not been checked independently. |
 
-No row is marked PASS from reading code. "Smoke" means the development run on
-AWW (one person, 11 recording days used as donors) with `configs/smoke.yaml`;
-its numbers check that the code runs and are **not results**.
+No row is marked PASS on the basis of reading the code. "Development run" means the
+end-to-end run on AWW described in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result);
+its numbers are not results.
 
-## Build environment
+## Environment in which the statuses were obtained
 
-Python 3.13.16, numpy 2.5.3, scipy 1.18.1, scikit-learn 1.9.1, pandas 3.0.5,
-joblib 1.6.0, matplotlib 3.11.2; Linux, 2 cores. Not installable there (no
-package index access): `cvxopt` with the reference `cvxEDA.py`, `wfdb`, `PyWavelets`. PhysioNet was not
-reachable, so no raw UTD file was read.
+Linux, 2 CPU cores, Python 3.13.16, numpy 2.5.3, scipy 1.18.1, scikit-learn 1.9.1,
+pandas 3.0.5, joblib 1.6.0, matplotlib 3.11.2. Three optional packages could not be
+installed there: `cvxopt` (needed by the reference cvxEDA code), `wfdb` and
+`PyWavelets`. PhysioNet could not be reached, so **no raw UTD file was read**. The
+package has not been tested on macOS or Windows.
 
 ## Data and readers
 
 | Element | Status | Evidence |
 |---|---|---|
 | Download script with checksum verification (`make data`) | BLOCKED | PhysioNet not reachable from the build environment |
-| Zhang et al. files at commit 7c4bd46, SHA-256 of 43 files | PASS | `edasynth check-data`: 43/43 OK (list computed from the same clone, so this checks integrity of later copies, not the clone itself) |
+| Zhang et al. files at commit `7c4bd46` (43 files) | PASS | `python -m edasynth check-data`: 43 of 43 match. The checksum list was computed from the same copy, so it protects later copies; it does not prove the original download. |
 | WFDB format-16 reader with checksum and initial-value checks | PARTIAL | unit tests on files written by the tests; real `noneeg` files BLOCKED; comparison with the `wfdb` package skipped (not installed) |
-| MIT annotation parser, stage assignment | PARTIAL | unit tests on synthetic annotation files; real `.atr` files BLOCKED |
-| UTD EDA unit (header says "NU") | NOT VERIFIED | `make inspect` must be run; µS is an assumption |
-| UTD expert labels loader | PASS | 9 211 windows, 349 majority artifacts, 20 groups (tests) |
-| AWW loader (columns read by name) | PASS | tests; used in the smoke run |
+| Annotation reader and stage assignment | PARTIAL | unit tests on synthetic annotation files; real annotation files BLOCKED |
+| EDA unit of UTD (header says "NU") | NOT VERIFIED | µS is assumed until `make inspect` is run |
+| UTD label loader | PASS | 9 211 windows, 349 majority artifacts, 20 groups (tests) |
+| AWW loader | PASS | tests; used in the development run |
 
 ## Method steps
 
-| Step | Element | Status | Evidence |
+| Step ([METHOD.md](METHOD.md)) | Element | Status | Evidence |
 |---|---|---|---|
-| 1 | Real-data baseline, published features (logistic regression, LOSO) | PASS | AUPRC 0.4486 → 0.4754, Δ +0.027, 95 % CI −0.002 to +0.058 (`results/realdata.json`, slow test) |
-| 1 | Same with random forest: reproduce the earlier Δ = 0.054 | FAIL | this code gives Δ +0.026, CI −0.021 to +0.056; the earlier settings were not recorded |
-| 1 | Real-data analysis on recomputed features (`realdata --raw`) | BLOCKED | needs raw UTD |
-| 2 | Label-signal alignment (`make align`) | BLOCKED | needs raw UTD |
-| 3 | Parameter estimation on UTD (`make estimate`) | BLOCKED | needs raw UTD |
-| 3 | Parameter estimation, smoke (runs to completion) | PASS | 11 recordings; plausibility warnings logged: τ0 = 2.0 s (lower grid edge) on all 11 days; response rates 0.3-3.3 per minute, none above the 10/min warning |
-| 3 | cvxEDA numpy solver | PARTIAL | recovers known inputs (tests); KKT optimality reported per run; agreement with the authors' `cvxEDA.py` skipped (not available) |
-| 3 | τ0 selection by objective value | PASS | recovers τ0 = 2.5 and 4.0 within 0.5 s on synthetic records (test) |
-| 3 | Response detection (peaks of phasic, height ≥ 0.05 µS) | PASS | recovers onset and height of isolated responses (test); smoke rates 0.3-3.3 per minute |
-| 4 | Generator, artifact classes C1-C5, labels | PASS | unit tests (shapes, label support, C3 transition only, derangement) |
-| 4 | Generator realism on UTD (G3/G4) | BLOCKED | needs the UTD bank |
-| 5 | Feature sets F0, FA, FA4, FB | PARTIAL | unit tests; Haar details checked against PyWavelets skipped (not installed); recomputed F0 vs published F0 on UTD BLOCKED |
-| 6 | Movement-contact link (c, κ, δ_max, π_r) | PASS | unit tests (c = 0 gives no motion-caused artifacts; κ scales size with movement intensity); the δ_max delay is not tested separately |
-| 7 | LOSO models, AUPRC, participant bootstrap | PASS | tests; real-data reproduction above |
-| 7 | Untrained detectors (slope, Kleckner, Kocielnik, P_n, SWT) | PARTIAL | run on smoke data; tested on simple planted cases; not compared with the authors' own code |
+| — | Real-data comparison on published features, logistic regression | PASS | AUPRC 0.4486 → 0.4754, Δ +0.027, 95 % CI −0.002 to +0.058 ([RESULTS.md §1](RESULTS.md#1-real-data-comparison)); a slow test reproduces it |
+| — | Reproduce the earlier random-forest Δ = 0.054 | FAIL | this code gives Δ +0.026 (CI −0.021 to +0.056); the earlier settings were not recorded |
+| — | Real-data comparison on features recomputed from the raw signals (G7) | BLOCKED | needs raw UTD; the command path has never been executed |
+| §2.4 | Label–signal alignment | BLOCKED | needs raw UTD. The shift search and the cropping by the found offset are unit-tested. |
+| §3 | Parameter estimation on UTD | BLOCKED | needs raw UTD |
+| §3 | Parameter estimation, development run | PASS (runs to completion) | 11 recordings; τ<sub>0</sub> = 2.0 s (lower edge of the range) on all of them; response rates 0.3–3.3 per minute |
+| §3.3 | Decomposition solver (numpy) | PARTIAL | recovers known inputs (tests); KKT optimality reported per run; agreement with the authors' cvxEDA code NOT VERIFIED (code not available in the build environment) |
+| §3.3 | τ<sub>0</sub> selection by the objective value | PASS | recovers τ<sub>0</sub> = 2.5 s and 4.0 s within 0.5 s on synthetic records (test) |
+| §3.4 | Response detection | PASS | recovers onset and height of isolated responses; the rebuilt phasic part matches (tests) |
+| §3.6 | Artifact class rules | NOT VERIFIED | not yet checked by eye on UTD episodes |
+| §4 | Generator: shapes, labels, donors, prevalence | PASS | unit tests (template heights and durations, label support, C3 transition only, derangement, Poisson counts) |
+| §4.4 | Movement–artifact link | PASS | tests: *c* = 0 gives no movement-caused artifact; κ scales size with intensity. The delay δ<sub>max</sub> has no separate test. |
+| §5 | Feature sets F0, FA, FA4, FB | PARTIAL | unit tests (counts, causality of FB, planted lag, published AWW features reproduced); comparison of the Haar details with PyWavelets skipped (not installed) |
+| §6 | LOSO models, AUPRC, bootstrap | PASS | tests; real-data reproduction above |
+| §9 | Untrained detectors | PARTIAL | run in the development run; tested on simple planted cases; not compared with the original authors' code |
 
-## Validation gates
+## Validation checks
 
-| Gate | UTD | Smoke (AWW, not results) |
+| Check | UTD | Development run (AWW) |
 |---|---|---|
-| G1 unit tests | PASS: 52 passed, 5 skipped (reference cvxEDA, wfdb, PyWavelets or raw data missing) | same suite |
-| G2 parameter recovery | BLOCKED | FAIL: τ0 error 0.0 s and rate error 0.16 within limits; KS test of response sizes p = 0.023 < 0.05 |
-| G3 realism, clean windows (C2ST AUC ≤ 0.70) | BLOCKED | FAIL: AUC 0.87 |
-| G4 realism, artifact windows | BLOCKED | FAIL: AUC 0.99 |
-| G5 negative controls | BLOCKED | FAIL: with c = 0, adding acceleration features *lowers* AUPRC (Δ_A −0.024, CI −0.028 to −0.021; Δ_A4 −0.005, CI excludes 0); F_B passes both controls |
-| G6 positive controls | BLOCKED | FAIL: C4-only control produced no positive windows (C4 gain on AWW ≈ 0.0003). Mixture with c = 1: Δ_A +0.019 (CI 0.008 to 0.030) passes, while Δ_B is −0.038 (CI −0.051 to −0.025) |
+| G1 unit tests | PASS: all tests pass; 5 are skipped where optional packages or raw data are missing | same suite |
+| G2 parameter recovery | BLOCKED | FAIL (sizes of responses: KS *p* = 0.023) |
+| G3 realism, clean windows | BLOCKED | FAIL (AUC 0.87, limit 0.70) |
+| G4 realism, artifact windows | BLOCKED | FAIL (AUC 0.99) |
+| G5 negative controls | BLOCKED | FAIL (adding acceleration features lowered AUPRC without any link) |
+| G6 positive controls | BLOCKED | FAIL (C4 control produced no artifacts) |
 | G7 real-data consistency | BLOCKED | not applicable |
 
-Smoke gate failures may differ on UTD and are not fixed by changing thresholds.
-Several raise design questions to settle **before** the tag (see below).
+Details in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
 
 ## Experiment and outputs
 
-| Element | UTD | Smoke |
+| Element | UTD | Development run |
 |---|---|---|
-| Pilot and R | NOT RUN (after gates) | PASS (runs to completion; R = 3 by the smoke cap) |
-| Main grid, 200 cells | NOT RUN (after tag) | PASS (runs to completion: 8 cells × 3 replicates, resumable) |
-| Variants, label noise | NOT RUN | NOT RUN |
-| Analysis, compatibility (goal 5) | NOT RUN | PASS (runs to completion) |
-| Sensitivity and power (goal 6) | NOT RUN | PASS (runs to completion) |
-| Figures F1-F7 | NOT RUN | PASS (produced and inspected by eye; this inspection found two bugs, see CHANGELOG) |
+| Pilot and number of replicates | NOT RUN (comes after the checks) | PASS (runs to completion) |
+| Main grid, 200 cells | NOT RUN (comes after the tag) | PASS (runs to completion: 8 cells × 3 replicates, resumable) |
+| Variants and label-noise runs | NOT RUN | NOT RUN |
+| Analysis, compatibility, sensitivity | NOT RUN | PASS (runs to completion) |
+| Power for the laboratory study | NOT RUN | PASS (runs to completion) |
+| Figures F1–F7 | NOT RUN | PASS (produced and inspected; the inspection found two errors that were fixed) |
 | Two-hand laboratory study | NOT IMPLEMENTED | — |
 
-## Open questions to settle before the tag `prereg-synth-v1`
+## Known problems
 
-1. **G5 with a significant loss.** G5 fails when Δ is significantly *negative*
-   (extra uninformative features cost accuracy). The gate exists to catch a
-   spurious *gain*. Whether a loss should fail it has to be decided before UTD
-   gates are run, not after.
-2. **C4 positive control.** If the UTD gain G of the walking oscillation is also
-   close to 0, the C4 control cannot produce artifacts. A fixed control gain
-   would then be needed; its value has to be chosen before seeing G6 on UTD.
-3. **τ0 grid edge.** On AWW every recording chose τ0 = 2.0 s, the lower grid
-   edge. If this repeats on UTD, the grid (2-4 s) should be widened before the
-   grid run.
-4. **Artifact size: absolute or relative.** Templates carry sizes in µS. On AWW,
-   level shifts (C3) measured on days with a level of 5-6 µS were added to a
-   donor at about 1 µS and pushed the synthetic signal down to 0.2 µS (F1). Either
-   sizes are scaled to the donor's level or V2 (relative contact loss) becomes the
-   main variant. To decide on UTD before the tag.
-5. **C3 share.** The classification rules put 68 % of AWW episodes into C3
-   (level shift), while the real AWW traces show mostly short drops. The rules
-   should be checked on UTD episodes by eye before their shares are used.
-6. **F_B under the positive control.** On AWW, adding the coupling features
-   lowered AUPRC when every artifact was caused by movement. Whether this is a
-   property of AWW or a defect of F_B has to be checked on UTD.
+1. **Not run on the intended data.** Everything that needs the raw PhysioNet files
+   (inspection, alignment, estimation, checks G2–G7, the grid) has only been run on
+   the development data, or not at all.
+2. **The development data fail every check.** The causes found so far are listed
+   under open decisions 3–6.
+3. **Feature scaling differs between real and synthetic data.** The published UTD
+   features are z-scored within each participant; the synthetic pipeline only
+   standardises over the training data. The real Δ used in the compatibility analysis
+   (goal 5) was obtained with the former.
+4. **Choice of conditions for the power analysis.** The code uses the first three
+   compatible cells in grid order, which favours small values of *c*. A selection
+   rule with a stated reason should be fixed before the tag.
+5. **Label-noise variant.** It trains on noisy labels and scores against the true
+   labels, while on UTD both training and scoring use expert labels. Whether this is
+   the right comparison for goal 5 is open.
+6. **Optional dependencies.** `pip install -e ".[reference]"` builds `cvxopt` from
+   source on some systems and can fail; conda (`environment.yml`) installs a prebuilt
+   version. The authors' cvxEDA code must be downloaded by hand
+   ([REPRODUCING.md](REPRODUCING.md#6-optional-cross-checks)).
+7. **Computing cost of the main grid.** Extrapolated from the development run, the
+   main grid needs roughly 70 CPU hours with 10 replicates and roughly 350 with 50
+   ([REPRODUCING.md §5.3](REPRODUCING.md#53-computing-time)). On the development data
+   the spread of Δ between replicates (SD 0.042) would call for more than the cap of
+   50 replicates. Whether the run is
+   feasible on the available hardware, or the design has to be reduced, has to be
+   decided before the tag.
+
+## Open design decisions (to settle before the tag `prereg-synth-v1`)
+
+1. **G5 and a significant loss.** G5 fails when adding acceleration features makes
+   detection significantly *worse*. The check was designed to catch a spurious
+   *gain*; whether a loss should also fail it must be decided before the checks are
+   run on UTD.
+2. **Positive control C4.** If the walking gain *G* measured on UTD is also close to
+   zero, the C4 control cannot produce artifacts. A fixed control gain would then be
+   needed, chosen before seeing G6 on UTD.
+3. **τ<sub>0</sub> at the edge of its range.** On AWW every recording chose
+   τ<sub>0</sub> = 2.0 s. If this repeats on UTD, the range should be widened.
+4. **Absolute or relative artifact sizes.** Artifact sizes are stored in µS. A level
+   shift measured on a day with a level of 5–6 µS, added to a donor at about 1 µS,
+   pushed a synthetic signal down to 0.2 µS (figure F1 of the development run).
+   Either sizes are scaled to the donor's level, or the multiplicative variant V2
+   becomes the main variant.
+5. **Share of level shifts.** The class rules put 68 % of AWW episodes into C3,
+   while the AWW traces mostly show short drops. The rules should be checked by eye
+   on UTD episodes before their shares are used.
+6. **Coupling features in the positive control.** On AWW the FB features lowered
+   AUPRC when every artifact was caused by movement. Whether this is a property of
+   AWW or a defect of FB has to be checked on UTD.

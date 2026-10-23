@@ -1,4 +1,4 @@
-"""Semi-synthetic generator (method step 4 and the coupling of step 6).
+"""Semi-synthetic generator (docs/METHOD.md section 4, including the movement-artifact link).
 
 Each synthetic participant combines
   * the real accelerometer record, protocol stages and motion events of a
@@ -32,7 +32,7 @@ UP = 8  # fine grid = 8 x 8 Hz = 64 Hz
 
 @dataclass
 class Condition:
-    """One cell of the grid (Table 4 of the method)."""
+    """One cell of the grid (docs/METHOD.md section 8)."""
 
     c: float = 0.5  # share of artifacts caused by movement
     kappa: float = 1.0  # amplitude ~ (I_e / median I)^kappa

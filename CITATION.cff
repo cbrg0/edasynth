@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below, together with the data and methods listed in docs/REFERENCES.md."
 title: "edasynth: semi-synthetic test bench for accelerometer-aided motion-artifact detection in wrist electrodermal activity"
-version: 1.0.0
+version: 1.0.1
 license: MIT
 authors:
   - family-names: Doskaliyeva

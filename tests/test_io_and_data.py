@@ -122,3 +122,33 @@ def test_alignment_detects_a_shift():
     assert res["accepted"] and res["shift_windows"] == 0
     res = check_participant(np.r_[np.zeros(80), eda], stored, 0.999)
     assert res["accepted"] and res["shift_windows"] * 40 + res["shift_samples"] == 80
+
+
+def test_alignment_offset_is_applied_by_cropping():
+    from edasynth.alignment import check_participant
+    from edasynth.data import Recording
+    from edasynth.features import stats4, windows
+
+    rng = np.random.default_rng(1)
+    eda = np.cumsum(rng.standard_normal(40 * 300)) * 0.01 + 5
+    stored = stats4(windows(eda))[:280]
+    padded = np.r_[np.full(83, 5.0), eda]
+    res = check_participant(padded, stored, 0.999)
+    assert res["accepted"] and res["offset_samples"] == 83
+    r = Recording("S01", 8.0, padded, np.zeros((padded.size, 3)), stage=np.full(padded.size, "relax1", dtype=object))
+    c = r.cropped(res["offset_samples"])
+    assert np.array_equal(c.eda[: eda.size], eda)
+    assert c.acc.shape[0] == c.eda.size and c.stage.size == c.eda.size
+    assert c.meta["alignment_offset_samples"] == 83
+
+
+def test_alignment_rejects_when_offset_leaves_too_few_windows():
+    from edasynth.alignment import check_participant
+    from edasynth.features import stats4, windows
+
+    rng = np.random.default_rng(2)
+    eda = np.cumsum(rng.standard_normal(40 * 100)) * 0.01 + 5
+    stored = stats4(windows(eda))
+    res = check_participant(np.r_[np.full(40, 5.0), eda[:-20]], stored, 0.999)
+    assert res["n_windows_after_offset"] < stored.shape[0]
+    assert not res["accepted"]

@@ -8,6 +8,8 @@ window belongs to which piece of signal. Two checks are applied per participant:
    the participant (exactly as in Zhang's script) correlate >= 0.999 with the
    first four columns of the published matrix. If not, shifts of 1-10 windows and
    0-39 samples are searched; a participant that still fails is excluded.
+Accepted participants are used with the offset found here (``offset_samples``):
+every later step drops that many samples from the start of the raw record.
 """
 
 from __future__ import annotations
@@ -50,13 +52,17 @@ def check_participant(eda: np.ndarray, stored4: np.ndarray, threshold: float) ->
                 r = corr_at(os_, ow)
                 if r.min() > best["r"].min():
                     best = {"shift_samples": os_, "shift_windows": ow, "r": r}
+    offset = best["shift_windows"] * WIN + best["shift_samples"]
+    n_after = (eda.size - offset) // WIN
     return {
         "n_windows_raw": int(n_raw),
+        "n_windows_after_offset": int(n_after),
+        "offset_samples": int(offset),
         "n_windows_labels": int(n_lab),
         "count_match": bool(n_raw == n_lab),
         "shift_samples": int(best["shift_samples"]),
         "shift_windows": int(best["shift_windows"]),
         "r_min": float(best["r"].min()),
         "r": [float(x) for x in best["r"]],
-        "accepted": bool(best["r"].min() >= threshold and n_raw >= n_lab),
+        "accepted": bool(best["r"].min() >= threshold and n_after >= n_lab),
     }
