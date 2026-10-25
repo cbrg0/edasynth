@@ -4,12 +4,15 @@ Each synthetic participant combines
   * the real accelerometer record, protocol stages and motion events of a
     *motion donor* u(j), and
   * the physiology (tau0, response rates and sizes, tonic shape, noise,
-    quantisation) of a different *physiology donor* d(j) != u(j).
+    quantisation) of a different *physiology donor* d(j) != u(j), chosen among
+    the donors whose EDA level is valid.
 Because the donors are different people, every link between movement and the
 EDA signal in the output is created by the generator's parameters and is
 therefore known exactly.
 
-Clean signal   y0 = s + r + eps            (built on a 64-Hz grid, averaged to 8 Hz)
+Clean signal   y0 = s + r + eps            (s, r on a 64-Hz grid, averaged to 8 Hz; eps =
+                                           blocks of the donor's decomposition residual)
+Artifact size  relative template size x local level of y0 before the artifact
 Artifacts      y  = y0 + sum of all artifacts (variant V1, additive)
                y  = y0 * (1 - rho)          (variant V2, classes C2/C3 only)
 True label     sample corrupted if the artifact moves it by >= threshold (for the
@@ -163,8 +166,34 @@ class Generator:
         h = bateman(np.arange(0, self.g["kernelTauMultiple"] * tau0, 1 / fsF), tau0, tau1)
         rF = fftconvolve(imp, h)[:nf]
         clean8 = blockMean(s + rF)
-        y0 = clean8 + rng.normal(0.0, phys["sigma"], clean8.size)
+        y0 = clean8 + self.noise(phys, clean8.size, rng)
         return y0, responses
+
+    def noise(self, phys: dict, n: int, rng: np.random.Generator) -> np.ndarray:
+        """Measurement noise of the clean signal (docs/METHOD.md section 4.2).
+
+        ``residualBootstrap``: blocks of the physiology donor's decomposition
+        residual, drawn with replacement and joined; ``gaussian``: independent
+        normal noise with the donor's sigma.
+        """
+        mode = self.g["noise"]
+        if mode == "gaussian":
+            return rng.normal(0.0, phys["sigma"], n)
+        if mode != "residualBootstrap":
+            raise ValueError(f"unknown noise model {mode}")
+        blocks = np.asarray(phys.get("residual", np.zeros((0, 1))), float)
+        if blocks.ndim != 2 or blocks.shape[0] == 0:
+            raise ValueError(f"{phys['pid']}: no residual blocks in the bank for the noise model")
+        L = blocks.shape[1]
+        idx = rng.integers(blocks.shape[0], size=-(-n // L))
+        return blocks[idx].ravel()[:n]
+
+    def localLevel(self, y0: np.ndarray, t0: float, fs: float) -> float:
+        """Median of the clean signal over the ``levelWindowS`` before t0, floored."""
+        i0 = min(int(t0 * fs), y0.size - 1)
+        w = int(round(self.g["levelWindowS"] * fs))
+        lvl = float(np.median(y0[max(0, i0 - w) : i0 + 1]))
+        return max(lvl, self.cfg["estimation"]["episodes"]["levelFloor"])
 
     # ------------------------------------------------------------ artifacts
     def drawTemplate(self, cls: str, rng: np.random.Generator):
@@ -181,21 +210,21 @@ class Generator:
 
     def artifactSignal(self, cls, prm, t0, scale, n, fs, y0, acc, ev, variant):
         nf, fsF = n * UP, fs * UP
+        # template sizes are relative to the level before the artifact (section 4.3)
+        lvl = self.localLevel(y0, t0, fs) if cls in ("C1", "C2", "C3") else 1.0
         if cls == "C1":
-            a = blockMean(trapezoid(nf, fsF, t0, prm["tauR"], 0.0, prm["tauF"], prm["A"] * scale))
+            a = blockMean(trapezoid(nf, fsF, t0, prm["tauR"], 0.0, prm["tauF"], prm["relA"] * lvl * scale))
             return a, np.abs(a) >= self.g["labelThreshold"]
         if cls in ("C2", "C3"):
             if cls == "C2":
                 shape = trapezoid(nf, fsF, t0, prm["w"], prm["D"], prm["w"], 1.0)
-                size = -prm["depth"] * scale
+                size = -prm["relDepth"] * lvl * scale
             else:
                 shape = stepShape(nf, fsF, t0, prm["w"], 1.0)
-                size = prm["delta"] * scale
+                size = prm["relDelta"] * lvl * scale
             shape8 = blockMean(shape)
             if variant == "V2":
-                i0 = min(int(t0 * fs), n - 1)
-                lvl = float(np.median(y0[max(0, i0 - int(5 * fs)) : i0 + 1]))
-                rho = np.clip(abs(size) / max(lvl, 1e-6), 0.0, self.g["rhoMax"])
+                rho = np.clip(abs(size) / lvl, 0.0, self.g["rhoMax"])
                 piece = -y0 * rho * shape8
             else:
                 piece = size * shape8
@@ -328,6 +357,31 @@ def windowLabels(mask: np.ndarray, nw: int, rule: str) -> np.ndarray:
     if rule == "majority":
         return (m.sum(1) > WIN / 2).astype(int)
     raise ValueError(rule)
+
+
+def assignDonors(motion: list[dict], phys: list[dict], rng: np.random.Generator, maxTries: int = 10000) -> np.ndarray:
+    """Physiology donor index for every movement donor (docs/METHOD.md section 4.1).
+
+    Only valid physiology donors are used and nobody is paired with themself.
+    When every donor is valid this is a derangement, so each physiology donor is
+    used once. Otherwise the valid donors are dealt out in random order, each at
+    most one time more often than any other.
+    """
+    n = len(motion)
+    valid = np.array([i for i, p in enumerate(phys) if p.get("validDonor", True)])
+    if valid.size == n:
+        return derangement(n, rng)
+    if valid.size < 2:
+        raise ValueError("fewer than two valid physiology donors")
+    mPid = np.array([m["pid"] for m in motion])
+    pPid = np.array([p["pid"] for p in phys])
+    reps = -(-n // valid.size)
+    for attempt in range(maxTries):
+        perm = np.concatenate([rng.permutation(valid) for r in range(reps)])[:n]
+        perm = rng.permutation(perm)
+        if not np.any(pPid[perm] == mPid):
+            return perm
+    raise RuntimeError("could not pair every movement donor with a different physiology donor")
 
 
 def derangement(n: int, rng: np.random.Generator) -> np.ndarray:

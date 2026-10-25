@@ -44,9 +44,10 @@ config ──┘                          │                     ▲           
   optional `temp`, per-sample `stage`, expert labels `labels3` (windows × 3) and
   metadata. `majority()` gives the two-of-three label per window.
 - **Bank** (`results/bank-<source>.json` and `.npz`): `phys` (one entry per
-  participant: τ<sub>0</sub>, rates, response sizes, tonic fits, σ, *q*), `motion`
-  (movement events and quantisation of each movement donor; the acceleration arrays
-  are in the `.npz`), `library` (artifact templates by class, class shares, walking
+  participant: τ<sub>0</sub>, rates, response sizes, tonic fits, σ, *q*, the
+  physiology-donor check `validDonor`; the residual blocks for the noise are in the
+  `.npz` as `resid<pid>`), `motion` (movement events and quantisation of each
+  movement donor; the acceleration arrays are in the `.npz`), `library` (artifact templates by class, class shares, walking
   gain *G*), the full per-participant `estimates`, the configuration path and the git
   commit that produced it.
 - **`Condition`** (`generator.py`): one cell of the grid (*c*, κ, δ<sub>max</sub>,

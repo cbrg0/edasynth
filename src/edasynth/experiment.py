@@ -2,7 +2,8 @@
 
 One *replicate* of one *condition* is a data set of synthetic participants whose
 motion donors are the real participants (each used once) and whose physiology
-donors are assigned by a derangement (nobody is paired with themself). Every
+donors are drawn from the valid donors so that nobody is paired with themself
+(``generator.assignDonors``). Every
 model and feature set is evaluated on it with leave-one-participant-out.
 """
 
@@ -21,7 +22,7 @@ from sklearn.metrics import cohen_kappa_score
 from .config import key
 from .data import WIN
 from .features import f0, fa, fa4, fb
-from .generator import Condition, Generator, derangement
+from .generator import Condition, Generator, assignDonors
 from .models import (
     auprc,
     auroc,
@@ -61,7 +62,13 @@ def loadBank(path: str | Path) -> dict:
                 "qAcc": m["qAcc"],
             }
         )
-    return {"motion": motion, "phys": meta["phys"], "library": meta["library"], "source": meta["source"]}
+    phys = meta["phys"]
+    for p in phys:
+        key = f"resid{p['pid']}"
+        if key not in arrays.files or "validDonor" not in p:
+            raise ValueError(f"{path}: bank written before version 1.2.0; run `estimate` again")
+        p["residual"] = arrays[key]
+    return {"motion": motion, "phys": phys, "library": meta["library"], "source": meta["source"]}
 
 
 # ------------------------------------------------------------------ data sets
@@ -99,7 +106,7 @@ def makeDataset(
     order = np.arange(nAll)
     if nParticipants is not None and nParticipants < nAll:
         order = rng.choice(nAll, nParticipants, replace=False)
-    perm = derangement(nAll, rng)
+    perm = assignDonors(motion, phys, rng)
     recs, feats, ys, groups = [], [], [], []
     for gi, k in enumerate(order):
         m = motion[k]

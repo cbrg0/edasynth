@@ -51,13 +51,16 @@ def toyBank():
                 "areas": list(rng.uniform(0.5, 2.0, 50)),
                 "tonic": [{"s0": 2.0, "b": 0.001, "AS": 0.05, "TT": 60.0, "stageType": t} for t in ("rest", "load")],
                 "sigma": 0.003,
+                "residual": 0.003 * rng.standard_normal((60, 40)),
+                "validDonor": True,
                 "q": 0.001,
             }
         )
     lib = {
-        "C1": [{"A": 0.5, "tauR": 0.5, "tauF": 1.0}],
-        "C2": [{"depth": 0.4, "w": 0.125, "D": 2.0}],
-        "C3": [{"delta": 0.3, "w": 0.5}],
+        # sizes relative to the local level (about 2 uS in this bank)
+        "C1": [{"relA": 0.25, "tauR": 0.5, "tauF": 1.0}],
+        "C2": [{"relDepth": 0.2, "w": 0.125, "D": 2.0}],
+        "C3": [{"relDelta": 0.15, "w": 0.5}],
         "C5": [{"D": 2.0, "kind": "zero"}],
         "classShares": {"C1": 0.25, "C2": 0.25, "C3": 0.25, "C5": 0.25},
         "G": 0.2,

@@ -159,6 +159,20 @@ neighbouring samples that occurs in at least 1 % of all non-zero differences
 noise floor σ<sub>eff</sub> = max(σ, *q*/√12) is used for classifying artifacts
 (§3.6), because rounding alone produces noise with standard deviation *q*/√12.
 
+On UTD the estimate is σ = 0 for all 20 participants: more than half of the
+neighbouring differences are exactly zero, because the noise is smaller than the
+quantisation step (*q* ≈ 0.001 µS). σ therefore cannot describe the noise of these
+recordings, and Gaussian noise with σ = 0 made the synthetic signal smoother than
+the real one (check G3, [RESULTS.md](RESULTS.md)). Since version 1.2.0 the generator
+uses the **decomposition residual** instead **[decision]**: the recorded signal minus
+the cvxEDA tonic and phasic parts (§3.3), *e* = *x* − *t* − *r*. It is cut into
+blocks of 5 s (one window, 40 samples) inside the clean rest windows, with the same
+fallback to all clean windows, and each block is shifted to mean zero so that joined
+blocks produce no steps. The blocks are stored per participant in the bank. This
+keeps the size, the distribution and the short-range correlation of the real
+residual within 5 s; it does not keep correlations longer than 5 s, and the residual
+also contains whatever part of the signal the decomposition did not explain.
+
 ### 3.3 Separating tonic and phasic parts
 
 **Model of the clean signal.** A clean recording is modelled as
@@ -229,6 +243,15 @@ The onset is the latest lowest point of *r* in the 5 s before the peak, and the 
 used by the generator is *a* = *A*/*h*<sub>max</sub>, so that an isolated synthetic
 response has the measured height *A* **[decision]**.
 
+Since version 1.2.0 only responses whose onset and peak both lie in clean windows
+supply sizes **[decision]**. Before, sizes were taken from every detected response.
+On UTD (version 1.1.2) 25 of 1 092 detected heights were larger than the whole range
+of the participant's recording, up to 31.7 µS in a recording that spans 7.7 µS.
+Such heights cannot be responses; the likely source is artifacts inside the
+artifact windows that the phasic part absorbed (hypothesis). A height larger than
+the range of the recording now triggers a warning in the log. If a participant has
+no response with both ends clean, the responses with a clean onset are used.
+
 An earlier version counted each run of non-zero driver as one response. That rule
 was rejected because the optimal driver is dense on noisy, quantised signals and the
 runs split into many spurious responses (14–95 per minute on AWW, with the solver
@@ -276,6 +299,7 @@ measured:
 | rise time, return time | time from 10 % to 90 % of \|*A*\| at the start, and from 90 % back to 10 % at the end |
 | P<sub>n</sub> | share of the episode's spectral power above 0.4 Hz (Hossain et al., 2022) |
 | level shift | median after minus median before |
+| level | median of the 2 s before the episode |
 | duration | number of windows × 5 s |
 
 Each episode is assigned to one class by fixed rules, applied in this order
@@ -292,6 +316,20 @@ Each episode is assigned to one class by fixed rules, applied in this order
 The measured rise, return, amplitude, shift and duration become the parameters of
 the artifact templates of §4.3. For linear edges the 10–90 % time is 0.8 of the full
 edge time, so edge times are rise time / 0.8.
+
+Since version 1.2.0 the sizes (\|*A*\| for C1 and C2, the signed shift for C3) are
+stored **relative to the level** before the episode, divided by max(level,
+0.05 µS) **[decision]**. The floor keeps the ratio finite when the level is close
+to zero; 0.05 µS is the lower range limit of Kleckner et al. (2018, rule 1). Sizes
+in µS had been measured on one level and added to signals at another level: on the
+development data, a shift measured at 5–6 µS pushed a synthetic signal at about
+1 µS down to 0.2 µS, and on UTD the same mismatch is possible because the
+participants' levels differ. A relative size assumes that an artifact scales with
+the signal, as the multiplicative variant V2 already does (§4.5); this is an
+assumption. Episodes whose level before the episode is below 0.05 µS are left out
+of the templates and the class shares **[decision]**: below that level the data are
+invalid by the same rule, and dividing by the floor would turn a small change into
+a size of 100 % or more of the level.
 
 These rules were written before looking at the UTD episodes. On the AWW development
 data they put 68 % of episodes into C3, while the AWW traces mostly show short drops,
@@ -338,13 +376,27 @@ Module `edasynth.generator`.
 
 Synthetic participant *j* combines the real acceleration record, protocol stages and
 movement events of a **movement donor** *u*(*j*) with the measured physiology
-(τ<sub>0</sub>, response rates and sizes, tonic fits, σ, *q*) of a different
-**physiology donor** *d*(*j*) ≠ *u*(*j*). The pairing is a random derangement, a
-permutation without fixed points. Because the two donors are different people, any
+(τ<sub>0</sub>, response rates and sizes, tonic fits, noise residual, *q*) of a
+different **physiology donor** *d*(*j*) ≠ *u*(*j*). Because the two donors are different people, any
 relation between movement and EDA in the synthetic data was put there by the
 generator, and the model cannot recognise a person from two matching signals. One
 **replicate** contains as many synthetic participants as there are movement donors
 (20 for UTD), each movement record used once.
+
+**Who can be a physiology donor.** A participant whose EDA lies below 0.05 µS in
+more than half of the samples is not used as a physiology donor **[decision]**.
+Kleckner et al. (2018, rule 1) treat EDA below 0.05 µS as invalid; the 50 % limit
+is our choice. Such a recording yields no usable tonic level, response sizes or
+relative artifact sizes. It stays a movement donor, because its acceleration record
+is unaffected. On UTD this rule excludes one participant (S18, whose EDA stays below
+0.08 µS throughout; [RESULTS.md](RESULTS.md)).
+
+**Pairing.** When every participant is a valid physiology donor, the pairing is a
+random derangement, a permutation without fixed points, so every physiology donor is
+used once. When some are excluded, the valid donors are dealt out in random order so
+that each is used either ⌊*n*/*n*<sub>valid</sub>⌋ or ⌈*n*/*n*<sub>valid</sub>⌉
+times, and the draw is repeated until nobody is paired with themself. With 19 valid
+donors for 20 movement donors, one physiology donor appears twice per replicate.
 
 ### 4.2 Clean signal
 
@@ -363,14 +415,21 @@ edges fall between the 8 Hz samples instead of only on them.
   5 s. The latency range is the usual one for stimulus-evoked responses
   [source: Boucsein et al., 2012, as cited in Posada-Quintero & Chon, 2020]; applying it to
   movement is an assumption.
-- **Noise and quantisation.** White Gaussian noise with the donor's σ is added; after
-  the artifacts the signal is rounded to the donor's step *q*.
+- **Noise and quantisation.** Blocks of the donor's residual (§3.2) are drawn at
+  random with replacement and joined to the length of the record; after the
+  artifacts the signal is rounded to the donor's step *q*. The residual of a
+  recorded signal already contains rounding error, so the synthetic signal is in
+  effect rounded twice; the realism check G3 shows whether this matters. The
+  earlier model, Gaussian noise with the donor's σ, remains available as
+  `generator.noise: gaussian`.
 
 ### 4.3 Artifact classes
 
 The artifact shapes are the simplest shapes consistent with the published
 descriptions **[decision]**; their sizes and durations are drawn from the measured
-episodes of §3.6, pooled over all participants.
+episodes of §3.6, pooled over all participants. A drawn relative size is multiplied
+by the **local level** of the clean synthetic signal, the median of *y*<sub>0</sub>
+over the 5 s before the artifact, with the same floor of 0.05 µS **[decision]**.
 
 | Class | Shape | Origin of the idea |
 |---|---|---|
@@ -396,7 +455,7 @@ $$
 
 so with κ = 0 the size does not depend on how vigorous the movement was, and with
 κ = 1 it is proportional to its intensity. An artifact that is not caused by movement
-starts at a uniformly random time with its measured size. C4 artifacts are always
+starts at a uniformly random time with its measured relative size. C4 artifacts are always
 attached to a movement event and scaled in the same way.
 
 In a single-class cell every artifact has that class. In the mixture the class of each
@@ -410,8 +469,9 @@ C4 excluded.
   values instead of adding to them.
 - **V2, multiplicative (C2 and C3 only).** *y* = *y*<sub>0</sub>(1 − ρ *g*(*t*)),
   where *g* is the template shape scaled to 0…1 and ρ, the lost share of contact,
-  is the measured size divided by the local level (median of the 5 s before) and
-  capped at 0.95. The signal is always lowered, also for level shifts that were
+  is the measured relative size (times the movement scaling of §4.4), capped at
+  0.95. Since sizes are relative in both variants, V1 and V2 now differ only in
+  whether the artifact follows the changes of *y*<sub>0</sub> during the artifact. The signal is always lowered, also for level shifts that were
   measured as upward. This variant represents the idea that losing contact removes a
   fraction of the signal; it is an assumption to be tested in the laboratory.
 
@@ -553,6 +613,17 @@ The negative controls test whether the pipeline invents a gain: when movement an
 artifacts are unrelated, adding movement features must not help. The positive
 controls test whether it can detect a gain that exists.
 
+**A significant loss also fails G5.** The rule asks for an interval that contains
+0, so it fails both for a spurious gain and for a significant loss. The rule was
+kept unchanged after the first run on UTD **[decision, 25 October 2026]**. In that run (version 1.1.2),
+FA (96 features) and FA4 fail it with losses (Δ<sub>A</sub> about −0.05,
+Δ<sub>A4</sub> about −0.005), while FB passes. A loss without any link means that
+the extra features add noise that the model does not fully ignore with 20
+participants. Consequences for reading the map (§8): a gain of FA or FA4 in a cell
+has to be compared with their loss in the no-link control, not with zero, and a
+cell is not read as "acceleration helps" through FA or FA4 unless Δ exceeds that
+loss. FB, which passes, is read against zero.
+
 ---
 
 ## 8. Experiment and analysis
@@ -629,6 +700,10 @@ here; it has not been compared with the authors' own code.
   (Posada-Quintero & Chon, 2020); parameters measured with cvxEDA inherit its view.
 - **Artifact shapes and classes** are the simplest shapes consistent with published
   descriptions, and the class rules have not yet been checked on UTD episodes.
+- **Relative artifact sizes** assume that an artifact grows with the signal level.
+  The laboratory study is meant to test this.
+- **Noise model.** Residual blocks keep correlations up to 5 s only, and the
+  residual depends on the decomposition (§3.3).
 - **Feature scaling differs between real and synthetic data.** The published UTD
   features are z-scored within each participant; the synthetic pipeline standardises
   over the training set only. This matters for the comparison in goal 5.
@@ -643,7 +718,10 @@ here; it has not been compared with the authors' own code.
 | artifact window (real data) | ≥ 2 of 3 experts | decision |
 | alignment correlation | ≥ 0.999 | decision |
 | clean window | unanimously clean, neighbours too | decision, after Kleckner et al. (2018) rule 4 |
-| noise σ | median\|*d*<sub>1</sub>\|/0.6745 | method: Donoho & Johnstone (1994); value measured |
+| noise σ (episode classes; `gaussian` noise model) | median\|*d*<sub>1</sub>\|/0.6745 | method: Donoho & Johnstone (1994); value measured |
+| generator noise | 5-s blocks of the decomposition residual, centred, drawn with replacement | decision |
+| artifact sizes | relative to max(level, 0.05 µS); level = median of the 2 s (real) or 5 s (synthetic) before | decision; floor = Kleckner et al. (2018) rule 1 |
+| physiology donor | at most 50 % of samples below 0.05 µS | decision; 0.05 µS: Kleckner et al. (2018) rule 1 |
 | τ<sub>1</sub>, τ<sub>0</sub> range | 0.7 s; 2–4 s | Greco et al. (2016) |
 | τ<sub>0</sub> step and selection | 0.1 s; smallest objective | decision (departs from Greco et al.) |
 | α, γ, knot spacing | 8·10⁻⁴, 10⁻², 10 s | Greco et al. (2016) |

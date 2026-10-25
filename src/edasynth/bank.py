@@ -1,7 +1,8 @@
 """Turning per-participant estimates into the generator's inputs ("bank").
 
 Output: ``<name>.json`` (all estimated numbers with provenance) and ``<name>.npz``
-(accelerometer arrays and stage labels of the motion donors).
+(accelerometer arrays and stage labels of the motion donors, residual blocks of
+the physiology donors).
 """
 
 from __future__ import annotations
@@ -15,6 +16,21 @@ import numpy as np
 
 from .data import Recording
 from .estimation import estimateParticipant, quantisationStep, templateParameters
+
+physKeys = (
+    "pid",
+    "tau0",
+    "rates",
+    "areas",
+    "tonic",
+    "sigma",
+    "sigmaSource",
+    "residualSource",
+    "residualSd",
+    "shareBelowMinLevel",
+    "validDonor",
+    "q",
+)
 
 
 def gitCommit() -> str:
@@ -37,19 +53,32 @@ def buildBank(recordings: list[Recording], cfg: dict, source: str, out: str | Pa
         from joblib import Parallel, delayed
 
         estimates = Parallel(n_jobs=nJobs)(delayed(estimateParticipant)(rec, cfg) for rec in recordings)
-    episodes = [ep for e in estimates for ep in e["episodes"]]
+    arrays = {}
+    for e in estimates:  # residual blocks go to the .npz, not into the JSON
+        arrays[f"resid{e['pid']}"] = np.asarray(e.pop("residual"), float)
+    # Episodes that start below the minimum valid level (Kleckner et al., 2018, rule 1)
+    # have no meaningful relative size; they are left out of the templates and shares.
+    floor = cfg["estimation"]["episodes"]["levelFloor"]
+    allEpisodes = [ep for e in estimates for ep in e["episodes"]]
+    episodes = [ep for ep in allEpisodes if ep["level"] >= floor]
+    if len(episodes) < len(allEpisodes):
+        log(f"{len(allEpisodes) - len(episodes)} of {len(allEpisodes)} episodes start below {floor} uS; not used")
     counts = Counter(ep["cls"] for ep in episodes)
     classified = {c: n for c, n in counts.items() if c.startswith("C")}
     tot = sum(v for c, v in classified.items() if c != "C4") or 1
-    library = {c: [templateParameters(ep) for ep in episodes if ep["cls"] == c] for c in ("C1", "C2", "C3", "C5")}
+    library = {
+        c: [templateParameters(ep, floor) for ep in episodes if ep["cls"] == c] for c in ("C1", "C2", "C3", "C5")
+    }
     library["classShares"] = {c: classified.get(c, 0) / tot for c in ("C1", "C2", "C3", "C5")}
     gains = [e["c4"]["G"] for e in estimates if np.isfinite(e["c4"]["G"])]
     library["G"] = float(np.median(gains)) if gains else float("nan")
     library["episodeCounts"] = dict(counts)
-    phys = [
-        {k: e[k] for k in ("pid", "tau0", "rates", "areas", "tonic", "sigma", "sigmaSource", "q")} for e in estimates
-    ]
-    motion, arrays = [], {}
+    library["episodesBelowFloor"] = len(allEpisodes) - len(episodes)
+    phys = [{k: e[k] for k in physKeys} for e in estimates]
+    excluded = [p["pid"] for p in phys if not p["validDonor"]]
+    if excluded:
+        log(f"not used as physiology donors (EDA below the minimum level): {', '.join(excluded)}")
+    motion = []
     for rec, e in zip(recordings, estimates, strict=True):
         motion.append(
             {

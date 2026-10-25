@@ -7,12 +7,16 @@ from edasynth.config import merge
 from edasynth.data import Recording
 from edasynth.estimation import (
     artifactEpisodes,
+    cleanEvents,
     cleanWindows,
     decomposeParticipant,
+    donorLevelCheck,
     estimateParticipant,
     motionEvents,
     noiseSigma,
     quantisationStep,
+    residualBlocks,
+    templateParameters,
 )
 from edasynth.generator import Condition, Generator
 
@@ -44,6 +48,8 @@ def testEstimationEndToEndOnASyntheticRecording(toyBank, cfg):
     assert est["tau0"] in (2.5, 3.0, 3.5)
     assert abs(est["tau0"] - p["tau0"]) <= 0.5
     assert est["sigma"] == pytest.approx(p["sigma"], rel=0.5)
+    assert est["residual"].shape[1] == 40 and est["residualSource"] == "cleanRest"
+    assert est["validDonor"]
     assert len(est["episodes"]) > 0
     assert {e["cls"] for e in est["episodes"]} <= {"C1", "C2", "C3", "C4", "C5", "unclassified"}
 
@@ -112,3 +118,59 @@ def testTau0SelectionRecoversKnownValue(cfg, tauTrue):
     r = Recording("x", fs, y, np.zeros((n, 3)), stage=np.full(n, "relax1", dtype=object))
     dec = decomposeParticipant(r, np.ones(n // 40, bool), c)
     assert abs(dec["tau0"] - tauTrue) <= 0.5
+
+
+def testResidualBlocksComeFromCleanRestWindowsAndAreCentred():
+    n = 40 * 6
+    stage = np.array(["relax1"] * 120 + ["physical"] * 120, dtype=object)
+    r = Recording("x", 8.0, np.ones(n), np.zeros((n, 3)), stage=stage, labels3=np.zeros((6, 3), int))
+    resid = np.repeat(np.arange(6.0), 40) + np.tile([0.01, -0.01], 120)
+    clean = np.array([True, False, True, True, True, True])
+    out = residualBlocks(r, resid, clean, 5.0)
+    assert out["source"] == "cleanRest"
+    assert out["blocks"].shape == (2, 40)  # windows 0 and 2; window 1 is not clean, 3-5 are load
+    assert np.allclose(out["blocks"].mean(1), 0.0)  # window offsets 0 and 2 removed
+    assert np.allclose(np.abs(out["blocks"]), 0.01)
+    out = residualBlocks(r, resid, np.array([False, False, False, True, True, False]), 5.0)
+    assert out["source"] == "cleanAllFallback" and out["blocks"].shape == (2, 40)
+    with pytest.raises(ValueError):
+        residualBlocks(r, resid, clean, 3.0)  # 24 samples do not divide a 40-sample window
+
+
+def testTemplateSizesAreRelativeToTheLevelBeforeTheEpisode():
+    ep = {"riseS": 0.4, "returnS": 0.8, "durationS": 5.0, "amp": -0.6, "shift": 0.3, "level": 3.0}
+    assert templateParameters({**ep, "cls": "C1"}, 0.05)["relA"] == pytest.approx(0.2)
+    assert templateParameters({**ep, "cls": "C2"}, 0.05)["relDepth"] == pytest.approx(0.2)
+    assert templateParameters({**ep, "cls": "C3"}, 0.05)["relDelta"] == pytest.approx(0.1)
+    low = templateParameters({**ep, "cls": "C3", "level": 0.01}, 0.05)
+    assert low["relDelta"] == pytest.approx(0.3 / 0.05)  # the floor applies below 0.05 uS
+
+
+def testEpisodesStoreTheLevelBeforeAndAfter(cfg):
+    fs, n = 8.0, 8 * 60
+    y = np.full(n, 2.0)
+    y[200:240] = 2.5
+    y[240:] = 2.2
+    lab = np.zeros((n // 40, 3), int)
+    lab[5] = 1
+    eps = artifactEpisodes(Recording("x", fs, y, np.zeros((n, 3)), labels3=lab), 0.001, cfg)
+    assert len(eps) == 1
+    assert eps[0]["level"] == pytest.approx(2.0) and eps[0]["levelAfter"] == pytest.approx(2.2)
+
+
+def testDonorLevelCheckFollowsTheMinimumLevelRule(cfg):
+    ok = donorLevelCheck(np.r_[np.full(60, 0.04), np.full(40, 1.0)], cfg)
+    assert ok["shareBelowMinLevel"] == pytest.approx(0.6) and not ok["validDonor"]
+    ok = donorLevelCheck(np.r_[np.full(50, 0.04), np.full(50, 1.0)], cfg)
+    assert ok["validDonor"]  # exactly half below is still accepted
+
+
+def testResponseSizesComeOnlyFromCleanWindows():
+    clean = np.array([True, False, True, True])
+    ev = [
+        {"onset": 5, "peak": 20},  # all in window 0: kept
+        {"onset": 30, "peak": 45},  # peak in the artifact window 1: dropped
+        {"onset": 50, "peak": 60},  # onset in window 1: dropped
+        {"onset": 90, "peak": 130},  # windows 2 and 3: kept
+    ]
+    assert [e["onset"] for e in cleanEvents(ev, clean)] == [5, 90]

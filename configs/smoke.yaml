@@ -16,7 +16,9 @@ estimation:
   minResponseAmp: 0.05
   cvxeda: {backend: auto, tau1: 0.7, tau0Min: 2.0, tau0Max: 4.0, tau0Step: 1.0, alpha: 8.0e-4, gamma: 1.0e-2, knotS: 10.0}
   tonic: {periodMinS: 45, periodMaxS: 90, periodStepS: 5}
-  episodes: {baselineS: 2.0, minAmp: 0.05, shiftSigma: 3.0, dropoutLevel: 0.01, saturationLevel: 60.0, flatMinS: 1.0, pnWalk: 0.5, walkStages: [physical, walk]}
+  episodes: {baselineS: 2.0, minAmp: 0.05, shiftSigma: 3.0, dropoutLevel: 0.01, saturationLevel: 60.0, flatMinS: 1.0, levelFloor: 0.05, pnWalk: 0.5, walkStages: [physical, walk]}
+  donor: {minLevel: 0.05, maxShareBelow: 0.5}
+  noise: {blockS: 5.0}
   motion: {percentile: 99, minLen: 4, mergeS: 1.0}
   plausibility: {maxRatePerMin: 10.0}
   reference: {windowS: [-1.0, 5.0]}
@@ -27,14 +29,16 @@ generator:
   kernelTauMultiple: 10
   motionResponseLatencyS: [1.0, 5.0]
   labelThreshold: 0.05
+  noise: residualBootstrap
+  levelWindowS: 5.0
   rhoMax: 0.95
   saturationLevel: 60.0
   maxArtifactsPerParticipant: 400
   allowFallbackTemplates: true      # smoke only: AWW may lack some classes
   fallbackTemplates:                 # placeholder shapes for the smoke run only; not used in real runs
-    C1: {A: [0.1, 1.0], tauR: [0.2, 1.0], tauF: [0.5, 3.0]}
-    C2: {depth: [0.1, 1.0], w: [0.125, 1.0], D: [1.0, 5.0]}
-    C3: {delta: [-0.8, 0.8], w: [0.125, 1.0]}
+    C1: {relA: [0.05, 0.5], tauR: [0.2, 1.0], tauF: [0.5, 3.0]}     # sizes relative to the local level
+    C2: {relDepth: [0.05, 0.5], w: [0.125, 1.0], D: [1.0, 5.0]}
+    C3: {relDelta: [-0.4, 0.4], w: [0.125, 1.0]}
     C5: {D: [1.0, 5.0], kind: zero}
 
 features:

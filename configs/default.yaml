@@ -41,8 +41,14 @@ estimation:
     dropoutLevel: 0.01
     saturationLevel: 60.0      # uS, upper limit of Kleckner et al. (2018) rule 1; dropoutLevel is a decision
     flatMinS: 1.0
+    levelFloor: 0.05           # uS; artifact sizes are stored relative to max(local level, levelFloor); floor = lower limit of Kleckner et al. (2018) rule 1, its use here is a decision
     pnWalk: 0.5
     walkStages: [physical, walk]
+  donor:                       # who may serve as a physiology donor (decision; docs/METHOD.md section 4.1)
+    minLevel: 0.05             # uS, lower limit of Kleckner et al. (2018) rule 1
+    maxShareBelow: 0.5         # decision: excluded if more than half of the samples lie below minLevel
+  noise:
+    blockS: 5.0                # decision: residual blocks of one window (40 samples)
   motion:
     percentile: 99              # decision; sensitivity at 95 and 99.9
     minLen: 4                  # samples (0.5 s)
@@ -60,6 +66,8 @@ generator:
   kernelTauMultiple: 10       # Bateman kernel length = 10 tau0 (exp(-10) ~ 5e-5)
   motionResponseLatencyS: [1.0, 5.0]   # stimulus latency of Boucsein et al. (2012), via Posada-Quintero & Chon (2020); use for movement is an assumption
   labelThreshold: 0.05         # uS, decision = minimum visible response
+  noise: residualBootstrap     # decision: blocks of the donor's decomposition residual (alternative: gaussian, with the donor's sigma)
+  levelWindowS: 5.0            # decision: local level = median of the clean signal over the 5 s before an artifact
   rhoMax: 0.95                 # V2: maximum lost contact fraction
   saturationLevel: 60.0
   maxArtifactsPerParticipant: 400

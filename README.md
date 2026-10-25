@@ -11,10 +11,11 @@ set in which experts labelled such artifacts.
 
 > **Current state (October 2026).** The code for every step is written and tested.
 > One result on real data is reproduced and verified (see [Results](docs/RESULTS.md)).
-> The main synthetic experiment has **not been run yet**: it needs the raw PhysioNet
-> recordings, and a development run on a second data set (recordings of one person)
-> failed all realism and control checks, which raises design questions that must be settled first
-> ([Status](docs/STATUS.md)). No synthetic finding is reported in this repository.
+> The main synthetic experiment has **not been run yet**. The first run of the
+> validation checks on the raw PhysioNet recordings (version 1.1.2) failed the
+> realism checks; version 1.2.0 changes the generator in response, and the checks
+> have to be run again before the experiment ([Status](docs/STATUS.md)). No synthetic
+> finding is reported in this repository.
 
 ---
 
@@ -179,8 +180,8 @@ Makefile                   one target per step of the study (`make help` lists t
   conclusions transfer to other sensors or to daily life is not tested.
 - The expert labels partly depend on the movement trace, so they cannot serve as an
   independent ground truth for judging the accelerometer.
-- The steps that need the raw PhysioNet recordings have not been run; the synthetic
-  data have so far failed all realism checks on the development data.
+- The synthetic data have so far failed the realism checks, on UTD with version
+  1.1.2 and on the development data; version 1.2.0 has not been checked on UTD yet.
 
 A complete list, including open design decisions, is in
 [docs/STATUS.md](docs/STATUS.md).

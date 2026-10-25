@@ -4,6 +4,62 @@ All notable changes to this project are recorded here. Changes to the method aft
 the preregistration tag must also be released under a new tag
 ([docs/PREREGISTRATION.md](docs/PREREGISTRATION.md)).
 
+## 1.2.0 (25 October 2026)
+
+Changes to the generator after the first run of the checks on the raw UTD files
+(version 1.1.2, [docs/RESULTS.md §3](docs/RESULTS.md#3-first-run-on-the-raw-utd-files-version-112)).
+They were made before the preregistration tag; the decisions and the results that
+led to them are documented. Banks written by earlier versions are not read; run
+`estimate` again.
+
+### Generator and estimation
+
+- **Noise from the decomposition residual.** On UTD the noise estimate σ was 0 for
+  every participant (the noise is below the quantisation step), so the generator
+  added no noise and the synthetic signal was too smooth (G3 AUC 0.98). The noise is
+  now made of 5-s blocks of the physiology donor's residual (signal minus cvxEDA
+  tonic and phasic parts) from clean rest windows, centred and drawn with
+  replacement. The blocks are stored in the bank (`resid<pid>` in the `.npz`).
+  Gaussian noise remains available as `generator.noise: gaussian`.
+- **Relative artifact sizes.** Episode sizes are stored relative to the level before
+  the episode, divided by max(level, 0.05 µS), and the generator multiplies them by
+  the local level of the synthetic signal. Template keys are now `relA`, `relDepth`
+  and `relDelta`; episodes record `level` and `levelAfter`. Episodes that start
+  below 0.05 µS are left out of the templates and class shares (their number is
+  logged and stored as `library.episodesBelowFloor`).
+- **Physiology donors.** A recording with more than half of its samples below
+  0.05 µS (Kleckner et al., 2018, rule 1; the 50 % limit is a decision) is not used
+  as a physiology donor; it remains a movement donor. On UTD this concerns S18.
+  `generator.assignDonors` replaces the derangement when donors are excluded; with
+  all donors valid it is the same derangement as before.
+- **Response sizes only from clean windows.** Sizes were taken from every detected
+  response, including those inside artifact windows; on UTD 25 of 1 092 heights
+  exceeded the range of the recording (up to 31.7 µS), and on the AWW run a synthetic
+  response of about 11 µS appeared in figure F2. Now only responses with onset and
+  peak in clean windows supply sizes, and heights above the range of the recording
+  are reported as warnings.
+- New configuration keys: `estimation.episodes.levelFloor`, `estimation.donor`,
+  `estimation.noise.blockS`, `generator.noise`, `generator.levelWindowS`.
+- The seeds are unchanged, but the synthetic data differ from 1.1.2 because the
+  noise and the sizes are drawn differently.
+
+### Decisions recorded
+
+- G5 keeps its rule: a significant loss without a movement–artifact link also fails
+  it. FA and FA4 gains are to be read against their no-link loss
+  ([docs/METHOD.md §7](docs/METHOD.md#7-validation-checks-g1g7)).
+
+### Documentation
+
+- `docs/RESULTS.md` §3 reports the first UTD run: inspection, alignment,
+  estimation, G1–G7 and the pilot; §1 adds the G7 comparison on recomputed
+  features and the random-forest values measured on macOS.
+- `docs/RESULTS.md` §2 reports the AWW development run with 1.2.0: G3 passes
+  (AUC 0.59), G4 still fails (0.93), and G2 now fails because τ<sub>0</sub> is not
+  recovered when responses are small compared with the residual noise.
+- `docs/STATUS.md`, `docs/METHOD.md` (§3.2, §3.6, §4.1–4.5, §7, §10, §11) and
+  `docs/REPRODUCING.md` (measured computing times) were updated.
+
 ## 1.1.2 (23 October 2026)
 
 - WFDB reader: checksums are compared modulo 2<sup>16</sup>. The PhysioNet noneeg

@@ -560,7 +560,8 @@ def cmdFigures(cfg, args):
     # F2: each class on the same clean segment
     gen = Generator(bank["library"], cfg)
     rng = np.random.default_rng(7)
-    m, p = bank["motion"][0], bank["phys"][1 % len(bank["phys"])]
+    m = bank["motion"][0]
+    p = next(x for x in bank["phys"] if x["validDonor"] and x["pid"] != m["pid"])
     clean, unused = gen.clean(m, p, rng, 0.0)
     fs = m["fs"]
     seg = slice(int(60 * fs), int(120 * fs))

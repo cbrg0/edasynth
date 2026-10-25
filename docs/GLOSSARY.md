@@ -63,7 +63,8 @@ pair each movement donor with a different physiology donor.
 
 **Donor.** A real participant who supplies part of a synthetic participant: the
 movement donor supplies the acceleration record and movement events, a different
-physiology donor supplies the EDA parameters (§4.1).
+physiology donor supplies the EDA parameters (§4.1). A recording whose EDA is below
+0.05 µS for more than half of the time is not used as a physiology donor.
 
 **Driver (sudomotor driver).** In cvxEDA, the sparse non-negative input signal that
 produces the phasic responses when passed through the Bateman shape.
@@ -138,8 +139,15 @@ rounded to multiples of it, which appears as small steps in the signal.
 **Random forest.** A model that averages many decision trees; used here as a
 robustness check.
 
+**Relative artifact size.** The size of an artifact divided by the signal level just
+before it; the generator multiplies it by the level of the synthetic signal (§3.6).
+
 **Replicate.** One complete synthetic data set for one grid cell, generated with its
 own seed. Each cell is repeated *R* times.
+
+**Residual (decomposition residual).** What remains of a recording after the tonic
+and phasic parts found by cvxEDA are subtracted. The generator uses 5-s pieces of it
+as the noise of the synthetic signal (§3.2).
 
 **Semi-synthetic data.** Data in which some parts are real (here the acceleration)
 and others are generated (here the EDA and its artifacts).

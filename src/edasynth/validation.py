@@ -19,7 +19,7 @@ from .data import Recording
 from .estimation import decomposeParticipant, responseRates, scrEvents
 from .experiment import evaluate, makeDataset
 from .features import f0
-from .generator import Condition, Generator, derangement
+from .generator import Condition, Generator, assignDonors
 
 
 # ------------------------------------------------------------------ G2
@@ -30,7 +30,7 @@ def g2ParameterRecovery(bank: dict, cfg: dict, n: int, seed: int) -> dict:
     gen = Generator(bank["library"], cfg)
     cond = Condition(prevalence=0.0, piR=0.0)
     mAll, pAll = bank["motion"], bank["phys"]
-    perm = derangement(len(mAll), rng)
+    perm = assignDonors(mAll, pAll, rng)
     tauErr, rateRel, trueA, estA = [], [], [], []
     for k in range(min(n, len(mAll))):
         m, p = mAll[k], pAll[int(perm[k])]

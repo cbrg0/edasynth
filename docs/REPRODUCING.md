@@ -14,7 +14,8 @@ in [METHOD.md](METHOD.md); which steps have already been run is listed in
   from tens to several hundred CPU hours (see §5.3)
 
 The unit tests pass on Linux (Python 3.13) and on macOS with Apple Silicon (Python
-3.12, conda environment); `make data` was also run successfully on macOS. Windows has
+3.12, conda environment); `make data` and `make before-tag` were also run
+successfully on macOS. Windows has
 not been tested; use WSL there, because the Makefile and the download script are
 written for a Unix shell.
 
@@ -135,12 +136,13 @@ offset it found. The Makefile runs the steps in this order.
 
 | Step | Measured | Estimate for UTD |
 |---|---|---|
-| `estimate` with the built-in solver | about 35 s per τ<sub>0</sub> value for one hour of signal on one core (AWW) | 20 participants × 21 values of τ<sub>0</sub> × about 38 min of signal: roughly 3 h on one core |
-| one grid cell, one replicate, default model settings | 66 s on one core with 11 participants (AWW) | roughly 2–3 min with 20 participants |
-| main grid | — | 200 cells × *R* replicates × 2–3 min: about 70 h of CPU time for *R* = 10 and about 350 h for *R* = 50 |
+| `estimate` with the built-in solver | about 35 s per τ<sub>0</sub> value for one hour of signal on one core (AWW); on UTD, macOS, 4 jobs: about 10 min for all 20 participants | — |
+| `validate` | UTD, macOS, 4 cores: 45 min (G2 alone 28 min) | — |
+| one grid cell, one replicate, logistic regression | 66 s on one core with 11 participants (AWW); about 66 s of CPU time with 20 participants (UTD pilot, macOS, 40 replicates in 11 min on 4 cores) | — |
+| main grid | — | 200 cells × 50 replicates × 66 s: about 180 CPU hours, about 46 hours on 4 cores; the label-noise grid needs the same again |
 
-The UTD estimates are extrapolations from the development data and may be off by a
-factor of two or more. The main grid can be split over several sessions because it
+The UTD times were measured with version 1.1.2 on one Apple Silicon computer; 1.2.0
+does not change the cost of a replicate noticeably (expected, not measured). The main grid can be split over several sessions because it
 resumes where it stopped. If the cost is too high, reducing the search for the
 regularisation strength (`models.logreg.CSelection: fixed`) shortens each replicate
 considerably; such a change must be made before the tag.

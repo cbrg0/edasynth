@@ -63,6 +63,42 @@ def noiseSigma(rec: Recording, clean: np.ndarray, withSource: bool = False):
     return (sigma, source) if withSource else sigma
 
 
+def residualBlocks(rec: Recording, residual: np.ndarray, clean: np.ndarray, blockS: float) -> dict:
+    """Blocks of the decomposition residual for the generator's noise (docs/METHOD.md section 3.2).
+
+    The residual is the recorded signal minus the cvxEDA tonic and phasic parts.
+    It is cut into blocks of ``blockS`` seconds inside clean rest windows (all clean
+    windows when there is no clean rest window, as for the noise level). Each block
+    is centred on zero, so that joining blocks in the generator adds no steps.
+    """
+    st = windowStage(rec)
+    sel = clean & np.array([stageType(s) == "rest" for s in st])
+    source = "cleanRest"
+    if not sel.any():
+        sel, source = clean.copy(), "cleanAllFallback"
+    L = int(round(blockS * rec.fs))
+    if L < 1 or WIN % L != 0:
+        raise ValueError(f"noise block of {L} samples must divide the {WIN}-sample window")
+    w = windows(residual)[sel]
+    if w.size == 0:
+        return {"blocks": np.zeros((0, L)), "source": "none", "sd": float("nan")}
+    b = w.reshape(-1, L)
+    b = b - b.mean(1, keepdims=True)
+    return {"blocks": b, "source": source, "sd": float(b.std())}
+
+
+def donorLevelCheck(eda: np.ndarray, cfg: dict) -> dict:
+    """Is the recording usable as a physiology donor? (docs/METHOD.md section 4.1)
+
+    Kleckner et al. (2018, rule 1) treat EDA below 0.05 uS as invalid. A recording
+    with more than ``maxShareBelow`` of its samples below that level is not used as
+    a physiology donor [decision]; it remains a movement donor.
+    """
+    c = cfg["estimation"]["donor"]
+    share = float(np.mean(eda < c["minLevel"]))
+    return {"shareBelowMinLevel": share, "validDonor": bool(share <= c["maxShareBelow"])}
+
+
 def quantisationStep(x: np.ndarray, decimals: int = 9, minShare: float = 0.01) -> float:
     """Quantisation step of a recorded signal.
 
@@ -269,6 +305,8 @@ def artifactEpisodes(rec: Recording, sigma: float, cfg: dict) -> list[dict]:
         pn = float(spec[f > 0.4].sum() / spec.sum()) if spec.sum() > 0 else 0.0
         shift = b1 - b0
         ep = {
+            "level": b0,
+            "levelAfter": b1,
             "pid": rec.pid,
             "start": s,
             "end": e,
@@ -311,21 +349,25 @@ def longestRun(mask: np.ndarray) -> int:
     return best
 
 
-def templateParameters(ep: dict) -> dict:
+def templateParameters(ep: dict, levelFloor: float) -> dict:
     """Convert episode measurements into the parameters of the generator templates.
 
-    For linear edges the 10-90 % time is 0.8 of the full edge time.
+    For linear edges the 10-90 % time is 0.8 of the full edge time. Sizes are
+    stored relative to the level before the episode, max(level, levelFloor)
+    [decision, docs/METHOD.md section 3.6]; the generator multiplies them by the
+    local level of the synthetic signal.
     """
     tr = max(ep["riseS"] / 0.8, 1 / 64)
     tf = max(ep["returnS"] / 0.8, 1 / 64)
     cls = ep["cls"]
+    lvl = max(ep["level"], levelFloor)
     if cls == "C1":
-        return {"A": abs(ep["amp"]), "tauR": tr, "tauF": tf}
+        return {"relA": abs(ep["amp"]) / lvl, "tauR": tr, "tauF": tf}
     if cls == "C2":
         w = tr
-        return {"depth": abs(ep["amp"]), "w": w, "D": max(ep["durationS"] - 2 * w, 0.0)}
+        return {"relDepth": abs(ep["amp"]) / lvl, "w": w, "D": max(ep["durationS"] - 2 * w, 0.0)}
     if cls == "C3":
-        return {"delta": ep["shift"], "w": tr}
+        return {"relDelta": ep["shift"] / lvl, "w": tr}
     if cls == "C5":
         return {"D": ep["durationS"], "kind": "zero" if ep["amp"] < 0 else "saturation"}
     return {}
@@ -412,7 +454,18 @@ def walkingGain(rec: Recording, cfg: dict) -> dict:
 
 
 # ---------------------------------------------------------------- plausibility
-def plausibilityWarnings(rates: dict, dec: dict, cfg: dict) -> list[str]:
+def cleanEvents(events: list[dict], clean: np.ndarray) -> list[dict]:
+    """Responses whose onset and peak both lie in clean windows (docs/METHOD.md section 3.4).
+
+    Only these give response sizes. A peak inside an artifact window can be the
+    artifact itself: on UTD (version 1.1.2), 25 of 1 092 detected heights were
+    larger than the whole range of the participant's recording.
+    """
+    last = clean.size - 1
+    return [e for e in events if clean[min(e["onset"] // WIN, last)] and clean[min(e["peak"] // WIN, last)]]
+
+
+def plausibilityWarnings(rates: dict, dec: dict, cfg: dict, amps=(), signalRange: float = float("inf")) -> list[str]:
     """Flags for values outside commonly reported ranges. Warnings, not gates.
 
     A response rate above ``maxRatePerMin`` (a project decision, set well
@@ -428,6 +481,9 @@ def plausibilityWarnings(rates: dict, dec: dict, cfg: dict) -> list[str]:
             w.append(f"{g} response rate {60 * v['ratePerS']:.1f}/min above {c['maxRatePerMin']}/min")
     if dec["tau0AtBound"]:
         w.append(f"tau0 = {dec['tau0']} at the edge of its grid")
+    big = int(np.sum(np.asarray(amps, float) > signalRange))
+    if big:
+        w.append(f"{big} response height(s) larger than the range of the recording ({signalRange:.2f})")
     if dec.get("kkt") is not None and dec["kkt"] > 1e-3:
         w.append(f"decomposition not converged (KKT violation {dec['kkt']:.2e})")
     return w
@@ -446,6 +502,9 @@ def estimateParticipant(rec: Recording, cfg: dict) -> dict:
     c = cfg["estimation"]
     ev = scrEvents(dec["r"], rec.fs, dec["tau0"], c["cvxeda"]["tau1"], c["minResponseAmp"])
     rates = responseRates(rec, ev, clean)
+    sized = cleanEvents(ev, clean)
+    if not sized:  # keep the generator able to draw sizes: fall back to the rate rule (clean onset)
+        sized = [e for e in ev if clean[min(e["onset"] // WIN, clean.size - 1)]] or ev
     # The generator rebuilds the signal as tonic + detected responses. cvxEDA's
     # phasic part also holds activity below the response threshold, so its tonic
     # alone sits too low (on AWW by several uS). The level the generator needs is
@@ -455,6 +514,7 @@ def estimateParticipant(rec: Recording, cfg: dict) -> dict:
     # noise floor for episode classification: the measured sigma can be 0 when the
     # noise is smaller than the quantisation step; rounding alone has sd q / sqrt(12)
     eps = artifactEpisodes(rec, max(sigma, q / np.sqrt(12.0)), cfg)
+    resid = residualBlocks(rec, rec.eda - dec["t"] - dec["r"], clean, c["noise"]["blockS"])
     mev, theta = motionEvents(rec, cfg)
     ref = utdReferencePoint(eps, mev, rec.fs, cfg)
     return {
@@ -463,6 +523,10 @@ def estimateParticipant(rec: Recording, cfg: dict) -> dict:
         "nCleanWindows": int(clean.sum()),
         "sigma": sigma,
         "sigmaSource": sigmaSource,
+        "residual": resid["blocks"],
+        "residualSource": resid["source"],
+        "residualSd": resid["sd"],
+        **donorLevelCheck(rec.eda, cfg),
         "q": q,
         "qAcc": qAcc,
         "tau0": dec["tau0"],
@@ -471,9 +535,10 @@ def estimateParticipant(rec: Recording, cfg: dict) -> dict:
         "decompositionBackend": dec["backend"],
         "decompositionKkt": dec["kkt"],
         "decompositionIterations": dec["iterations"],
-        "warnings": plausibilityWarnings(rates, dec, cfg),
-        "areas": [e["area"] for e in ev],
-        "amps": [e["amp"] for e in ev],
+        "warnings": plausibilityWarnings(rates, dec, cfg, [e["amp"] for e in sized], float(np.ptp(rec.eda))),
+        "areas": [e["area"] for e in sized],
+        "amps": [e["amp"] for e in sized],
+        "nResponsesAll": len(ev),
         "rates": rates,
         "tonic": tonic,
         "episodes": eps,
