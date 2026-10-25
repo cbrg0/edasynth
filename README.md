@@ -12,9 +12,10 @@ set in which experts labelled such artifacts.
 > **Current state (October 2026).** The code for every step is written and tested.
 > One result on real data is reproduced and verified (see [Results](docs/RESULTS.md)).
 > The main synthetic experiment has **not been run yet**. On the raw PhysioNet
-> recordings, version 1.2.0 passes the realism check for clean windows but not yet
-> for artifact windows, and one positive control cannot be generated
-> ([Status](docs/STATUS.md)). No synthetic finding is reported in this repository.
+> recordings, version 1.3.0 passes every validation check except one negative
+> control, which fails by small losses and is an accepted, documented exception
+> ([Status](docs/STATUS.md), [Preregistration](docs/PREREGISTRATION.md)). No synthetic
+> finding is reported in this repository.
 
 ---
 
@@ -179,8 +180,8 @@ Makefile                   one target per step of the study (`make help` lists t
   conclusions transfer to other sensors or to daily life is not tested.
 - The expert labels partly depend on the movement trace, so they cannot serve as an
   independent ground truth for judging the accelerometer.
-- The synthetic artifact windows still fail the realism check on UTD (version
-  1.2.0); the clean windows pass it.
+- The realism checks use a linear classifier on 24 EDA features; passing them does
+  not prove that the synthetic data are realistic in every respect.
 
 A complete list, including open design decisions, is in
 [docs/STATUS.md](docs/STATUS.md).

@@ -280,7 +280,7 @@ def cmdEstimate(cfg, args):
 def loadSourceBank(cfg, args):
     from .experiment import loadBank
 
-    return loadBank(resultsDir(cfg) / f"bank-{args.source}")
+    return loadBank(resultsDir(cfg) / f"bank-{args.source}", cfg)
 
 
 # ------------------------------------------------------------------ detectors (goal 2)
@@ -459,13 +459,13 @@ def cmdPilot(cfg, args):
 
 
 def cmdGrid(cfg, args):
-    from .experiment import gridConditions, variantConditions
+    from .experiment import gridToRun, variantConditions
 
     bank = loadSourceBank(cfg, args)
     R = args.reps
     if R is None:
         R = json.loads((resultsDir(cfg) / f"pilot-{args.source}-R.json").read_text())["R"]
-    conds = variantConditions(cfg) if args.variants else gridConditions(cfg)
+    conds = variantConditions(cfg) if args.variants else gridToRun(cfg)
     models = tuple(args.models.split(","))
     jobs = [(c, r) for c in conds for r in range(R)]
     name = "variants" if args.variants else "grid"
@@ -480,8 +480,7 @@ def cmdAnalyze(cfg, args):
     from .experiment import compatibility, summarise
 
     res = resultsDir(cfg)
-    df = pd.read_csv(res / f"grid-metrics-{args.source}.csv")
-    df = df[df.model == "logreg"]
+    df = readGrid(res / f"grid-metrics-{args.source}.csv", cfg)
     by = ["c", "kappa", "deltaMax", "piR", "classes"]
     parts = []
     for d in ("dA", "dA4", "dB", "dBMinusDA4"):
@@ -496,6 +495,16 @@ def cmdAnalyze(cfg, args):
         ["c", "kappa", "deltaMax", "piR"],
     )
     comp.to_csv(res / f"compatibility-{args.source}.csv")
+    ln = res / f"grid-labelnoise-metrics-{args.source}.csv"
+    if ln.exists():  # goal 5 with noisy training labels
+        dn = readGrid(ln, cfg)
+        compN = compatibility(
+            dn[dn.classes == "+".join(cfg["grid"]["compositions"][-1])],
+            cfg["analysis"]["observedDelta"],
+            ["c", "kappa", "deltaMax", "piR"],
+        )
+        compN.to_csv(res / f"compatibility-labelnoise-{args.source}.csv")
+        log(f"compatible cells with label noise: {int(compN.compatible.sum())}/{len(compN)}")
     ref = cfg["analysis"]["sensitivityReference"]
     mix = "+".join(cfg["grid"]["compositions"][-1])
     sens = []
@@ -533,8 +542,12 @@ def cmdPower(cfg, args):
     bank = loadSourceBank(cfg, args)
     res = resultsDir(cfg)
     comp = pd.read_csv(res / f"compatibility-{args.source}.csv")
-    comp = comp[comp.compatible].head(cfg["power"]["nConditions"])
     mix = tuple(cfg["grid"]["compositions"][-1])
+    gm = readGrid(res / f"grid-metrics-{args.source}.csv", cfg)
+    gm = gm[gm.classes == "+".join(mix)]
+    by = ["c", "kappa", "deltaMax", "piR"]
+    comp = comp[comp.compatible].merge(gm.groupby(by, as_index=False)["dB"].mean(), on=by)
+    comp = selectPowerConditions(comp, cfg["power"]["nConditions"])
     rows = []
     for rowIndex, c in comp.iterrows():
         cond = Condition(c=c.c, kappa=c.kappa, deltaMax=c.deltaMax, piR=c.piR, classes=mix)
@@ -545,6 +558,28 @@ def cmdPower(cfg, args):
     pd.DataFrame(rows).to_csv(res / f"protocol-planning-{args.source}.csv", index=False)
 
 
+def readGrid(path: Path, cfg: dict) -> pd.DataFrame:
+    """Logistic-regression rows of a grid file, with the equivalent cells filled in."""
+    from .experiment import expandGrid
+
+    df = pd.read_csv(path)
+    return expandGrid(df[df.model == "logreg"], cfg)
+
+
+def selectPowerConditions(comp: pd.DataFrame, k: int) -> pd.DataFrame:
+    """k compatible cells spread evenly over their mean gain dB (docs/METHOD.md section 8).
+
+    Sorted by mean dB, the cells at the quantiles 1/(k+1), ..., k/(k+1) are taken, so the
+    power is computed for small, middle and large gains that agree with the real data
+    instead of the first cells in grid order [decision].
+    """
+    comp = comp.sort_values("dB").reset_index(drop=True)
+    if len(comp) <= k:
+        return comp
+    idx = sorted({int(round(q * (len(comp) - 1))) for q in np.arange(1, k + 1) / (k + 1)})
+    return comp.iloc[idx]
+
+
 def cmdFigures(cfg, args):
     from . import figures as F
     from .experiment import loadBank, makeDataset
@@ -553,7 +588,7 @@ def cmdFigures(cfg, args):
 
     res = resultsDir(cfg)
     figdir = resolve(cfg, "figures")
-    bank = loadBank(res / f"bank-{args.source}")
+    bank = loadBank(res / f"bank-{args.source}", cfg)
     mix = tuple(cfg["grid"]["compositions"][-1])
     ds = makeDataset(bank, Condition(c=0.5, classes=mix), cfg, 12345)
     syn = ds["records"][0]
@@ -586,7 +621,7 @@ def cmdFigures(cfg, args):
             dirty[a : a + max(1, int(prm["D"] * fs))] = 0.0
         else:
             ev = {"onset": int(80 * fs), "end": int(90 * fs), "intensity": 1.0}
-            if cls == "C4" and not np.isfinite(bank["library"]["G"]):
+            if cls == "C4" and not np.isfinite(gen.c4Gain):
                 continue
             dirty = clean + gen.artifactSignal(cls, prm, 80.0, 1.0, n, fs, clean, m["acc"], ev, "V1")[0]
         ex[cls] = (clean[seg], dirty[seg])
@@ -602,8 +637,7 @@ def cmdFigures(cfg, args):
         s = pd.read_csv(sj)
         F.f4Map(s, figdir)  # one file per composition; the mixture is the main map
     if gm.exists():
-        df = pd.read_csv(gm)
-        df = df[df.model == "logreg"]
+        df = readGrid(gm, cfg)
         F.f5ByClass(df, figdir)
         F.f6Cost(df, figdir)
     dj = res / "detectors-by-class.csv"

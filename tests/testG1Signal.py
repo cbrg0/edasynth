@@ -192,3 +192,64 @@ def testInvalidPhysiologyDonorsAreNeverUsed(toyBank):
         assert counts.max() - counts.min() <= 1
     perm = assignDonors(toyBank["motion"], toyBank["phys"], np.random.default_rng(3))
     assert sorted(perm) == [0, 1, 2, 3]  # all valid: a derangement
+
+
+def testC4ControlGainGivesTheTargetSize(toyBank, cfg):
+    from edasynth.generator import c4ControlGain
+
+    fs, n = 8.0, 8 * 120
+    t = np.arange(n) / fs
+    acc = np.column_stack([np.zeros(n), np.zeros(n), np.ones(n)])
+    events = []
+    for s in range(80, n - 80, 160):  # identical bursts of a 2-Hz oscillation
+        acc[s : s + 40, 2] += 0.3 * np.sin(2 * np.pi * 2.0 * t[s : s + 40])
+        events.append({"onset": s, "end": s + 40, "intensity": 1.0})
+    motion = [{"pid": "M", "fs": fs, "acc": acc, "events": events}]
+    G = c4ControlGain(motion, cfg["estimation"]["c4"]["smoothS"], 0.1)
+    lib = dict(toyBank["library"], Gcontrol=G)
+    gen = Generator(lib, cfg)
+    out, sup = gen.artifactSignal("C4", {}, 0.0, 1.0, n, fs, np.ones(n), acc, events[1], "V1")
+    e = events[1]
+    assert np.median(np.abs(out[e["onset"] : e["end"]])) == pytest.approx(0.1, rel=1e-6)
+
+
+def testTransplantedEpisodeKeepsItsMeasuredCourse(toyBank, cfg):
+    gen = Generator(toyBank["library"], cfg)
+    n, fs = 8 * 60, 8.0
+    y0 = np.full(n, 2.0)
+    acc = np.zeros((n, 3))
+    trace = [0.0, 0.1, 0.3, 0.2, 0.05, 0.0]
+    a, sup = gen.artifactSignal(
+        "C1", {"relA": 0.3, "tauR": 0.1, "tauF": 0.1, "trace": trace}, 10.0, 1.0, n, fs, y0, acc, None, "V1"
+    )
+    assert np.allclose(a[80:86], 2.0 * np.array(trace)) and np.all(a[86:] == 0)
+    assert list(np.where(sup)[0]) == [81, 82, 83, 84]  # |piece| >= 0.05 uS inside the episode
+    step = [0.0, -0.1, -0.2, -0.2]
+    d, sup = gen.artifactSignal(
+        "C3", {"relDelta": -0.2, "w": 0.2, "trace": step}, 10.0, 1.0, n, fs, y0, acc, None, "V1"
+    )
+    assert np.allclose(d[84:], -0.4) and not sup[84:].any()  # lasting offset, not labelled
+    deep, sup = gen.artifactSignal(
+        "C2", {"relDepth": 0.9, "w": 0.1, "D": 1.0, "trace": [-0.9] * 8}, 10.0, 5.0, n, fs, y0, acc, None, "V1"
+    )
+    assert deep.min() == pytest.approx(-cfg["generator"]["rhoMax"] * 2.0)  # bounded after movement scaling
+
+
+def testTonicFollowsTheDonorsOwnLevels(toyBank, cfg):
+    gen = Generator(toyBank["library"], cfg)
+    fs = 8.0
+    n = int(fs * 600)
+    m = dict(toyBank["motion"][0], acc=np.zeros((n, 3)), events=[])
+    m["stage"] = np.array(["relax1"] * (n // 2) + ["physical"] * (n - n // 2), dtype=object)
+    p = dict(toyBank["phys"][0], rates={"rest": {"ratePerS": 0.0}, "load": {"ratePerS": 0.0}})
+    p["residual"] = np.zeros((4, 40))
+    p["tonic"] = [  # end levels 1.0 + 0.002 * 400 = 1.8 and 3.0 - 0.001 * 1000 = 2.0
+        {"s0": 1.0, "b": 0.002, "AS": 0.0, "TT": 60.0, "stageType": "rest", "stage": "relax1", "durationS": 400.0},
+        {"s0": 3.0, "b": -0.001, "AS": 0.0, "TT": 60.0, "stageType": "load", "stage": "physical", "durationS": 1000.0},
+    ]
+    y0, resp = gen.clean(m, p, np.random.default_rng(0), 0.0)
+    half = n // 2
+    assert y0[0] == pytest.approx(1.0, abs=0.01)
+    assert y0[half - 1] == pytest.approx(1.8, abs=0.01)  # end of the first stage, whatever its length here
+    assert y0[-1] == pytest.approx(2.0, abs=0.01)  # no jump between stages, ends at the donor's level
+    assert np.max(np.abs(np.diff(y0))) < 0.01

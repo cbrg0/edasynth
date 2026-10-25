@@ -13,7 +13,7 @@ import hashlib
 import itertools
 import json
 import zlib
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import numpy as np
@@ -23,7 +23,7 @@ from sklearn.metrics import cohen_kappa_score
 from .config import key
 from .data import WIN
 from .features import f0, fa, fa4, fb
-from .generator import Condition, Generator, assignDonors
+from .generator import Condition, Generator, assignDonors, c4ControlGain
 from .models import (
     auprc,
     auroc,
@@ -43,7 +43,7 @@ deltas = {"dA": "F0+FA", "dA4": "F0+FA4", "dB": "F0+FB"}
 
 
 # ------------------------------------------------------------------ bank
-def loadBank(path: str | Path) -> dict:
+def loadBank(path: str | Path, cfg: dict) -> dict:
     """Load the estimated parameters and motion donors written by ``cli estimate``."""
     path = Path(path)
     text = path.with_suffix(".json").read_text()
@@ -64,6 +64,9 @@ def loadBank(path: str | Path) -> dict:
                 "qAcc": m["qAcc"],
             }
         )
+    meta["library"]["Gcontrol"] = c4ControlGain(
+        motion, cfg["estimation"]["c4"]["smoothS"], cfg["generator"]["c4"]["controlTargetUs"]
+    )
     phys = meta["phys"]
     for p in phys:
         key = f"resid{p['pid']}"
@@ -224,6 +227,48 @@ def gridConditions(cfg: dict) -> list[Condition]:
             Condition(c=c, kappa=kappa, deltaMax=dmax, piR=pir, classes=tuple(comp), prevalence=gcfg["prevalence"])
         )
     return out
+
+
+def canonicalCondition(cond: Condition, cfg: dict) -> Condition:
+    """The grid cell that generates the same data distribution (docs/METHOD.md section 8).
+
+    With c = 0 no artifact is attached to movement, so kappa and deltaMax have no
+    effect; in the C5-only cells artifacts replace values and kappa (which scales a
+    size) has no effect. Such cells are run once, under the first grid value of the
+    unused parameters, and their replicates are reused for the equivalent cells.
+    """
+    g = cfg["grid"]
+    upd = {}
+    if cond.c == 0:
+        upd.update(kappa=g["kappa"][0], deltaMax=g["deltaMax"][0])
+    if tuple(cond.classes) == ("C5",):
+        upd.update(kappa=g["kappa"][0])
+    return replace(cond, **upd) if upd else cond
+
+
+def gridToRun(cfg: dict) -> list[Condition]:
+    """Grid cells that are actually generated: one per class of equivalent cells."""
+    seen, out = set(), []
+    for cond in gridConditions(cfg):
+        canon = canonicalCondition(cond, cfg)
+        if canon.key() not in seen:
+            seen.add(canon.key())
+            out.append(canon)
+    return out
+
+
+def expandGrid(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """Add the rows of equivalent cells (copies of their canonical cell's replicates)."""
+    parts = [df]
+    for cond in gridConditions(cfg):
+        canon = canonicalCondition(cond, cfg)
+        if canon.key() == cond.key():
+            continue
+        rows = df[df["key"] == canon.key()].copy()
+        rows["kappa"], rows["deltaMax"], rows["key"] = cond.kappa, cond.deltaMax, cond.key()
+        rows["sharedWith"] = canon.key()
+        parts.append(rows)
+    return pd.concat(parts, ignore_index=True, sort=False)
 
 
 def variantConditions(cfg: dict) -> list[Condition]:

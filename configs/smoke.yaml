@@ -31,6 +31,7 @@ generator:
   labelThreshold: 0.05
   noise: residualBootstrap
   levelWindowS: 5.0
+  c4: {gain: control, controlTargetUs: 0.1}
   rhoMax: 0.95
   saturationLevel: 60.0
   maxArtifactsPerParticipant: 400

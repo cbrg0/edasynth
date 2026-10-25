@@ -106,9 +106,13 @@ class Generator:
     """Builds synthetic participants from estimated parameters."""
 
     def __init__(self, library: dict, cfg: dict):
-        self.lib = library  # {"C1": [params...], ..., "classShares": {...}, "G": float}
+        self.lib = library  # {"C1": [params...], ..., "classShares": {...}, "G": float, "Gcontrol": float}
         self.cfg = cfg
         self.g = cfg["generator"]
+        mode = self.g["c4"]["gain"]
+        if mode not in ("control", "measured"):
+            raise ValueError(f"unknown C4 gain mode {mode}")
+        self.c4Gain = library.get("Gcontrol" if mode == "control" else "G", float("nan"))
 
     # ------------------------------------------------------------ clean part
     def clean(self, motion: dict, phys: dict, rng: np.random.Generator, piR: float):
@@ -118,19 +122,30 @@ class Generator:
         fsF = fs * UP
         stage = motion["stage"]
         tau0, tau1 = phys["tau0"], self.g["tau1"]
-        # tonic: one fitted quadruple per protocol stage, stitched without jumps
+        # tonic (docs/METHOD.md section 4.2): for each stage of the movement donor the
+        # physiology donor's fit of the same stage (else one of the same type) gives the
+        # level reached at the end of the stage and the oscillation; the trend runs from
+        # the level at the start of the stage to that end level, so the level follows
+        # the donor's own course instead of adding up slopes of unrelated stages
         s = np.zeros(nf)
         level = None
         for a, b in segments(stage):
-            typ = stageType(str(stage[a]))
-            pool = [t for t in phys["tonic"] if t["stageType"] == typ] or phys["tonic"]
+            name = str(stage[a])
+            typ = stageType(name)
+            pool = [t for t in phys["tonic"] if t.get("stage") == name]
+            pool = pool or [t for t in phys["tonic"] if t["stageType"] == typ] or phys["tonic"]
             q4 = pool[rng.integers(len(pool))]
             tau = np.arange((b - a) * UP) / fsF
-            seg = q4["b"] * tau + q4["AS"] * np.sin(2 * np.pi * tau / q4["TT"] + rng.uniform(0, 2 * np.pi))
             start = q4["s0"] if level is None else level
-            seg = seg - seg[0] + start
+            end = q4["s0"] + q4["b"] * q4["durationS"]
+            trend = start + (end - start) * tau / max(tau[-1], 1 / fsF)
+            osc = q4["AS"] * np.sin(2 * np.pi * tau / q4["TT"] + rng.uniform(0, 2 * np.pi))
+            seg = trend + osc - osc[0]
             s[a * UP : b * UP] = seg
             level = seg[-1]
+        # a line plus a sinusoid can dip below what a skin can show; the tonic is kept at or
+        # above the minimum valid level (Kleckner et al., 2018, rule 1) [decision]
+        s = np.maximum(s, self.cfg["estimation"]["episodes"]["levelFloor"])
         # responses: spontaneous (Poisson) and motion-evoked (share piR)
         imp = np.zeros(nf)
         responses = []
@@ -212,6 +227,8 @@ class Generator:
         nf, fsF = n * UP, fs * UP
         # template sizes are relative to the level before the artifact (section 4.3)
         lvl = self.localLevel(y0, t0, fs) if cls in ("C1", "C2", "C3") else 1.0
+        if cls in ("C1", "C2", "C3") and prm.get("trace") is not None:
+            return self.transplant(cls, prm, t0, scale, n, fs, y0, lvl, variant)
         if cls == "C1":
             a = blockMean(trapezoid(nf, fsF, t0, prm["tauR"], 0.0, prm["tauF"], prm["relA"] * lvl * scale))
             return a, np.abs(a) >= self.g["labelThreshold"]
@@ -238,13 +255,33 @@ class Generator:
                 return piece, moving & (abs(size) >= self.g["labelThreshold"])
             return piece, np.abs(piece) >= self.g["labelThreshold"]
         if cls == "C4":
-            k = int(round(self.cfg["estimation"]["c4"]["smoothS"] * fs))
-            mag = np.sqrt((acc**2).sum(1))
-            fast = mag - np.convolve(mag, np.ones(k) / k, "same")
+            fast = fastAcceleration(acc, fs, self.cfg["estimation"]["c4"]["smoothS"])
             out = np.zeros(n)
-            out[ev["onset"] : ev["end"]] = self.lib["G"] * scale * fast[ev["onset"] : ev["end"]]
+            out[ev["onset"] : ev["end"]] = self.c4Gain * scale * fast[ev["onset"] : ev["end"]]
             return out, np.abs(out) >= self.g["labelThreshold"]
         raise ValueError(cls)
+
+    def transplant(self, cls, prm, t0, scale, n, fs, y0, lvl, variant):
+        """Artifact with the measured course of a real episode (docs/METHOD.md section 4.3).
+
+        The relative trace, times the movement scaling and bounded below by
+        -rhoMax, is multiplied by the local level (V1) or by the signal itself (V2).
+        A level shift (C3) keeps its measured relative offset after the episode; that
+        lasting part is not labelled.
+        """
+        tr = np.asarray(prm["trace"], float)
+        i0 = min(int(round(t0 * fs)), n - 1)
+        i1 = min(n, i0 + tr.size)
+        rel = np.zeros(n)
+        rel[i0:i1] = tr[: i1 - i0]
+        if cls == "C3":
+            rel[i1:] = prm["relDelta"]
+        # an artifact can remove at most rhoMax of the signal, also after movement scaling
+        rel = np.maximum(rel * scale, -self.g["rhoMax"])
+        piece = y0 * rel if variant == "V2" else lvl * rel
+        sup = np.zeros(n, bool)
+        sup[i0:i1] = np.abs(piece[i0:i1]) >= self.g["labelThreshold"]
+        return piece, sup
 
     def generate(self, pid: str, motion: dict, phys: dict, cond: Condition, rng: np.random.Generator) -> SynthRecord:
         fs = motion["fs"]
@@ -296,7 +333,8 @@ class Generator:
                 replace[a:b] = True
                 replaceVal[a:b] = 0.0 if prm.get("kind", "zero") == "zero" else self.g["saturationLevel"]
             else:
-                piece, sup = self.artifactSignal(cls, prm, t0, scale, n, fs, y0, acc, ev, cond.variant)
+                # the level of the signal so far, including earlier artifacts, is the reference
+                piece, sup = self.artifactSignal(cls, prm, t0, scale, n, fs, y0 + art, acc, ev, cond.variant)
                 art += piece
                 support |= sup
                 artByCls[cls] = artByCls.get(cls, np.zeros(n, bool)) | sup
@@ -308,7 +346,7 @@ class Generator:
                     "scale": float(scale),
                     "eventOnset": None if ev is None else int(ev["onset"]),
                     "template": src,
-                    **prm,
+                    **{k: v for k, v in prm.items() if k != "trace"},
                 }
             )
             mask, lab = positiveWindows()
@@ -357,6 +395,29 @@ def windowLabels(mask: np.ndarray, nw: int, rule: str) -> np.ndarray:
     if rule == "majority":
         return (m.sum(1) > WIN / 2).astype(int)
     raise ValueError(rule)
+
+
+def fastAcceleration(acc: np.ndarray, fs: float, smoothS: float) -> np.ndarray:
+    """|a| minus its moving mean over ``smoothS`` seconds (the shape of class C4)."""
+    k = int(round(smoothS * fs))
+    mag = np.sqrt((acc**2).sum(1))
+    return mag - np.convolve(mag, np.ones(k) / k, "same")
+
+
+def c4ControlGain(motion: list[dict], smoothS: float, targetUs: float) -> float:
+    """Gain that gives the median movement event a C4 artifact of median size ``targetUs``.
+
+    For every movement event of every movement donor the median of |fast
+    acceleration| inside the event is taken; the gain is the target divided by the
+    median of these values (docs/METHOD.md section 4.3). Used because the gain
+    measured on UTD is about 0, so C4 would produce no artifact [decision].
+    """
+    per = []
+    for m in motion:
+        fast = np.abs(fastAcceleration(m["acc"], m["fs"], smoothS))
+        per += [float(np.median(fast[e["onset"] : e["end"]])) for e in m["events"] if e["end"] > e["onset"]]
+    med = float(np.median(per)) if per else 0.0
+    return targetUs / med if med > 0 else float("nan")
 
 
 def assignDonors(motion: list[dict], phys: list[dict], rng: np.random.Generator, maxTries: int = 10000) -> np.ndarray:

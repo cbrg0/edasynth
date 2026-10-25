@@ -68,6 +68,9 @@ generator:
   labelThreshold: 0.05         # uS, decision = minimum visible response
   noise: residualBootstrap     # decision: blocks of the donor's decomposition residual (alternative: gaussian, with the donor's sigma)
   levelWindowS: 5.0            # decision: local level = median of the clean signal over the 5 s before an artifact
+  c4:
+    gain: control              # decision: 'control' (G set by controlTargetUs) or 'measured' (G from section 3.8; about 0 on UTD)
+    controlTargetUs: 0.1       # decision: the median movement event gives a C4 artifact of median size 0.1 uS (twice the label threshold)
   rhoMax: 0.95                 # V2: maximum lost contact fraction
   saturationLevel: 60.0
   maxArtifactsPerParticipant: 400

@@ -4,6 +4,48 @@ All notable changes to this project are recorded here. Changes to the method aft
 the preregistration tag must also be released under a new tag
 ([docs/PREREGISTRATION.md](docs/PREREGISTRATION.md)).
 
+## 1.3.0 (25 October 2026)
+
+Changes before the preregistration tag, made after the UTD checks of 1.2.0 (G4 failed
+with AUC 0.86, the C4 control produced no artifacts). From this version on, the UTD
+checks were run in the development environment on a copy of the PhysioNet files
+(verified with `check-data`).
+
+### Generator
+
+- **Measured courses for C1, C2, C3.** Every episode stores its course relative to
+  the level before it (`traceDev`, `traceStep`), and the generator inserts the course
+  of a drawn episode, scaled by the local level and the movement scaling. The simple
+  shapes are kept for templates without a course. Synthetic artifact windows had a
+  median SD of the first difference of 0.005 µS per sample against 0.033 in the real
+  ones.
+- **Local level of the signal so far.** Relative sizes refer to the signal including
+  earlier artifacts; a downward change is limited to 95 % of the signal after
+  movement scaling (it reached −10 µS before).
+- **Tonic follows the donor's levels.** Each stage runs from the level at its start to
+  the end level of the physiology donor's fit of the same stage; before, slopes of
+  randomly drawn stages added up and the clean signal fell below 0 µS in 11 of 20
+  synthetic participants (down to −6.3 µS). The tonic is floored at 0.05 µS. The tonic
+  fits record `durationS`.
+- **C4 control gain.** `generator.c4.gain: control` sets the C4 gain so that a
+  movement event of median vigour gives a median artifact size of 0.1 µS; the measured
+  gain on UTD (−0.0009 µS/g) produced no artifacts.
+
+### Experiment
+
+- Equivalent grid cells (κ and δ<sub>max</sub> at *c* = 0; κ in the C5-only cells)
+  are computed once and copied (`sharedWith`): 154 instead of 200 cells.
+- Power is computed for the compatible mixture cells at the quartiles of mean
+  Δ<sub>B</sub> instead of the first three in grid order.
+- `analyze` writes the compatibility with noisy training labels when the label-noise
+  grid exists.
+- `loadBank` takes the configuration (needed for the C4 control gain).
+
+### Documentation
+
+- `docs/PREREGISTRATION.md` lists the decisions taken after the first UTD checks,
+  the accepted G5 exception and what was kept unchanged on purpose.
+
 ## 1.2.1 (25 October 2026)
 
 - `pilot` and `grid` write the checksum of the parameter bank (`bankId`) and the

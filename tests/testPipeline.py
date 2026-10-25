@@ -97,3 +97,32 @@ def testResumeRefusesResultsOfAnotherBank(tmp_path, toyBank, cfg):
     other = dict(toyBank, bankId="other0000000")
     with pytest.raises(SystemExit):
         runJobs(small, other, [(a, 0), (a, 1)], 1, out, ("logreg",))
+
+
+def testPowerConditionsSpreadOverTheGain():
+    import pandas as pd
+
+    from edasynth.cli import selectPowerConditions
+
+    comp = pd.DataFrame({"c": np.arange(9.0), "dB": np.arange(9.0)[::-1] / 100})
+    chosen = selectPowerConditions(comp, 3)
+    assert list(chosen.dB) == [0.02, 0.04, 0.06]
+    assert len(selectPowerConditions(comp.head(2), 3)) == 2
+
+
+def testEquivalentGridCellsAreRunOnceAndFilledIn(cfg):
+    import pandas as pd
+
+    from edasynth.experiment import canonicalCondition, expandGrid, gridConditions, gridToRun
+
+    run = gridToRun(cfg)
+    assert len(gridConditions(cfg)) == 200 and len(run) == 154
+    a = Condition(c=0.0, kappa=1.0, deltaMax=5.0, piR=0.5, classes=("C1",))
+    assert canonicalCondition(a, cfg).key() == Condition(c=0.0, kappa=0.0, deltaMax=1.0, piR=0.5, classes=("C1",)).key()
+    b = Condition(c=0.5, kappa=1.0, deltaMax=5.0, classes=("C5",))
+    assert canonicalCondition(b, cfg).kappa == 0.0 and canonicalCondition(b, cfg).deltaMax == 5.0
+    m = Condition(c=0.5, kappa=1.0, classes=("C1", "C2", "C3", "C5"))
+    assert canonicalCondition(m, cfg) == m
+    rows = [{"key": c.key(), "kappa": c.kappa, "deltaMax": c.deltaMax, "dB": 0.01, "rep": 0} for c in run]
+    full = expandGrid(pd.DataFrame(rows), cfg)
+    assert sorted(full["key"]) == sorted(c.key() for c in gridConditions(cfg))

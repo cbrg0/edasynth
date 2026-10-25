@@ -257,7 +257,7 @@ def tonicByStage(rec: Recording, t: np.ndarray, cfg: dict) -> list[dict]:
         if (e - s) / rec.fs < 2 * c["periodMaxS"]:
             continue  # too short to identify a 45-90 s oscillation
         fit = fitTonic(t[s:e], rec.fs, grid)
-        fit.update(stage=str(names[s]), stageType=stageType(str(names[s])))
+        fit.update(stage=str(names[s]), stageType=stageType(str(names[s])), durationS=(e - s) / rec.fs)
         out.append(fit)
     return out
 
@@ -304,6 +304,7 @@ def artifactEpisodes(rec: Recording, sigma: float, cfg: dict) -> list[dict]:
         f = np.fft.rfftfreq(seg.size, 1 / fs)
         pn = float(spec[f > 0.4].sum() / spec.sum()) if spec.sum() > 0 else 0.0
         shift = b1 - b0
+        lvl = max(b0, c["levelFloor"])
         ep = {
             "level": b0,
             "levelAfter": b1,
@@ -318,6 +319,11 @@ def artifactEpisodes(rec: Recording, sigma: float, cfg: dict) -> list[dict]:
             "pn": pn,
             "shift": float(shift),
             "stage": str(rec.stage[s]) if rec.stage is not None else "",
+            # measured course of the episode relative to the level before it, used as the
+            # artifact shape by the generator: deviation from the baseline line, or for a
+            # level shift the change from the level before (docs/METHOD.md section 3.6)
+            "traceDev": [float(v) for v in dev / lvl],
+            "traceStep": [float(v) for v in (y[s:e] - b0) / lvl],
         }
         ep["cls"] = classifyEpisode(ep, y[s:e], sigma, c)
         eps.append(ep)
@@ -362,12 +368,17 @@ def templateParameters(ep: dict, levelFloor: float) -> dict:
     cls = ep["cls"]
     lvl = max(ep["level"], levelFloor)
     if cls == "C1":
-        return {"relA": abs(ep["amp"]) / lvl, "tauR": tr, "tauF": tf}
+        return {"relA": abs(ep["amp"]) / lvl, "tauR": tr, "tauF": tf, "trace": ep.get("traceDev")}
     if cls == "C2":
         w = tr
-        return {"relDepth": abs(ep["amp"]) / lvl, "w": w, "D": max(ep["durationS"] - 2 * w, 0.0)}
+        return {
+            "relDepth": abs(ep["amp"]) / lvl,
+            "w": w,
+            "D": max(ep["durationS"] - 2 * w, 0.0),
+            "trace": ep.get("traceDev"),
+        }
     if cls == "C3":
-        return {"relDelta": ep["shift"] / lvl, "w": tr}
+        return {"relDelta": ep["shift"] / lvl, "w": tr, "trace": ep.get("traceStep")}
     if cls == "C5":
         return {"D": ep["durationS"], "kind": "zero" if ep["amp"] < 0 else "saturation"}
     return {}

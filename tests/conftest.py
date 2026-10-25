@@ -49,7 +49,10 @@ def toyBank():
                 "tau0": 2.5 + 0.3 * k,
                 "rates": {"rest": {"ratePerS": 0.03}, "load": {"ratePerS": 0.06}},
                 "areas": list(rng.uniform(0.5, 2.0, 50)),
-                "tonic": [{"s0": 2.0, "b": 0.001, "AS": 0.05, "TT": 60.0, "stageType": t} for t in ("rest", "load")],
+                "tonic": [
+                    {"s0": 2.0, "b": 0.001, "AS": 0.05, "TT": 60.0, "stageType": t, "stage": st, "durationS": 300.0}
+                    for t, st in (("rest", "relax1"), ("load", "physical"))
+                ],
                 "sigma": 0.003,
                 "residual": 0.003 * rng.standard_normal((60, 40)),
                 "validDonor": True,
@@ -64,5 +67,6 @@ def toyBank():
         "C5": [{"D": 2.0, "kind": "zero"}],
         "classShares": {"C1": 0.25, "C2": 0.25, "C3": 0.25, "C5": 0.25},
         "G": 0.2,
+        "Gcontrol": 0.2,
     }
     return {"motion": motion, "phys": phys, "library": lib, "source": "toy", "bankId": "toy000000000"}

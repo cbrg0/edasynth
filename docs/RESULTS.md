@@ -9,7 +9,7 @@ explained in [METHOD.md §6](METHOD.md#6-models-and-performance-measures).
 |---|---|---|
 | [1. Real-data comparison](#1-real-data-comparison) | UTD, published features | **final**: run and verified |
 | [2. Development run](#2-development-run-on-aww-not-a-result) | AWW, one person | run; checks the code, **not a result** |
-| [3. Checks on the raw UTD files](#3-first-run-on-the-raw-utd-files-version-112) | UTD raw recordings, versions 1.1.2 and 1.2.0 | run; with 1.2.0 G1, G2, G3 and G7 pass, G4, G5 and G6 fail |
+| [3. Checks on the raw UTD files](#3-first-run-on-the-raw-utd-files-version-112) | UTD raw recordings, versions 1.1.2 to 1.3.0 | run; with 1.3.0 all checks pass except G5, which fails by small losses (accepted exception) |
 | [4. Synthetic map](#4-synthetic-map) | UTD-based semi-synthetic data | **not run yet** |
 
 ---
@@ -298,6 +298,56 @@ distances over the 24 EDA features):
 accelerometer: the checks test the generator. Passing G3 means that a linear
 classifier on the 24 EDA features cannot separate clean windows well; other
 features could.
+
+### 3.6 Version 1.3.0
+
+**What was run.** `estimate` and `validate` (G2–G6) on Linux (2 cores) on a copy of
+the PhysioNet files provided by the user and verified with `check-data`, 25 October
+2026. G7 does not depend on the generator and is unchanged. Before the run, a check
+of the clean signal built from the bank of 1.2.0 found it below 0 µS in 11 of 20
+synthetic participants; the tonic was changed (METHOD.md §4.2).
+
+The bank was written before the 1.3.0 commit existed, so its `gitCommit` field names
+the 1.2.1 commit. The files it was built with (estimation, bank, configuration) were
+not changed afterwards; the generator was changed once more (the tonic floor) before
+`validate` started, and not after it. G2–G4 and G5–G6 were run in two calls
+because the first was stopped by a time limit after G4; the version number was raised
+to 1.3.0 between the calls, and the merged report carries 1.3.0. The result files of this run are distributed
+with the 1.3.0 patch, so that the grid can be run on exactly this bank.
+
+| Check | 1.2.0 | 1.3.0 |
+|---|---|---|
+| G2 parameter recovery | PASS | PASS (τ<sub>0</sub> error 0.0 s, rate error 0.144, KS *p* = 0.37) |
+| G3 realism, clean windows | PASS (AUC 0.602) | PASS (AUC 0.661) |
+| G4 realism, artifact windows | FAIL (AUC 0.855) | **PASS (AUC 0.352)** |
+| G5, no link | FAIL | FAIL: Δ<sub>A</sub> −0.032 (−0.039 to −0.025); Δ<sub>A4</sub> −0.002 (−0.003 to −0.000); Δ<sub>B</sub> −0.002 (−0.004 to −0.000) |
+| G5, acceleration shifted | FAIL | FAIL: Δ<sub>A</sub> −0.039 (−0.044 to −0.033); Δ<sub>A4</sub> −0.002 (−0.004 to +0.001), passes; Δ<sub>B</sub> −0.001 (−0.003 to +0.001), passes |
+| G6, C4 only (control gain) | no artifacts | passes: Δ<sub>B</sub> +0.006 (+0.003 to +0.009); Δ<sub>A</sub> −0.019 (−0.023 to −0.016) |
+| G6, mixture with *c* = 1 | passes | passes: Δ<sub>B</sub> +0.044 (+0.038 to +0.050); Δ<sub>A</sub> −0.017 (−0.023 to −0.011) |
+
+**Pilot.** Largest SD of Δ between replicates 0.0160, so *R* = 40
+(1.96² × 0.0160² / 0.005² = 39.3, rounded up). The pilot ran 40 replicates in
+60 minutes on 2 cores.
+
+**Interpretation.**
+
+- With measured courses the synthetic artifact windows can no longer be told from
+  the labelled ones by the linear classifier (an AUC below 0.5 in grouped
+  cross-validation means no usable separation). The largest KS distance in artifact
+  windows fell from 0.73 to 0.22.
+- G3 still passes, but closer to its limit (0.66); the level features differ most.
+- G5: no feature set gains without a link. All three lose slightly; FB's loss without
+  a link (−0.002) is the smallest and its interval reaches −0.0002. This is the
+  accepted exception of [PREREGISTRATION.md](PREREGISTRATION.md).
+- G6: FB detects both links that exist. FA does not: it loses even when every
+  artifact is made from the acceleration (C4) or caused by movement. In the mixture
+  control (−0.017) FA is about 0.015 above its no-link loss in the same mixture
+  (−0.032), so it carries some of the link, but 96 features with 20 participants cost
+  more than they add. (The C4 control uses other artifacts than G5, so its −0.019 is
+  not directly comparable with −0.032.)
+
+**What these numbers do not show.** The checks test the generator. They say nothing
+yet about when the accelerometer helps; that is the main grid.
 
 ---
 

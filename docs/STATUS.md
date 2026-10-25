@@ -1,6 +1,6 @@
 # Implementation status
 
-Last updated: 25 October 2026, version 1.2.1, before the preregistration tag.
+Last updated: 25 October 2026, version 1.3.0, before the preregistration tag.
 
 This page states for every part of the study whether it exists, whether it has been
 tested and whether it has been run on the data it is meant for. It also lists known
@@ -34,7 +34,10 @@ version 1.1.2): `make data` and `check-data` verified every file, `make test-all
 passed (59 tests), and `make before-tag` ran every step up to the pilot on the raw
 UTD files ([RESULTS.md §3](RESULTS.md#3-first-run-on-the-raw-utd-files-version-112)).
 On 25 October 2026 `estimate`, `validate` and `pilot` were run again on macOS
-with version 1.2.0 ([RESULTS.md §3.5](RESULTS.md#35-rerun-with-version-120)).
+with version 1.2.0 ([RESULTS.md §3.5](RESULTS.md#35-rerun-with-version-120)). The
+user then provided a copy of the PhysioNet files; `check-data` verified it on Linux,
+and the checks of version 1.3.0 were run there
+([RESULTS.md §3.6](RESULTS.md#36-version-130)).
 
 Windows has not been tested.
 
@@ -75,15 +78,15 @@ Windows has not been tested.
 
 ## Validation checks
 
-| Check | UTD, version 1.1.2 | UTD, version 1.2.0 | Development run (AWW), 1.2.0 |
-|---|---|---|---|
-| G1 unit tests | PASS (macOS) | PASS (macOS: 66 passed, 1 skipped) | same suite |
-| G2 parameter recovery | PASS | PASS (τ<sub>0</sub> error 0.0 s, rate error 0.16, KS *p* = 0.16) | FAIL (τ<sub>0</sub> not recovered when responses are small relative to the noise) |
-| G3 realism, clean windows | FAIL (AUC 0.98) | PASS (AUC 0.60) | PASS (AUC 0.59; was 0.87) |
-| G4 realism, artifact windows | FAIL (AUC 0.95) | FAIL (AUC 0.86) | FAIL (AUC 0.93; was 0.99) |
-| G5 negative controls | FAIL (losses of FA and FA4; FB passes) | FAIL (losses of FA and FA4; FB passes) | FAIL (loss of FA; FA4 and FB pass) |
-| G6 positive controls | FAIL (C4 control produced no artifacts; the mixture control passes through FB) | FAIL (C4 control produced no artifacts; the mixture control passes through FA and FB) | FAIL (C4 control produced no artifacts; no gain in the mixture control) |
-| G7 real-data consistency | PASS | unchanged by 1.2.0 | not applicable |
+| Check | UTD, 1.1.2 | UTD, 1.2.0 | **UTD, 1.3.0** | AWW, 1.2.0 |
+|---|---|---|---|---|
+| G1 unit tests | PASS (macOS) | PASS (macOS) | PASS (Linux, with the UTD files: 70 passed, 4 skipped because `wfdb`, `PyWavelets` and the authors' cvxEDA are not installed there) | same suite |
+| G2 parameter recovery | PASS | PASS | **PASS** (τ<sub>0</sub> error 0.0 s, rate error 0.14, KS *p* = 0.37) | FAIL (τ<sub>0</sub> with small responses) |
+| G3 realism, clean windows | FAIL (AUC 0.98) | PASS (AUC 0.60) | **PASS** (AUC 0.66) | PASS (AUC 0.59) |
+| G4 realism, artifact windows | FAIL (AUC 0.95) | FAIL (AUC 0.86) | **PASS** (AUC 0.35) | FAIL (AUC 0.93) |
+| G5 negative controls | FAIL | FAIL | **FAIL, accepted exception**: small losses of FA, FA4 and, without a link, FB (−0.002); no gain anywhere | FAIL |
+| G6 positive controls | FAIL | FAIL (C4 control empty) | **PASS** (C4 control through FB, mixture through FB) | FAIL |
+| G7 real-data consistency | PASS | unchanged | unchanged | not applicable |
 
 Details: UTD in [RESULTS.md §3](RESULTS.md#3-first-run-on-the-raw-utd-files-version-112),
 AWW in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
@@ -92,8 +95,8 @@ AWW in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
 
 | Element | UTD | Development run |
 |---|---|---|
-| Pilot and number of replicates | *R* = 46 with 1.2.0 (largest SD of Δ 0.0172); *R* = 50 with 1.1.2 | PASS (runs to completion) |
-| Main grid, 200 cells | NOT RUN (comes after the tag) | PASS (runs to completion: 8 cells × 3 replicates, resumable) |
+| Pilot and number of replicates | *R* = 40 with 1.3.0 (largest SD of Δ 0.0160); *R* = 46 with 1.2.0; *R* = 50 with 1.1.2 | PASS (runs to completion) |
+| Main grid, 200 cells (154 computed) | NOT RUN (comes after the tag) | PASS (runs to completion: 8 cells × 3 replicates, resumable) |
 | Variants and label-noise runs | NOT RUN | NOT RUN |
 | Analysis, compatibility, sensitivity | NOT RUN | PASS (runs to completion) |
 | Power for the laboratory study | NOT RUN | PASS (runs to completion) |
@@ -102,22 +105,20 @@ AWW in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
 
 ## Known problems
 
-1. **Artifact windows are not realistic (G4).** With 1.2.0 the clean windows pass
-   the realism check on UTD (AUC 0.60), the artifact windows do not (AUC 0.86).
-   The features that differ most are those of fast changes (KS distance 0.73 for the
-   minimum of the first difference). Whether synthetic artifact edges are too sharp
-   or too smooth cannot be read from the distance; it needs a look at the
-   distributions ([RESULTS.md §3.5](RESULTS.md#35-rerun-with-version-120)).
-2. **Level of the clean windows.** The remaining difference in clean windows is in
-   the level features (KS distance 0.26 for the mean, minimum and maximum), not in
-   the fast changes (at most 0.15). The cause has not been examined.
+1. **G5 fails by small losses.** No feature set gains without a movement–artifact
+   link, but FA, FA4 and (without a link) FB lose slightly. This is accepted as an
+   exception and fixes how gains are read ([PREREGISTRATION.md](PREREGISTRATION.md)).
+2. **Level of the clean windows.** The remaining difference between real and
+   synthetic clean windows is in the level features (KS distance 0.29 for the mean,
+   minimum and maximum with 1.3.0), not in the fast changes. G3 passes with AUC 0.66,
+   close to the limit of 0.70. The cause has not been examined.
 3. **Feature scaling differs between real and synthetic data.** The published UTD
    features are z-scored within each participant; the synthetic pipeline only
    standardises over the training data. The real Δ used in the compatibility analysis
    (goal 5) was obtained with the former.
-4. **Choice of conditions for the power analysis.** The code uses the first three
-   compatible cells in grid order, which favours small values of *c*. A selection
-   rule with a stated reason should be fixed before the tag.
+4. **Choice of conditions for the power analysis.** Fixed in 1.3.0: the compatible
+   mixture cells at the quartiles of mean Δ<sub>B</sub> (before: the first three in
+   grid order, which favoured small *c*).
 5. **Label-noise variant.** It trains on noisy labels and scores against the true
    labels, while on UTD both training and scoring use expert labels. Whether this is
    the right comparison for goal 5 is open.
@@ -125,14 +126,12 @@ AWW in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
    source on some systems and can fail; conda (`environment.yml`) installs a prebuilt
    version. The authors' cvxEDA code must be downloaded by hand
    ([REPRODUCING.md](REPRODUCING.md#6-optional-cross-checks)).
-7. **Computing cost of the main grid.** The UTD pilot with 1.2.0 asks for *R* = 46
-   replicates. It took 20 minutes for 40 replicates on 4 cores (macOS), about 2 min
-   of CPU time per replicate, against 11 minutes with 1.1.2. The parameter
-   estimation on the same computer also took 34 instead of 10 minutes, although
-   1.2.0 adds almost no computation to it, so the computer was probably slower that
-   day (likely, not checked). Between these two measurements the main grid
-   (200 cells × 46 replicates) needs about 170–310 CPU hours, 40–80 hours on
-   4 cores, and the label-noise grid the same again
+7. **Computing cost of the main grid.** The UTD pilot with 1.3.0 sets *R* = 40.
+   One replicate of one cell took about 1 to 3 min of CPU time in the measurements
+   so far (1.1 min on macOS with 1.1.2, 2 min on macOS with 1.2.0, 3 min on the
+   2-core Linux machine with 1.3.0). The main grid (154 computed cells × 40
+   replicates = 6 160 replicates) therefore needs roughly 110–310 CPU hours, about
+   1–3 days on 4 cores, and the label-noise grid the same again
    ([REPRODUCING.md §5.3](REPRODUCING.md#53-computing-time)). Whether the run is
    feasible, or the design has to be reduced, has to be decided before the tag.
 8. **One physiology donor is used twice.** With S18 excluded, 19 valid donors serve
@@ -170,22 +169,24 @@ Settled on 25 October 2026, after the first UTD run, before the tag (version 1.2
 - **Physiology donors with almost no EDA.** Excluded by the 0.05 µS rule
   ([METHOD.md §4.1](METHOD.md#41-donors)).
 
-Still open:
+Settled with version 1.3.0 (details in [PREREGISTRATION.md](PREREGISTRATION.md)):
 
-1. **Positive control C4.** The walking gain measured on UTD is *G* = −0.0009, so
-   the C4 control produced no artifacts. A fixed control gain, with a stated reason,
-   is needed. It has to be said, when it is chosen, that G6 on UTD had already been
-   seen. With 1.2.0 the other positive control passes through both FA and FB, so C4
-   is the only reason G6 fails.
-2. **τ<sub>0</sub> at the edge of its range.** On UTD 12 of 20 participants chose an
-   edge value (9 at 4.0 s, 3 at 2.0 s); on AWW every day chose 2.0 s. Widening the
-   range departs from Greco et al. (2016) and needs a stated reason.
-3. **Share of level shifts.** The class rules put 71 % of UTD episodes (68 % of AWW
-   episodes) into C3. A possible cause is the noise floor of rule 3: with σ = 0 it is
-   *q*/√12 ≈ 0.0003 µS, so any shift of at least 0.05 µS counts as a level shift
-   (hypothesis). The rules should be checked by eye on UTD episodes.
-4. **Coupling features in the positive control.** Settled: on UTD FB gained in the
-   full-link control with 1.1.2 (Δ<sub>B</sub> +0.045) and with 1.2.0
-   (Δ<sub>B</sub> +0.068), so FB can detect a link that exists.
-5. **Feature scaling** and **conditions for the power analysis** (known problems 3
-   and 4).
+- **Positive control C4.** A control gain gives the median movement event a C4
+  artifact of median size 0.1 µS ([METHOD.md §3.8](METHOD.md#38-walking-gain-for-class-c4));
+  chosen after G6 had been seen with the measured gain.
+- **τ<sub>0</sub> range.** Kept at 2–4 s, although 12 of 20 participants chose an edge
+  value: G2 passes, and a wider range has no source in this project.
+- **Class rules.** Kept, although 71 % of UTD episodes are C3: changing them after
+  seeing the shares would be fitted to the data; the map is also reported per class.
+  Since artifacts now use measured courses, a C3 episode brings its real course along
+  whatever its class.
+- **Coupling features.** FB gained in the full-link control on UTD with every version.
+- **Power conditions.** Quartiles of mean Δ<sub>B</sub> among compatible cells
+  (known problem 4 fixed).
+- **Size of the grid.** Equivalent cells are computed once (154 of 200).
+
+Still open, not blocking the tag:
+
+1. **Feature scaling** (known problem 3) differs between the real comparison and the
+   synthetic pipeline; it has to be stated wherever goal 5 is reported.
+2. **Label-noise model** (known problem 5).

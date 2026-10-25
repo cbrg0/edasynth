@@ -300,6 +300,7 @@ measured:
 | P<sub>n</sub> | share of the episode's spectral power above 0.4 Hz (Hossain et al., 2022) |
 | level shift | median after minus median before |
 | level | median of the 2 s before the episode |
+| course | the episode sample by sample, relative to the level: deviation from the baseline line (C1, C2) or change from the level before (C3); used as the artifact shape since 1.3.0 (§4.3) |
 | duration | number of windows × 5 s |
 
 Each episode is assigned to one class by fixed rules, applied in this order
@@ -356,7 +357,17 @@ For the walking-oscillation class, the fast part of the EDA (signal minus its 2-
 moving average) is regressed on the fast part of the acceleration magnitude, through
 the origin, over all samples of the walking stages. The slope *G* (µS per g) is
 pooled across participants by the median **[measured]**. On AWW, *G* ≈ 0.0003 µS/g,
-too small to produce visible artifacts.
+and on UTD *G* = −0.0009 µS/g: too small to produce visible artifacts.
+
+Because of this, the generator uses a **control gain** for C4 since version 1.3.0
+**[decision]**: for every movement event of every movement donor the median absolute
+fast acceleration inside the event is taken, and *G*<sub>control</sub> is 0.1 µS
+divided by the median of these values. A movement event of median vigour then gives
+a C4 artifact whose median size is 0.1 µS, twice the label threshold. The value was
+chosen after G6 had been seen on UTD with the measured *G* (no artifacts at all); it
+is a size assumed for a positive control and for the C4 variant, and it says nothing
+about how large walking artifacts are on the wrist. `generator.c4.gain: measured`
+restores the measured *G*.
 
 ### 3.9 How the expert labels relate to movement
 
@@ -404,9 +415,23 @@ The clean signal *y*<sub>0</sub> is built on a 64 Hz grid and then averaged in b
 of 8 samples to 8 Hz **[decision]**. The finer grid lets response onsets and artifact
 edges fall between the 8 Hz samples instead of only on them.
 
-- **Tonic level.** For each protocol stage of the movement donor, one fitted tonic
-  (§3.5) of the same stage type is drawn from the physiology donor with a random
-  phase φ. Stages are joined without jumps: each starts where the previous ended.
+- **Tonic level** (changed in 1.3.0). For each protocol stage of the movement donor
+  the physiology donor's fit of the same stage (§3.5) is used; if the donor has none
+  (stages shorter than 180 s, or AWW days), a fit of the same stage type is drawn.
+  The fit gives the level reached at the end of the stage, *s*<sub>0</sub> +
+  *b T*<sub>stage</sub>, and the oscillation, which gets a random phase φ. The trend
+  runs in a straight line from the level at the start of the stage to that end level
+  over the length of the movement donor's stage; the first stage starts at
+  *s*<sub>0</sub>. Stages are joined without jumps **[decision]**.
+  Before 1.3.0 each stage took the slope *b* of a randomly drawn stage of the same
+  type and started where the previous one ended. Slopes of unrelated stages then
+  added up: in a check of 20 synthetic participants built from the UTD bank of 1.2.0,
+  the clean signal fell below 0 in 11 of them, down to −6.3 µS. With the new rule the
+  level follows the donor's own course from stage to stage. A line plus a sinusoid
+  can still dip below zero where a donor's level is low; in 100 synthetic
+  participants (5 seeds) 0.5 % of the clean samples were negative and 2.5 % below
+  0.05 µS. The tonic is therefore kept at or above 0.05 µS, the lower valid level of
+  Kleckner et al. (2018, rule 1) **[decision]**.
 - **Spontaneous responses.** In each stage, the number of responses is drawn from a
   Poisson distribution with the donor's rate for that stage type, onset times are
   uniform within the stage, and sizes are drawn from the donor's measured sizes.
@@ -425,18 +450,36 @@ edges fall between the 8 Hz samples instead of only on them.
 
 ### 4.3 Artifact classes
 
-The artifact shapes are the simplest shapes consistent with the published
-descriptions **[decision]**; their sizes and durations are drawn from the measured
-episodes of §3.6, pooled over all participants. A drawn relative size is multiplied
-by the **local level** of the clean synthetic signal, the median of *y*<sub>0</sub>
-over the 5 s before the artifact, with the same floor of 0.05 µS **[decision]**.
+**Since version 1.3.0, classes C1, C2 and C3 use the measured course of a real
+episode** **[decision]**. Each episode of §3.6 stores its course relative to the
+level before it: for C1 and C2 the deviation from the baseline line divided by the
+level, for C3 the change from the level before, divided by the level. The generator
+draws an episode of the class, multiplies its course by the movement scaling of
+§4.4 and by the **local level** of the synthetic signal, and adds it sample by
+sample. A C3 artifact keeps its measured relative offset after the episode. The
+local level is the median of the signal generated so far, including earlier
+artifacts, over the 5 s before the artifact, with a floor of 0.05 µS. A change
+downwards is limited to 95 % of the signal (the same limit as in V2), so that a
+strongly scaled artifact cannot make the signal negative.
+
+The reason is check G4 on UTD. With the simple shapes below, synthetic artifact
+windows had much smoother courses than the labelled ones: the median SD of the
+first difference was 0.005 µS per sample against 0.033 in the real artifact windows,
+and the AUC of G4 was 0.86. Real episodes contain several fast ups and downs, which
+a triangle, a trapezoid or a ramp do not have. The course of a real episode also
+contains whatever the body did during it; this is accepted, because the expert
+labels of those windows contain it as well.
+
+The simple shapes remain in the code. They are used for templates that carry no
+measured course (the placeholder templates of the development run, and banks written
+before 1.3.0):
 
 | Class | Shape | Origin of the idea |
 |---|---|---|
 | C1 peak | linear rise, linear fall (triangle) | peaks without exponential decay (Taylor et al., 2015; Zhang et al., 2017) |
 | C2 drop | downward trapezoid (linear fall, plateau, linear return) | sudden decrease (Zhang et al., 2017) |
 | C3 level shift | linear ramp to a lasting offset | persistent contact change (assumption) |
-| C4 walking oscillation | *G* × (\|**a**\| − its 2-s moving mean) inside a movement event | walking artifacts (Hossain et al., 2022, foot EDA) |
+| C4 walking oscillation | *G*<sub>control</sub> (§3.8) × (\|**a**\| − its 2-s moving mean) inside a movement event | walking artifacts (Hossain et al., 2022, foot EDA) |
 | C5 dropout / saturation | values replaced by 0 µS or the upper limit | range rules of Kleckner et al. (2018) |
 
 C4 is built directly from the acceleration, so the accelerometer must help with it.
@@ -471,7 +514,10 @@ C4 excluded.
   where *g* is the template shape scaled to 0…1 and ρ, the lost share of contact,
   is the measured relative size (times the movement scaling of §4.4), capped at
   0.95. Since sizes are relative in both variants, V1 and V2 now differ only in
-  whether the artifact follows the changes of *y*<sub>0</sub> during the artifact. The signal is always lowered, also for level shifts that were
+  whether the artifact follows the changes of *y*<sub>0</sub> during the artifact.
+  With measured courses (1.3.0) V2 multiplies the signal by (1 + course), so it
+  keeps the measured direction of the change; the old rule, which always lowered
+  the signal, applies only to the simple shapes. The signal is always lowered, also for level shifts that were
   measured as upward. This variant represents the idea that losing contact removes a
   fraction of the signal; it is an assumption to be tested in the laboratory.
 
@@ -600,7 +646,7 @@ pass ([PREREGISTRATION.md](PREREGISTRATION.md)).
 | G3 | realism of clean windows: can a classifier tell real from synthetic? | logistic regression on F0, grouped 5-fold cross-validation, AUC ≤ 0.70 |
 | G4 | realism of artifact windows, same test | AUC ≤ 0.70 (the real labels partly depend on movement, which limits this check) |
 | G5 | negative controls: no movement–artifact link (*c* = 0), and a full link (*c* = 1) with the acceleration shifted in time by at least 60 s after generation | for Δ<sub>A</sub>, Δ<sub>A4</sub> and Δ<sub>B</sub> over 10 replicates: the 95 % interval contains 0 and \|mean\| < 0.01 |
-| G6 | positive controls: C4 only, and the mixture with *c* = 1, κ = 1, δ<sub>max</sub> = 1 s | in each control, Δ<sub>A</sub> or Δ<sub>B</sub> has mean > 0 and lower 95 % bound > 0 |
+| G6 | positive controls: C4 only (with the control gain of §3.8), and the mixture with *c* = 1, κ = 1, δ<sub>max</sub> = 1 s | in each control, Δ<sub>A</sub> or Δ<sub>B</sub> has mean > 0 and lower 95 % bound > 0 |
 | G7 | our features on real UTD reproduce the published-feature baseline | same sign of Δ, both AUPRC values within 0.10 of 0.449 and 0.475 |
 
 A classifier two-sample test (G3, G4) is a direct check of realism: if a simple
@@ -622,7 +668,9 @@ the extra features add noise that the model does not fully ignore with 20
 participants. Consequences for reading the map (§8): a gain of FA or FA4 in a cell
 has to be compared with their loss in the no-link control, not with zero, and a
 cell is not read as "acceleration helps" through FA or FA4 unless Δ exceeds that
-loss. FB, which passes, is read against zero.
+loss. FB, which passes, is read against zero. With 1.3.0 FB also shows a small
+loss without a link (−0.002, interval reaching −0.0002), and the same reading applies
+to it ([PREREGISTRATION.md](PREREGISTRATION.md)).
 
 ---
 
@@ -634,6 +682,16 @@ Module `edasynth.experiment`, commands `pilot`, `grid`, `analyze`, `power`.
 π<sub>r</sub> ∈ {0, 0.5} × artifact composition ∈ {C1, C2, C3, C5, mixture in the
 measured shares} = 200 cells **[decision]**. Variants on part of the grid: V2 for C2
 and C3, 15 % prevalence, the majority labelling rule and C4 alone.
+
+**Equivalent cells are generated once** (since version 1.3.0). With *c* = 0 no
+artifact is attached to movement, so κ and δ<sub>max</sub> do not enter the
+generator; in the C5-only cells artifacts replace values, so κ, which scales a size,
+does not enter either. These cells produce the same distribution of data whatever
+the unused parameter, so each group is run once, under the first grid value of the
+unused parameters, and its replicates are copied to the other cells of the group
+(column `sharedWith`). This leaves 154 of the 200 cells to compute and does not
+change the map. Copied cells are not independent evidence; they are counted once
+wherever cells are counted as separate results.
 
 **Number of replicates.** A pilot runs 10 replicates in four cells (*c* ∈ {0, 1} ×
 κ ∈ {0, 1}, mixture). With *s* the largest standard deviation of Δ<sub>A4</sub> or
@@ -661,9 +719,16 @@ agreement for this purpose is an **assumption**.
 **Goal 6, what to measure first.** Starting from the reference cell (*c* = 0.5,
 κ = 1, δ<sub>max</sub> = 1 s, π<sub>r</sub> = 0, mixture), each parameter is varied
 alone over its grid values, and the range of the mean Δ shows which parameter
-matters most. For the first three compatible cells, the power for 5, 10, 15 and 20
-participants is the share of 50 replicates whose participant-bootstrap interval of
-Δ lies above zero.
+matters most. Power is computed for three compatible mixture cells chosen by their
+mean Δ<sub>B</sub>: sorted by it, the cells at the quartiles (1/4, 1/2, 3/4) are taken
+**[decision, 1.3.0]**, so that small, middle and large gains that agree with the real
+data are covered. Before 1.3.0 the first three cells in grid order were taken, which
+favoured small *c*. For each, the power for 5, 10, 15 and 20 participants is the
+share of 50 replicates whose participant-bootstrap interval of Δ lies above zero.
+
+With the label-noise grid present, `analyze` also writes the compatibility with
+noisy training labels (`compatibility-labelnoise-<source>.csv`); before 1.3.0 this
+part of goal 5 was computed by the grid but not analysed.
 
 ---
 

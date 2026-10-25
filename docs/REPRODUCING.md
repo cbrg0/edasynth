@@ -139,7 +139,7 @@ offset it found. The Makefile runs the steps in this order.
 | `estimate` with the built-in solver | about 35 s per τ<sub>0</sub> value for one hour of signal on one core (AWW); on UTD, macOS, 4 jobs: about 10 min for all 20 participants | — |
 | `validate` | UTD, macOS, 4 cores: 45 min (G2 alone 28 min) | — |
 | one grid cell, one replicate, logistic regression | 66 s on one core with 11 participants (AWW); about 66 s of CPU time with 20 participants (UTD pilot, macOS, 40 replicates in 11 min on 4 cores) | — |
-| main grid | — | 200 cells × 50 replicates × 66 s: about 180 CPU hours, about 46 hours on 4 cores; the label-noise grid needs the same again |
+| main grid | — | 154 computed cells × 40 replicates × 1–3 min: about 110–310 CPU hours, 1–3 days on 4 cores; the label-noise grid needs the same again |
 
 The UTD times were measured with version 1.1.2 on one Apple Silicon computer; 1.2.0
 does not change the cost of a replicate noticeably (expected, not measured). The main grid can be split over several sessions because it

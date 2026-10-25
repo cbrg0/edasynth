@@ -9,9 +9,10 @@ fixed **before** the main grid is run, and the moment of fixing is made public w
 git tag pushed to GitHub. The tag's date shows that the rules existed before the
 results.
 
-**Current state: draft.** The tag `prereg-synth-v1` does not exist yet. Several design
-questions are still open ([STATUS.md](STATUS.md#open-design-decisions-to-settle-before-the-tag-prereg-synth-v1));
-they have to be settled, and this file updated, before the tag is created.
+**Current state: complete for version 1.3.0.** The design questions are settled
+(below and in [STATUS.md](STATUS.md#open-design-decisions-to-settle-before-the-tag-prereg-synth-v1)),
+the checks have been run on UTD, and the pilot has fixed *R* = 40. The tag
+`prereg-synth-v1` has not been created yet.
 
 ## Order of work
 
@@ -71,6 +72,39 @@ The checks G1–G7 of [METHOD.md §7](METHOD.md#7-validation-checks-g1g7), with 
 thresholds in `configs/default.yaml`. If a check fails, the generator or the estimation
 is corrected, the correction is recorded in `CHANGELOG.md`, and all checks are run
 again. **Thresholds are not changed to make a check pass.**
+
+## Decisions taken after the first checks on UTD, before the tag
+
+The checks were run on UTD before the tag, as planned, and several failed. The
+corrections below were made before any main-grid result existed; each is recorded in
+`CHANGELOG.md` (versions 1.2.0 to 1.3.0) with the result that led to it. They were
+chosen after seeing the checks, so they are fitted to the checks in the sense that a
+check that failed was the reason for each change; no threshold of a check was changed.
+
+| Version | Change | Check that led to it |
+|---|---|---|
+| 1.2.0 | noise from blocks of the decomposition residual | G3 (σ = 0 on UTD) |
+| 1.2.0 | artifact sizes relative to the level | sizes measured at one level added to another |
+| 1.2.0 | physiology donors with EDA mostly below 0.05 µS excluded (S18) | inspection |
+| 1.2.0 | response sizes only from clean windows | heights larger than the recording range |
+| 1.3.0 | C1–C3 artifacts use the measured course of real episodes | G4 |
+| 1.3.0 | tonic follows the donor's own level from stage to stage, floored at 0.05 µS | negative clean signals found while checking G4 |
+| 1.3.0 | control gain for C4 | G6 (C4 produced no artifacts with the measured gain) |
+| 1.3.0 | equivalent grid cells computed once; power cells chosen by quartiles of Δ<sub>B</sub>; label-noise compatibility analysed | computing cost; known problems 4 and 7 |
+
+**G5 is an accepted exception.** With 1.3.0 every other check passes on UTD. G5 fails
+because the feature sets lower AUPRC slightly when movement and artifacts are
+unrelated: FA by 0.032, FA4 by 0.002 and FB by 0.002 (no link); no spurious gain was
+found. The rule of G5 was kept unchanged (25 October 2026), and the main grid is run
+although G5 fails in this way. The consequence is fixed here: in the map, a gain of a
+feature set is also compared with the loss of the same set in the no-link control of
+G5, and this comparison is reported next to the decision rule. For FB and FA4 the
+loss is five times smaller than the 0.01 that the decision rule requires.
+
+**Kept unchanged on purpose:** the τ<sub>0</sub> range of 2–4 s (12 of 20 participants
+at an edge; G2 passes, and a wider range has no source in this project), and the
+episode class rules (71 % of UTD episodes are C3; changing the rules after seeing
+the shares would be fitted to the data, and the map is also reported per class).
 
 ## Changes after the tag
 
