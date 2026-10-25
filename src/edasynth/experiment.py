@@ -9,6 +9,7 @@ model and feature set is evaluated on it with leave-one-participant-out.
 
 from __future__ import annotations
 
+import hashlib
 import itertools
 import json
 import zlib
@@ -45,7 +46,8 @@ deltas = {"dA": "F0+FA", "dA4": "F0+FA4", "dB": "F0+FB"}
 def loadBank(path: str | Path) -> dict:
     """Load the estimated parameters and motion donors written by ``cli estimate``."""
     path = Path(path)
-    meta = json.loads(path.with_suffix(".json").read_text())
+    text = path.with_suffix(".json").read_text()
+    meta = json.loads(text)
     if meta["library"].get("G") is None:  # written as null when no C4 gain could be estimated
         meta["library"]["G"] = float("nan")
     arrays = np.load(path.with_suffix(".npz"), allow_pickle=True)
@@ -68,7 +70,9 @@ def loadBank(path: str | Path) -> dict:
         if key not in arrays.files or "validDonor" not in p:
             raise ValueError(f"{path}: bank written before version 1.2.0; run `estimate` again")
         p["residual"] = arrays[key]
-    return {"motion": motion, "phys": phys, "library": meta["library"], "source": meta["source"]}
+    # identifies the bank in resumable result files, so rows made with another bank are not reused
+    bankId = hashlib.sha256(text.encode()).hexdigest()[:12]
+    return {"motion": motion, "phys": phys, "library": meta["library"], "source": meta["source"], "bankId": bankId}
 
 
 # ------------------------------------------------------------------ data sets

@@ -4,6 +4,17 @@ All notable changes to this project are recorded here. Changes to the method aft
 the preregistration tag must also be released under a new tag
 ([docs/PREREGISTRATION.md](docs/PREREGISTRATION.md)).
 
+## 1.2.1 (25 October 2026)
+
+- `pilot` and `grid` write the checksum of the parameter bank (`bankId`) and the
+  version into every row and refuse to resume a file made with another bank. Before,
+  a rerun of `pilot` after `estimate` with 1.2.0 skipped all 40 replicates because
+  the file of 1.1.2 was still there, and printed the old *R* = 50. Found on the
+  first UTD run of 1.2.0; a new test covers it.
+- Documentation: `docs/RESULTS.md` §3.5 reports the UTD checks with 1.2.0 (G1, G2,
+  G3 and G7 pass; G4, G5 and G6 fail) and the pilot (*R* = 46); `docs/STATUS.md`
+  updated.
+
 ## 1.2.0 (25 October 2026)
 
 Changes to the generator after the first run of the checks on the raw UTD files

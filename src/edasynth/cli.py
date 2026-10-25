@@ -410,6 +410,12 @@ def runJobs(cfg, bank, jobs, nJobs, outCsv, models, labelNoise=None):
     done = set()
     if outCsv.exists():
         old = pd.read_csv(outCsv)
+        ids = set(old["bankId"].astype(str)) if "bankId" in old else {"none"}
+        if ids != {bank["bankId"]}:
+            raise SystemExit(
+                f"{outCsv} holds results made with another parameter bank ({', '.join(sorted(ids))}; "
+                f"current {bank['bankId']}). Move or delete it and run the command again."
+            )
         done = set(zip(old["key"], old["rep"], strict=True))
     todo = [(c, r) for c, r in jobs if (c.key(), r) not in done]
     log(f"{len(todo)} replicate-cells to run ({len(jobs) - len(todo)} already done)")
@@ -421,6 +427,8 @@ def runJobs(cfg, bank, jobs, nJobs, outCsv, models, labelNoise=None):
         for (c, rep), rr in zip(chunk, res, strict=True):
             for row in rr:
                 row["key"] = c.key()
+                row["bankId"] = bank["bankId"]
+                row["version"] = __version__
                 rows.append(row)
         df = pd.DataFrame(rows)
         # rows of different cells can have different columns (e.g. detC2* only for

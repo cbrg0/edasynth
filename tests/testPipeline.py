@@ -1,6 +1,7 @@
 """End-to-end on the toy bank: data set, evaluation, controls, detectors."""
 
 import numpy as np
+import pytest
 
 from edasynth.config import merge
 from edasynth.detectors import chenSwt, kleckner, kocielnik, pnScore, slopeScore
@@ -83,3 +84,16 @@ def testResumableResultsKeepColumnsAligned(tmp_path, toyBank, cfg):
     assert len(df) == 2
     assert set(df["c"]) == {0.0, 1.0}
     assert set(df["classes"]) == {"C1", "C1+C2"}
+
+
+def testResumeRefusesResultsOfAnotherBank(tmp_path, toyBank, cfg):
+    from edasynth.cli import runJobs
+    from edasynth.generator import Condition
+
+    small = merge(cfg, {"models": {"logreg": {"CSelection": "fixed"}}})
+    out = tmp_path / "m.csv"
+    a = Condition(c=0.0, classes=("C1",))
+    runJobs(small, toyBank, [(a, 0)], 1, out, ("logreg",))
+    other = dict(toyBank, bankId="other0000000")
+    with pytest.raises(SystemExit):
+        runJobs(small, other, [(a, 0), (a, 1)], 1, out, ("logreg",))

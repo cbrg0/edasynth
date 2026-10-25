@@ -9,7 +9,7 @@ explained in [METHOD.md §6](METHOD.md#6-models-and-performance-measures).
 |---|---|---|
 | [1. Real-data comparison](#1-real-data-comparison) | UTD, published features | **final**: run and verified |
 | [2. Development run](#2-development-run-on-aww-not-a-result) | AWW, one person | run; checks the code, **not a result** |
-| [3. First run on the raw UTD files](#3-first-run-on-the-raw-utd-files-version-112) | UTD raw recordings, version 1.1.2 | run; the checks failed, the generator was changed in 1.2.0 |
+| [3. Checks on the raw UTD files](#3-first-run-on-the-raw-utd-files-version-112) | UTD raw recordings, versions 1.1.2 and 1.2.0 | run; with 1.2.0 G1, G2, G3 and G7 pass, G4, G5 and G6 fail |
 | [4. Synthetic map](#4-synthetic-map) | UTD-based semi-synthetic data | **not run yet** |
 
 ---
@@ -243,9 +243,61 @@ applies.
 - **G5 rule.** Kept unchanged; how FA and FA4 gains are read is stated in
   [METHOD.md §7](METHOD.md#7-validation-checks-g1g7).
 
-Whether these changes make G3 and G4 pass is not known until the checks are run
-again with version 1.2.0. The remaining open points (C3 share, the C4 control,
-the τ<sub>0</sub> range, the cost of the grid) are listed in [STATUS.md](STATUS.md).
+The rerun with version 1.2.0 is reported in §3.5.
+
+### 3.5 Rerun with version 1.2.0
+
+**What was run.** `estimate`, `validate` and `pilot` on macOS, 25 October 2026,
+version 1.2.0, after `make test` (66 passed, 1 skipped). The first `pilot` run
+reused the replicates of 1.1.2 because of a fault in the resume logic (fixed in
+1.2.1, [STATUS.md](STATUS.md) known problem 11); the numbers below come from a
+second run after the old pilot file was deleted.
+
+**Estimation.** S18 was excluded as a physiology donor. A response height larger
+than the range of the recording was reported only for S18 (5 heights); with 1.1.2
+there had been 25 such heights in 14 participants. No artifact episode started
+below 0.05 µS, and the class counts are unchanged (C3 147, C2 43, C1 14, C5 2,
+C4 2). τ<sub>0</sub> is at the edge of its range for the same 12 participants.
+
+| Check | 1.1.2 | 1.2.0 |
+|---|---|---|
+| G1 unit tests | PASS | PASS |
+| G2 parameter recovery | PASS (τ<sub>0</sub> 0.0 s, rate 0.094, KS *p* 0.41) | PASS (τ<sub>0</sub> 0.0 s, rate 0.158, KS *p* 0.16) |
+| G3 realism, clean windows | FAIL (AUC 0.981) | **PASS (AUC 0.602, limit 0.70)** |
+| G4 realism, artifact windows | FAIL (AUC 0.946) | FAIL (AUC 0.855) |
+| G5, no link | FAIL | FAIL: Δ<sub>A</sub> −0.035 (−0.039 to −0.031); Δ<sub>A4</sub> −0.003 (−0.005 to −0.000); Δ<sub>B</sub> −0.001 (−0.003 to +0.001), passes |
+| G5, acceleration shifted | FAIL | FAIL: Δ<sub>A</sub> −0.040 (−0.047 to −0.033); Δ<sub>A4</sub> −0.003 (−0.004 to −0.002); Δ<sub>B</sub> −0.002 (−0.004 to +0.001), passes |
+| G6, C4 only | FAIL (no artifacts) | FAIL (no artifacts, *G* = −0.0009) |
+| G6, mixture with *c* = 1 | passes through FB | passes: Δ<sub>A</sub> +0.027 (+0.006 to +0.047); Δ<sub>B</sub> +0.068 (+0.046 to +0.090) |
+| G7 | PASS | PASS (unchanged) |
+
+**Pilot.** Largest SD of Δ between replicates 0.0172, so *R* = 46
+(1.96² × 0.0172² / 0.005² = 45.5, rounded up).
+
+**Where real and synthetic windows still differ** (largest Kolmogorov–Smirnov
+distances over the 24 EDA features):
+
+- clean windows: the level features (mean, minimum, maximum of the EDA: 0.26); the
+  fast-change features, which differed most with 1.1.2 (0.83), are now at most 0.15;
+- artifact windows: the fast-change features (minimum of the first difference 0.73,
+  maximum of the 2-Hz and 4-Hz Haar details 0.70 and 0.69).
+
+**Interpretation.**
+
+- The residual noise removed the main difference between real and synthetic clean
+  windows; the clean part of the generator now passes its preregistered realism
+  check on UTD.
+- The synthetic artifacts still differ from the labelled ones in how fast the signal
+  changes. The KS distance does not tell in which direction; that needs a look at
+  the distributions before any change.
+- G5 fails only through FA and FA4, as decided (no spurious gain, small losses).
+  FB passes both negative controls. In the full-link control FB gains more than FA.
+- G6 fails only because the C4 control cannot be generated with *G* ≈ 0.
+
+**What these numbers do not show.** Nothing here is a result about the
+accelerometer: the checks test the generator. Passing G3 means that a linear
+classifier on the 24 EDA features cannot separate clean windows well; other
+features could.
 
 ---
 

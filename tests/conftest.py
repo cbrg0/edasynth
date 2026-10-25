@@ -65,4 +65,4 @@ def toyBank():
         "classShares": {"C1": 0.25, "C2": 0.25, "C3": 0.25, "C5": 0.25},
         "G": 0.2,
     }
-    return {"motion": motion, "phys": phys, "library": lib, "source": "toy"}
+    return {"motion": motion, "phys": phys, "library": lib, "source": "toy", "bankId": "toy000000000"}
