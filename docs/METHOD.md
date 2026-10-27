@@ -726,7 +726,8 @@ data are covered. Before 1.3.0 the first three cells in grid order were taken, w
 favoured small *c*. For each, the power for 5, 10, 15 and 20 participants is the
 share of 50 replicates whose participant-bootstrap interval of Δ lies above zero.
 
-With the label-noise grid present, `analyze` also writes the compatibility with
+The label-noise grid is computed for the mixture cells only (since 1.3.1), the
+cells its analysis uses. With it present, `analyze` also writes the compatibility with
 noisy training labels (`compatibility-labelnoise-<source>.csv`); before 1.3.0 this
 part of goal 5 was computed by the grid but not analysed.
 

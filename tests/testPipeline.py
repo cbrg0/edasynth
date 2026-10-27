@@ -126,3 +126,12 @@ def testEquivalentGridCellsAreRunOnceAndFilledIn(cfg):
     rows = [{"key": c.key(), "kappa": c.kappa, "deltaMax": c.deltaMax, "dB": 0.01, "rep": 0} for c in run]
     full = expandGrid(pd.DataFrame(rows), cfg)
     assert sorted(full["key"]) == sorted(c.key() for c in gridConditions(cfg))
+
+
+def testLabelNoiseGridUsesOnlyTheMixtureCells(cfg):
+    from edasynth.cli import gridCells
+
+    cells = gridCells(cfg, False, True)
+    assert len(cells) == 34
+    assert {c.classes for c in cells} == {tuple(cfg["grid"]["compositions"][-1])}
+    assert len(gridCells(cfg, False, False)) == 154

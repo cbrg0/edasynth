@@ -458,14 +458,25 @@ def cmdPilot(cfg, args):
     log(f"largest SD of delta across pilot cells = {sd:.4f} -> R = {R}")
 
 
-def cmdGrid(cfg, args):
+def gridCells(cfg, variants: bool, labelNoise: bool):
+    """Cells to compute for `grid`, `grid --variants` and `grid --label-noise`."""
     from .experiment import gridToRun, variantConditions
 
+    conds = variantConditions(cfg) if variants else gridToRun(cfg)
+    if labelNoise:
+        # only the mixture cells enter the label-noise analysis (goal 5); since 1.3.1
+        # the other compositions are not computed (docs/PREREGISTRATION.md, changes after the tag)
+        mix = tuple(cfg["grid"]["compositions"][-1])
+        conds = [c for c in conds if tuple(c.classes) == mix]
+    return conds
+
+
+def cmdGrid(cfg, args):
     bank = loadSourceBank(cfg, args)
     R = args.reps
     if R is None:
         R = json.loads((resultsDir(cfg) / f"pilot-{args.source}-R.json").read_text())["R"]
-    conds = variantConditions(cfg) if args.variants else gridToRun(cfg)
+    conds = gridCells(cfg, args.variants, args.labelNoise)
     models = tuple(args.models.split(","))
     jobs = [(c, r) for c in conds for r in range(R)]
     name = "variants" if args.variants else "grid"

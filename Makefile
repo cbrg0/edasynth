@@ -53,7 +53,7 @@ grid:               ## METHOD 8: main grid (resumable)
 variants:           ## METHOD 8: variants (V2, 15 % prevalence, majority rule, C4)
 	$(RUN) grid $(SRC) --variants --jobs $(JOBS)
 
-labelnoise:         ## METHOD 8 / goal 5: main grid with noisy training labels
+labelnoise:         ## METHOD 8 / goal 5: mixture cells of the grid with noisy training labels
 	$(RUN) grid $(SRC) --label-noise --jobs $(JOBS)
 
 analyze:            ## METHOD 8: map summary, compatibility (goal 5), sensitivity (goal 6)

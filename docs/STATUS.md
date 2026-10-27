@@ -1,6 +1,6 @@
 # Implementation status
 
-Last updated: 25 October 2026, version 1.3.0, before the preregistration tag.
+Last updated: 27 October 2026, version 1.3.1. Tags `prereg-synth-v1` (25 October 2026) and `prereg-synth-v2` (27 October 2026).
 
 This page states for every part of the study whether it exists, whether it has been
 tested and whether it has been run on the data it is meant for. It also lists known
@@ -96,8 +96,8 @@ AWW in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
 | Element | UTD | Development run |
 |---|---|---|
 | Pilot and number of replicates | *R* = 40 with 1.3.0 (largest SD of Δ 0.0160); *R* = 46 with 1.2.0; *R* = 50 with 1.1.2 | PASS (runs to completion) |
-| Main grid, 200 cells (154 computed) | NOT RUN (comes after the tag) | PASS (runs to completion: 8 cells × 3 replicates, resumable) |
-| Variants and label-noise runs | NOT RUN | NOT RUN |
+| Main grid, 200 cells (154 computed) | RUNNING on macOS since 25 October 2026, 21:59 (4 616 of 6 160 replicates on 27 October, 20:10) | PASS (runs to completion: 8 cells × 3 replicates, resumable) |
+| Variants and label-noise runs | NOT RUN (label-noise grid limited to the 34 mixture cells since 1.3.1) | NOT RUN |
 | Analysis, compatibility, sensitivity | NOT RUN | PASS (runs to completion) |
 | Power for the laboratory study | NOT RUN | PASS (runs to completion) |
 | Figures F1–F7 | NOT RUN | PASS (produced and inspected; the inspection found two errors that were fixed) |
@@ -131,7 +131,7 @@ AWW in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
    so far (1.1 min on macOS with 1.1.2, 2 min on macOS with 1.2.0, 3 min on the
    2-core Linux machine with 1.3.0). The main grid (154 computed cells × 40
    replicates = 6 160 replicates) therefore needs roughly 110–310 CPU hours, about
-   1–3 days on 4 cores, and the label-noise grid the same again
+   1–3 days on 4 cores, and the label-noise grid (34 cells since 1.3.1) about a fifth of that
    ([REPRODUCING.md §5.3](REPRODUCING.md#53-computing-time)). Whether the run is
    feasible, or the design has to be reduced, has to be decided before the tag.
 8. **One physiology donor is used twice.** With S18 excluded, 19 valid donors serve

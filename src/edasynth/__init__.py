@@ -9,4 +9,4 @@ synthetic EDA whose clean component, artifacts and true labels are known exactly
 See README.md and docs/ for the full method.
 """
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"

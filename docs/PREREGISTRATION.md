@@ -108,6 +108,13 @@ the shares would be fitted to the data, and the map is also reported per class).
 
 ## Changes after the tag
 
+**Tag `prereg-synth-v2` (version 1.3.1, 27 October 2026).** The label-noise grid is
+computed for the 34 mixture cells only, because only those cells enter its analysis
+(goal 5). The reason is computing time: the full label-noise grid would have taken
+about two more days on the laptop used. No outcome, rule or threshold changes; the
+main grid (started under `prereg-synth-v1`) is unaffected. This change was made while
+the main grid was running and before any of its results had been looked at.
+
 Any change after the tag is made openly: a new tag (`prereg-synth-v2`, and so on) with
 the reason in `CHANGELOG.md`. Any analysis designed after seeing results is labelled
 *post hoc* wherever it is reported.

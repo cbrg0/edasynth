@@ -4,6 +4,19 @@ All notable changes to this project are recorded here. Changes to the method aft
 the preregistration tag must also be released under a new tag
 ([docs/PREREGISTRATION.md](docs/PREREGISTRATION.md)).
 
+## 1.3.1 (27 October 2026)
+
+First change after the tag `prereg-synth-v1`; released under the tag
+`prereg-synth-v2`.
+
+- The label-noise grid (`grid --label-noise`, `make labelnoise`) computes only the
+  34 mixture cells. Only these cells enter its analysis (the compatibility with the
+  real gain under noisy training labels, goal 5); the 120 single-class cells were
+  computed but never analysed. Reason: computing time on the available laptop (about
+  two days for the full label-noise grid). No analysis, threshold or reported
+  outcome changes. The main grid and the variants were already running with 1.3.0
+  and are not affected: the generator, the features and the models are unchanged.
+
 ## 1.3.0 (25 October 2026)
 
 Changes before the preregistration tag, made after the UTD checks of 1.2.0 (G4 failed
