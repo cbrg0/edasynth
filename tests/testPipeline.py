@@ -116,7 +116,7 @@ def testEquivalentGridCellsAreRunOnceAndFilledIn(cfg):
     from edasynth.experiment import canonicalCondition, expandGrid, gridConditions, gridToRun
 
     run = gridToRun(cfg)
-    assert len(gridConditions(cfg)) == 200 and len(run) == 154
+    assert len(gridConditions(cfg)) == 300 and len(run) == 226
     a = Condition(c=0.0, kappa=1.0, deltaMax=5.0, piR=0.5, classes=("C1",))
     assert canonicalCondition(a, cfg).key() == Condition(c=0.0, kappa=0.0, deltaMax=1.0, piR=0.5, classes=("C1",)).key()
     b = Condition(c=0.5, kappa=1.0, deltaMax=5.0, classes=("C5",))
@@ -132,9 +132,9 @@ def testLabelNoiseGridUsesOnlyTheMixtureCells(cfg):
     from edasynth.cli import gridCells
 
     cells = gridCells(cfg, False, True)
-    assert len(cells) == 34
+    assert len(cells) == 50
     assert {c.classes for c in cells} == {tuple(cfg["grid"]["compositions"][-1])}
-    assert len(gridCells(cfg, False, False)) == 154
+    assert len(gridCells(cfg, False, False)) == 226
 
 
 def testPowerDoesNotDependOnTheNumberOfJobs(toyBank, cfg):
@@ -145,3 +145,28 @@ def testPowerDoesNotDependOnTheNumberOfJobs(toyBank, cfg):
     a = bootstrapPower(toyBank, cond, small, 3, 2, nJobs=1)
     b = bootstrapPower(toyBank, cond, small, 3, 2, nJobs=2)
     assert a == b
+
+
+def testRealismGeneratorNeverSeesTheComparedParticipant(toyBank, cfg):
+    from edasynth.validation import withoutParticipants
+
+    def est(pid, cls):
+        ep = {
+            "pid": pid,
+            "cls": cls,
+            "level": 2.0,
+            "riseS": 0.4,
+            "returnS": 0.4,
+            "durationS": 5.0,
+            "amp": 0.3,
+            "shift": 0.2,
+            "traceDev": [0.0, 0.1],
+            "traceStep": [0.0, 0.1],
+        }
+        return {"pid": pid, "episodes": [ep], "c4": {"G": 0.0}}
+
+    bank = dict(toyBank, estimates=[est("T0", "C1"), est("T1", "C2"), est("T2", "C3"), est("T3", "C1")])
+    sub = withoutParticipants(bank, {"T0", "T3"}, cfg)
+    assert [m["pid"] for m in sub["motion"]] == ["T1", "T2"]
+    assert [p["pid"] for p in sub["phys"]] == ["T1", "T2"]
+    assert sub["library"]["C1"] == [] and len(sub["library"]["C2"]) == 1  # T0's and T3's episodes are gone

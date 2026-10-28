@@ -75,7 +75,14 @@ def loadBank(path: str | Path, cfg: dict) -> dict:
         p["residual"] = arrays[key]
     # identifies the bank in resumable result files, so rows made with another bank are not reused
     bankId = hashlib.sha256(text.encode()).hexdigest()[:12]
-    return {"motion": motion, "phys": phys, "library": meta["library"], "source": meta["source"], "bankId": bankId}
+    return {
+        "motion": motion,
+        "phys": phys,
+        "library": meta["library"],
+        "source": meta["source"],
+        "bankId": bankId,
+        "estimates": meta["estimates"],  # used by the split-half realism checks
+    }
 
 
 # ------------------------------------------------------------------ data sets

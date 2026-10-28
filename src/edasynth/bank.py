@@ -33,6 +33,32 @@ physKeys = (
 )
 
 
+def buildLibrary(estimates: list[dict], cfg: dict, log=None) -> dict:
+    """Artifact templates, class shares and walking gain from the participants' estimates.
+
+    Episodes that start below the minimum valid level (Kleckner et al., 2018, rule 1)
+    have no meaningful relative size; they are left out of the templates and shares.
+    Also used by the realism checks with half of the participants (docs/METHOD.md section 7).
+    """
+    floor = cfg["estimation"]["episodes"]["levelFloor"]
+    allEpisodes = [ep for e in estimates for ep in e["episodes"]]
+    episodes = [ep for ep in allEpisodes if ep["level"] >= floor]
+    if log and len(episodes) < len(allEpisodes):
+        log(f"{len(allEpisodes) - len(episodes)} of {len(allEpisodes)} episodes start below {floor} uS; not used")
+    counts = Counter(ep["cls"] for ep in episodes)
+    classified = {c: n for c, n in counts.items() if c.startswith("C")}
+    tot = sum(v for c, v in classified.items() if c != "C4") or 1
+    library = {
+        c: [templateParameters(ep, floor) for ep in episodes if ep["cls"] == c] for c in ("C1", "C2", "C3", "C5")
+    }
+    library["classShares"] = {c: classified.get(c, 0) / tot for c in ("C1", "C2", "C3", "C5")}
+    gains = [e["c4"]["G"] for e in estimates if np.isfinite(e["c4"]["G"])]
+    library["G"] = float(np.median(gains)) if gains else float("nan")
+    library["episodeCounts"] = dict(counts)
+    library["episodesBelowFloor"] = len(allEpisodes) - len(episodes)
+    return library
+
+
 def gitCommit() -> str:
     try:
         return subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
@@ -56,24 +82,7 @@ def buildBank(recordings: list[Recording], cfg: dict, source: str, out: str | Pa
     arrays = {}
     for e in estimates:  # residual blocks go to the .npz, not into the JSON
         arrays[f"resid{e['pid']}"] = np.asarray(e.pop("residual"), float)
-    # Episodes that start below the minimum valid level (Kleckner et al., 2018, rule 1)
-    # have no meaningful relative size; they are left out of the templates and shares.
-    floor = cfg["estimation"]["episodes"]["levelFloor"]
-    allEpisodes = [ep for e in estimates for ep in e["episodes"]]
-    episodes = [ep for ep in allEpisodes if ep["level"] >= floor]
-    if len(episodes) < len(allEpisodes):
-        log(f"{len(allEpisodes) - len(episodes)} of {len(allEpisodes)} episodes start below {floor} uS; not used")
-    counts = Counter(ep["cls"] for ep in episodes)
-    classified = {c: n for c, n in counts.items() if c.startswith("C")}
-    tot = sum(v for c, v in classified.items() if c != "C4") or 1
-    library = {
-        c: [templateParameters(ep, floor) for ep in episodes if ep["cls"] == c] for c in ("C1", "C2", "C3", "C5")
-    }
-    library["classShares"] = {c: classified.get(c, 0) / tot for c in ("C1", "C2", "C3", "C5")}
-    gains = [e["c4"]["G"] for e in estimates if np.isfinite(e["c4"]["G"])]
-    library["G"] = float(np.median(gains)) if gains else float("nan")
-    library["episodeCounts"] = dict(counts)
-    library["episodesBelowFloor"] = len(allEpisodes) - len(episodes)
+    library = buildLibrary(estimates, cfg, log)
     phys = [{k: e[k] for k in physKeys} for e in estimates]
     excluded = [p["pid"] for p in phys if not p["validDonor"]]
     if excluded:

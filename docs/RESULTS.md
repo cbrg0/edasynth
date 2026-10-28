@@ -10,7 +10,7 @@ explained in [METHOD.md §6](METHOD.md#6-models-and-performance-measures).
 | [1. Real-data comparison](#1-real-data-comparison) | UTD, published features | **final**: run and verified |
 | [2. Development run](#2-development-run-on-aww-not-a-result) | AWW, one person | run; checks the code, **not a result** |
 | [3. Checks on the raw UTD files](#3-first-run-on-the-raw-utd-files-version-112) | UTD raw recordings, versions 1.1.2 to 1.3.0 | run; with 1.3.0 all checks pass except G5, which fails by small losses (accepted exception) |
-| [4. Synthetic map](#4-synthetic-map) | UTD-based semi-synthetic data | **not run yet** |
+| [4. Synthetic map](#4-synthetic-map) | UTD-based semi-synthetic data | run once with 1.3.0 and **withdrawn** (generator error); to be run with 1.4.0 |
 
 ---
 
@@ -348,6 +348,55 @@ with the 1.3.0 patch, so that the grid can be run on exactly this bank.
 
 **What these numbers do not show.** The checks test the generator. They say nothing
 yet about when the accelerometer helps; that is the main grid.
+
+### 3.7 Version 1.4.0
+
+**What was run.** On Linux, 28 October 2026, with the bank of 1.3.0 (the estimation
+did not change): G2 twice (with cvxEDA's response shape and with varied response
+shapes), G3 and G4 with the leave-one-participant-out scheme (10 repetitions) and
+the split-half scheme, G5, G6 and the pilot.
+
+| Check | Result |
+|---|---|
+| G2, cvxEDA's shape | PASS: τ<sub>0</sub> error 0.0 s, rate error 0.144, KS *p* = 0.37 |
+| G2, varied shapes (τ<sub>0</sub> ± 25 %, τ<sub>1</sub> 0.35–1.05 s) | PASS: τ<sub>0</sub> error 0.15 s, rate error 0.125, KS *p* = 0.33 |
+| G3, leave one out | PASS: median AUC 0.59 (10 repetitions: 0.50–0.66) |
+| G4, leave one out | PASS: median AUC 0.555 (10 repetitions: 0.45–0.73; 2 of 10 above 0.70) |
+| G3, split half | 0.57 and 0.39 |
+| G4, split half | 0.30 and **0.76** |
+| G5 | FAIL by small losses, no gain: no link Δ<sub>A</sub> −0.032, Δ<sub>A4</sub> −0.002 (passes), Δ<sub>B</sub> −0.002 (−0.003 to −0.001); shifted Δ<sub>A</sub> −0.033, Δ<sub>A4</sub> −0.004, Δ<sub>B</sub> −0.001 (passes) |
+| G6 | PASS: C4 control Δ<sub>B</sub> +0.008 (+0.006 to +0.010); mixture Δ<sub>B</sub> +0.050 (+0.040 to +0.060); Δ<sub>A</sub> negative in both |
+
+**Pilot (1.4.0).** Largest SD of Δ between replicates 0.0206, which would need *R* = 65
+(1.96² × 0.0206² / 0.005²), so the cap *R* = 50 applies. 40 replicates took 18 minutes on
+2 cores (about 55 s of CPU time per replicate, against about 3 min with 1.3.0).
+
+**Interpretation and honest caveats.**
+
+- Without circularity, the realism of artifact windows is borderline: it passes on
+  the median, but single repetitions reach 0.73, and the split-half version fails in
+  one direction. In that direction most of the gap comes from S10 (60 of 162 real
+  artifact windows of its half, quantisation step 0.006 µS against about 0.001 for the
+  others; without S10: 0.61). Synthetic participants can only have the recording
+  properties of their donors, so a participant recorded differently is not reproduced.
+- The leave-one-out scheme and the use of the median over 10 repetitions were chosen
+  after the split-half result and the variation between seeds had been seen. Both
+  facts are reported here and in PREREGISTRATION.md.
+- G2 with varied response shapes shows that the estimation does not depend on the
+  data having exactly cvxEDA's response shape (within the variation tested).
+
+### 3.8 The main grid of 1.3.0 was withdrawn
+
+The main grid (154 cells × 40 replicates) and the variants were computed with 1.3.0
+on 25–28 October 2026, and their summary was looked at. While checking an unexpected
+result of the 15 % variant (every feature set lost about 0.10 at *c* = 1), an error in
+the generator was found: overlapping artifacts multiplied, and in the C3 and mixture
+cells about 20 % of the samples exceeded twice the 99th percentile of the clean
+signal (METHOD.md §4.3). The results of that grid are therefore not reported as
+findings. The grid is run again with 1.4.0. Because its summary had been seen, the
+changes of 1.4.0 are listed with their reasons in PREREGISTRATION.md; none of them
+was chosen to move the map in a particular direction, and the decision rule and
+thresholds are unchanged.
 
 ---
 

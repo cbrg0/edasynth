@@ -456,11 +456,28 @@ level before it: for C1 and C2 the deviation from the baseline line divided by t
 level, for C3 the change from the level before, divided by the level. The generator
 draws an episode of the class, multiplies its course by the movement scaling of
 §4.4 and by the **local level** of the synthetic signal, and adds it sample by
-sample. A C3 artifact keeps its measured relative offset after the episode. The
-local level is the median of the signal generated so far, including earlier
-artifacts, over the 5 s before the artifact, with a floor of 0.05 µS. A change
-downwards is limited to 95 % of the signal (the same limit as in V2), so that a
-strongly scaled artifact cannot make the signal negative.
+sample. The local level is the median of the **clean** synthetic signal over the 5 s
+before the artifact, with a floor of 0.05 µS, so artifacts add to each other instead
+of compounding. A change downwards is limited to 95 % of the signal (the same limit
+as in V2), so that a strongly scaled artifact cannot make the signal negative.
+
+**Level shifts (C3) set a contact state** (since 1.4.0) **[decision]**. After a shift
+the signal stays at its measured relative offset, and the next shift *replaces* that
+offset instead of adding to it. During a shift the signal moves from the previous
+offset to the measured course of the episode (the previous offset fades linearly
+over the episode). Only that change is labelled; the lasting offset afterwards is
+not. Finally the signal is kept between 5 % of the clean signal and 60 µS, the upper
+range limit of Kleckner et al. (2018, rule 1).
+
+*Why this changed.* In version 1.3.0 the level before an artifact was taken from the
+signal including earlier artifacts, and every C3 offset added to the previous ones.
+Offsets then multiplied each other. A check after the main grid of 1.3.0 had been run
+(before its results were used) found that in the C3 and mixture cells about 20 % of
+the samples were more than twice the 99th percentile of the clean signal, up to 125
+times; in the 15 % prevalence variant with *c* = 1 the synthetic signal reached a
+median maximum of 281 µS and 28 % of the samples were at or above 60 µS. With the
+contact state and the clean reference level these shares fell to 1–2 %, and the
+15 % variant stays below 60 µS. The main grid of 1.3.0 is not used.
 
 The reason is check G4 on UTD. With the simple shapes below, synthetic artifact
 windows had much smoother courses than the labelled ones: the median SD of the
@@ -584,10 +601,12 @@ The primary model is **logistic regression**: it estimates the probability that 
 window is an artifact as a logistic function of a weighted sum of its features. The
 settings are L2 regularisation, standardised features, class weights inversely
 proportional to class frequencies (so the rare artifacts are not ignored) and the
-`newton-cholesky` solver. The regularisation strength *C* ∈ {0.01, 0.1, 1, 10} is
-chosen inside each training set by grouped 5-fold cross-validation, maximising
-AUPRC **[decision]**; leave-one-participant-out inside each training set would be
-slower. A **random
+`newton-cholesky` solver. The regularisation strength is fixed at *C* = 1, the
+setting of the real-data comparison (§1 of [RESULTS.md](RESULTS.md)) **[decision,
+1.4.0]**. Until 1.3.2 *C* ∈ {0.01, 0.1, 1, 10} was chosen inside each training set by
+grouped 5-fold cross-validation; this made each replicate about 20 times more
+expensive and used a different model than the real comparison it is compared with in
+goal 5. A **random
 forest** of 500 trees is used as a robustness check.
 
 **Leave-one-participant-out (LOSO).** The model is trained on all participants but
@@ -642,9 +661,9 @@ pass ([PREREGISTRATION.md](PREREGISTRATION.md)).
 | Check | What it tests | Pass condition |
 |---|---|---|
 | G1 | the code: unit tests of readers, features, generator, models, estimation | all tests pass |
-| G2 | parameter recovery: 20 artifact-free synthetic participants with known physiology are re-estimated with §3 | median \|τ<sub>0</sub> error\| ≤ 0.3 s; median \|relative rate error\| ≤ 0.2; two-sample Kolmogorov–Smirnov test of response sizes *p* > 0.05 |
-| G3 | realism of clean windows: can a classifier tell real from synthetic? | logistic regression on F0, grouped 5-fold cross-validation, AUC ≤ 0.70 |
-| G4 | realism of artifact windows, same test | AUC ≤ 0.70 (the real labels partly depend on movement, which limits this check) |
+| G2 | parameter recovery: 20 artifact-free synthetic participants with known physiology are re-estimated with §3; since 1.4.0 a second time with responses whose time constants vary (τ<sub>0</sub> ± 25 %, τ<sub>1</sub> 0.35–1.05 s), so that the data do not have the shape the decomposition assumes; both runs must pass | median \|τ<sub>0</sub> error\| ≤ 0.3 s; median \|relative rate error\| ≤ 0.2; two-sample Kolmogorov–Smirnov test of response sizes *p* > 0.05 |
+| G3 | realism of clean windows: can a classifier tell real from synthetic? Since 1.4.0 the generator never sees the participant it is compared with: for each real participant one synthetic participant is built from the other 19 (donors and artifact episodes), and all windows are pooled in one test (leave one participant out). A split-half version (generator from one half, real windows of the other) is reported as well | logistic regression on F0, grouped 5-fold cross-validation, median AUC over 10 repetitions ≤ 0.70 (leave-one-participant-out scheme; one repetition varied from 0.49 to 0.73 between seeds) |
+| G4 | realism of artifact windows, same test and scheme; until 1.3.2 the synthetic artifacts were compared with the very episodes they were built from | median AUC over 10 repetitions ≤ 0.70, leave-one-participant-out (the real labels partly depend on movement, which limits this check) |
 | G5 | negative controls: no movement–artifact link (*c* = 0), and a full link (*c* = 1) with the acceleration shifted in time by at least 60 s after generation | for Δ<sub>A</sub>, Δ<sub>A4</sub> and Δ<sub>B</sub> over 10 replicates: the 95 % interval contains 0 and \|mean\| < 0.01 |
 | G6 | positive controls: C4 only (with the control gain of §3.8), and the mixture with *c* = 1, κ = 1, δ<sub>max</sub> = 1 s | in each control, Δ<sub>A</sub> or Δ<sub>B</sub> has mean > 0 and lower 95 % bound > 0 |
 | G7 | our features on real UTD reproduce the published-feature baseline | same sign of Δ, both AUPRC values within 0.10 of 0.449 and 0.475 |
@@ -678,9 +697,13 @@ to it ([PREREGISTRATION.md](PREREGISTRATION.md)).
 
 Module `edasynth.experiment`, commands `pilot`, `grid`, `analyze`, `power`.
 
-**Grid.** *c* ∈ {0, 0.25, 0.5, 0.75, 1} × κ ∈ {0, 1} × δ<sub>max</sub> ∈ {1, 5} s ×
+**Grid.** *c* ∈ {0, 0.25, 0.5, 0.75, 1} × κ ∈ {0, 1} × δ<sub>max</sub> ∈ {1, 5, 10} s ×
 π<sub>r</sub> ∈ {0, 0.5} × artifact composition ∈ {C1, C2, C3, C5, mixture in the
-measured shares} = 200 cells **[decision]**. Variants on part of the grid: V2 for C2
+measured shares} = 300 cells **[decision]**. δ<sub>max</sub> = 10 s was added in 1.4.0:
+the coupling features FB look for joint changes of EDA and movement up to 5 s apart
+(§5), and with delays of at most 5 s the generator only produced links inside that
+window. The 10-s cells show what happens when the real delay is longer than the
+features look. Variants on part of the grid: V2 for C2
 and C3, 15 % prevalence, the majority labelling rule and C4 alone.
 
 **Equivalent cells are generated once** (since version 1.3.0). With *c* = 0 no
@@ -689,7 +712,7 @@ generator; in the C5-only cells artifacts replace values, so κ, which scales a 
 does not enter either. These cells produce the same distribution of data whatever
 the unused parameter, so each group is run once, under the first grid value of the
 unused parameters, and its replicates are copied to the other cells of the group
-(column `sharedWith`). This leaves 154 of the 200 cells to compute and does not
+(column `sharedWith`). This leaves 226 of the 300 cells to compute and does not
 change the map. Copied cells are not independent evidence; they are counted once
 wherever cells are counted as separate results.
 

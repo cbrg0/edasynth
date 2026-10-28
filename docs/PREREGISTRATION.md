@@ -11,7 +11,7 @@ results.
 
 **Current state: complete for version 1.3.0.** The design questions are settled
 (below and in [STATUS.md](STATUS.md#open-design-decisions-to-settle-before-the-tag-prereg-synth-v1)),
-the checks have been run on UTD, and the pilot has fixed *R* = 40. The tag
+the checks have been run on UTD, and the pilot has fixed *R* (40 with 1.3.0; 50 with 1.4.0). The tag
 `prereg-synth-v1` has not been created yet.
 
 ## Order of work
@@ -114,6 +114,36 @@ computed for the 34 mixture cells only, because only those cells enter its analy
 about two more days on the laptop used. No outcome, rule or threshold changes; the
 main grid (started under `prereg-synth-v1`) is unaffected. This change was made while
 the main grid was running and before any of its results had been looked at.
+
+**Tag `prereg-synth-v3` (version 1.4.0, 28 October 2026).** This is a substantial
+change, and it was made **after the summary of the main grid of 1.3.0 had been
+seen**. What happened, in order:
+
+1. The main grid and the variants of 1.3.0 were computed and summarised.
+2. An unexpected result in the 15 % variant led to an error in the generator
+   (overlapping artifacts multiplied; RESULTS.md §3.8). The grid of 1.3.0 is withdrawn.
+3. While the generator was being corrected, three weaknesses of the checks raised
+   by the user were also corrected: synthetic artifacts had been judged against the
+   episodes they were built from (G4), the generator only produced delays inside the
+   5-s window of the FB features, and G2 used data with exactly the response shape
+   that the estimation assumes.
+4. To make the rerun feasible, the logistic regression uses *C* = 1, as in the
+   real-data comparison, instead of choosing *C* in every replicate.
+
+Changes: generator (clean reference level, contact state for C3, range limits);
+δ<sub>max</sub> = 10 s added (300 cells, 226 computed; label-noise grid 50 cells);
+fixed *C*; G2 also with varied response shapes; G3/G4 with a generator that never
+sees the compared participant (median over 10 repetitions), split-half reported. The
+last two choices were made after seeing the split-half result and the variation
+between seeds (RESULTS.md §3.7).
+
+Unchanged: the primary outcome, the decision rule (mean Δ ≥ 0.01 and lower bound
+> 0), all thresholds of the checks, the compatibility rule, the reading of FA, FA4
+and FB gains against the G5 no-link loss, and the rule that sets *R*.
+
+Because the 1.3.0 summary was seen before these changes, a reader cannot rule out
+that it influenced them. The changes are listed so that this can be judged; none of
+them targets a particular cell or direction of the map.
 
 Any change after the tag is made openly: a new tag (`prereg-synth-v2`, and so on) with
 the reason in `CHANGELOG.md`. Any analysis designed after seeing results is labelled

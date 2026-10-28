@@ -24,10 +24,23 @@ from .generator import Condition, Generator, assignDonors
 
 # ------------------------------------------------------------------ G2
 def g2ParameterRecovery(bank: dict, cfg: dict, n: int, seed: int) -> dict:
-    """Generate artifact-free participants with known physiology; re-estimate it."""
+    """G2: recovery with cvxEDA's response shape and with varied response shapes; both must pass."""
+    plain = g2Recovery(bank, cfg, n, seed, None)
+    jitter = g2Recovery(bank, cfg, n, seed + 1, cfg["validation"]["g2Jitter"])
+    return {**plain, "variedShapes": jitter, "passed": bool(plain["passed"] and jitter["passed"])}
+
+
+def g2Recovery(bank: dict, cfg: dict, n: int, seed: int, jitter) -> dict:
+    """Generate artifact-free participants with known physiology; re-estimate it.
+
+    With ``jitter`` every synthetic response gets its own time constants, so the data
+    no longer have the response shape that the decomposition assumes (docs/METHOD.md
+    section 7).
+    """
     v = cfg["validation"]
     rng = np.random.default_rng(seed)
     gen = Generator(bank["library"], cfg)
+    gen.responseJitter = jitter
     cond = Condition(prevalence=0.0, piR=0.0)
     mAll, pAll = bank["motion"], bank["phys"]
     perm = assignDonors(mAll, pAll, rng)
@@ -91,6 +104,95 @@ def classifierTwoSample(Xr, gr, Xs, gs, folds: int = 5) -> dict:
 
 
 def g3G4Realism(real: list[Recording], bank: dict, cfg: dict, seed: int) -> dict:
+    """G3/G4 realism without letting the generator see the real windows it is judged on.
+
+    ``validation.realism: loso`` (decision, 1.4.0): for every real participant, one
+    synthetic participant is built from the other 19 only (donors and artifact
+    episodes); real and synthetic windows of all participants are then pooled in one
+    classifier two-sample test. The split-half comparison (generator from one half,
+    real windows of the other, both ways) is reported as well. ``realism: pooled``
+    is the comparison of version 1.3.0, in which the synthetic artifacts came from
+    the same episodes they were compared with.
+    """
+    scheme = cfg["validation"].get("realism", "pooled")
+    if scheme == "pooled":
+        return realismPair(real, bank, cfg, seed)
+    if scheme != "loso":
+        raise ValueError(f"unknown realism scheme {scheme}")
+    v = cfg["validation"]
+    reps = [realismLoso(real, bank, cfg, seed + 1000 * r) for r in range(v.get("realismReps", 1))]
+    out = {}
+    for g in ("G3", "G4"):
+        aucs = [r[g]["auc"] for r in reps]
+        out[g] = {
+            "auc": float(np.median(aucs)),
+            "aucReplicates": aucs,
+            "ksD": list(np.median([r[g]["ksD"] for r in reps], axis=0)),
+            "scheme": "loso",
+        }
+        out[g]["passed"] = bool(out[g]["auc"] <= v["c2stAucMax"])
+    split = realismSplitHalf(real, bank, cfg, seed)
+    for g in ("G3", "G4"):
+        out[g]["splitHalf"] = split[g]
+    out["G4"]["note"] = "UTD artifact labels partly depend on movement; interpret with that caveat"
+    return out
+
+
+def realismLoso(real: list[Recording], bank: dict, cfg: dict, seed: int) -> dict:
+    """One leave-one-participant-out realism comparison (one synthetic participant per real one)."""
+    deriv = cfg["features"]["derivative"]
+    mix = tuple(cfg["grid"]["compositions"][-1])
+    parts = {k: [] for k in ("Xr3", "gr3", "Xr4", "gr4", "Xs3", "gs3", "Xs4", "gs4")}
+    for k, r in enumerate(sorted(real, key=lambda x: x.pid)):
+        sub = withoutParticipants(bank, {r.pid}, cfg)
+        ds = makeDataset(sub, Condition(c=0.5, classes=mix, prevalence=cfg["grid"]["prevalence"]), cfg, seed + k, 1)
+        F = f0(r.eda, deriv)
+        nw = min(F.shape[0], r.labels3.shape[0])
+        art = r.majority()[:nw] == 1
+        clean = r.labels3[:nw].sum(1) == 0
+        for key, X, m in (("3", F[:nw], clean), ("4", F[:nw], art)):
+            parts["Xr" + key].append(X[m])
+            parts["gr" + key].append(np.full(int(m.sum()), k))
+        for key, m in (("3", ds["y"] == 0), ("4", ds["y"] == 1)):
+            parts["Xs" + key].append(ds["F0"][m])
+            parts["gs" + key].append(np.full(int(m.sum()), k))
+    cat = {k: (np.vstack(v_) if k.startswith("X") else np.concatenate(v_)) for k, v_ in parts.items()}
+    return {
+        g: classifierTwoSample(cat["Xr" + key], cat["gr" + key], cat["Xs" + key], cat["gs" + key])
+        for g, key in (("G3", "3"), ("G4", "4"))
+    }
+
+
+def withoutParticipants(bank: dict, drop: set, cfg: dict) -> dict:
+    """The bank without some participants, with the artifact library rebuilt from the rest."""
+    from .bank import buildLibrary
+
+    keep = [e for e in bank["estimates"] if e["pid"] not in drop]
+    return {
+        "motion": [m for m in bank["motion"] if m["pid"] not in drop],
+        "phys": [p for p in bank["phys"] if p["pid"] not in drop],
+        "library": {**bank["library"], **buildLibrary(keep, cfg)},
+        "source": bank["source"],
+    }
+
+
+def realismSplitHalf(real: list[Recording], bank: dict, cfg: dict, seed: int) -> dict:
+    """Generator from one half of the participants, real windows of the other half, both ways."""
+    pids = sorted(p["pid"] for p in bank["phys"])
+    order = np.random.default_rng(seed).permutation(len(pids))
+    halves = [{pids[i] for i in order[: len(pids) // 2]}, {pids[i] for i in order[len(pids) // 2 :]}]
+    out = {"G3": {"halves": []}, "G4": {"halves": []}}
+    for k, (gen, test) in enumerate(((halves[0], halves[1]), (halves[1], halves[0]))):
+        sub = withoutParticipants(bank, test, cfg)
+        r = realismPair([x for x in real if x.pid in test], sub, cfg, seed + k)
+        for g in ("G3", "G4"):
+            out[g]["halves"].append({"generatorPids": sorted(gen), "auc": r[g]["auc"]})
+    for g in ("G3", "G4"):
+        out[g]["auc"] = float(max(h["auc"] for h in out[g]["halves"]))
+    return out
+
+
+def realismPair(real: list[Recording], bank: dict, cfg: dict, seed: int) -> dict:
     v = cfg["validation"]
     deriv = cfg["features"]["derivative"]
     mix = tuple(cfg["grid"]["compositions"][-1])

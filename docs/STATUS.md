@@ -1,6 +1,6 @@
 # Implementation status
 
-Last updated: 27 October 2026, version 1.3.1. Tags `prereg-synth-v1` (25 October 2026) and `prereg-synth-v2` (27 October 2026).
+Last updated: 28 October 2026, version 1.4.0. Tags `prereg-synth-v1` (25 October), `-v2` (27 October) and `-v3` (28 October 2026, to be created).
 
 This page states for every part of the study whether it exists, whether it has been
 tested and whether it has been run on the data it is meant for. It also lists known
@@ -78,7 +78,7 @@ Windows has not been tested.
 
 ## Validation checks
 
-| Check | UTD, 1.1.2 | UTD, 1.2.0 | **UTD, 1.3.0** | AWW, 1.2.0 |
+| Check | UTD, 1.1.2 | UTD, 1.2.0 | UTD, 1.3.0 | AWW, 1.2.0 |
 |---|---|---|---|---|
 | G1 unit tests | PASS (macOS) | PASS (macOS) | PASS (Linux, with the UTD files: 70 passed, 4 skipped because `wfdb`, `PyWavelets` and the authors' cvxEDA are not installed there) | same suite |
 | G2 parameter recovery | PASS | PASS | **PASS** (τ<sub>0</sub> error 0.0 s, rate error 0.14, KS *p* = 0.37) | FAIL (τ<sub>0</sub> with small responses) |
@@ -88,6 +88,12 @@ Windows has not been tested.
 | G6 positive controls | FAIL | FAIL (C4 control empty) | **PASS** (C4 control through FB, mixture through FB) | FAIL |
 | G7 real-data consistency | PASS | unchanged | unchanged | not applicable |
 
+**Version 1.4.0 on UTD** ([RESULTS.md §3.7](RESULTS.md#37-version-140)): G2 PASS (also with
+varied response shapes), G3 PASS (median AUC 0.59), G4 PASS (median AUC 0.555;
+split-half fails in one direction, 0.76), G5 FAIL by small losses only (accepted
+exception), G6 PASS, G7 unchanged. The 1.3.0 column above used circular realism
+checks.
+
 Details: UTD in [RESULTS.md §3](RESULTS.md#3-first-run-on-the-raw-utd-files-version-112),
 AWW in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
 
@@ -95,8 +101,8 @@ AWW in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
 
 | Element | UTD | Development run |
 |---|---|---|
-| Pilot and number of replicates | *R* = 40 with 1.3.0 (largest SD of Δ 0.0160); *R* = 46 with 1.2.0; *R* = 50 with 1.1.2 | PASS (runs to completion) |
-| Main grid, 200 cells (154 computed) | RUNNING on macOS since 25 October 2026, 21:59 (4 616 of 6 160 replicates on 27 October, 20:10) | PASS (runs to completion: 8 cells × 3 replicates, resumable) |
+| Pilot and number of replicates | *R* = 50 (cap) with 1.4.0 (largest SD of Δ 0.0206); *R* = 40 with 1.3.0 (largest SD of Δ 0.0160); *R* = 46 with 1.2.0; *R* = 50 with 1.1.2 | PASS (runs to completion) |
+| Main grid, 300 cells (226 computed) | run with 1.3.0 and WITHDRAWN (generator error, RESULTS.md §3.8); NOT RUN with 1.4.0 | PASS (runs to completion: 8 cells × 3 replicates, resumable) |
 | Variants and label-noise runs | NOT RUN (label-noise grid limited to the 34 mixture cells since 1.3.1) | NOT RUN |
 | Analysis, compatibility, sensitivity | NOT RUN | PASS (runs to completion) |
 | Power for the laboratory study | NOT RUN | PASS (runs to completion) |
@@ -126,14 +132,11 @@ AWW in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
    source on some systems and can fail; conda (`environment.yml`) installs a prebuilt
    version. The authors' cvxEDA code must be downloaded by hand
    ([REPRODUCING.md](REPRODUCING.md#6-optional-cross-checks)).
-7. **Computing cost of the main grid.** The UTD pilot with 1.3.0 sets *R* = 40.
-   One replicate of one cell took about 1 to 3 min of CPU time in the measurements
-   so far (1.1 min on macOS with 1.1.2, 2 min on macOS with 1.2.0, 3 min on the
-   2-core Linux machine with 1.3.0). The main grid (154 computed cells × 40
-   replicates = 6 160 replicates) therefore needs roughly 110–310 CPU hours, about
-   1–3 days on 4 cores, and the label-noise grid (34 cells since 1.3.1) about a fifth of that
-   ([REPRODUCING.md §5.3](REPRODUCING.md#53-computing-time)). Whether the run is
-   feasible, or the design has to be reduced, has to be decided before the tag.
+7. **Computing cost of the main grid.** With 1.4.0 (fixed *C*) a replicate takes about
+   55 s of CPU time on the 2-core Linux machine, about three times less than with
+   1.3.0 (the generator and the features, not the model, now dominate). The main grid
+   (226 computed cells × 50 replicates = 11 300) needs roughly 100–170 CPU hours,
+   about 1–2 days on 4 cores; the label-noise grid (50 cells) about a fifth of that.
 8. **One physiology donor is used twice.** With S18 excluded, 19 valid donors serve
    20 movement donors, so in every replicate one physiology donor appears in two
    synthetic participants. Their EDA is still drawn independently.

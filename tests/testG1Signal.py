@@ -253,3 +253,45 @@ def testTonicFollowsTheDonorsOwnLevels(toyBank, cfg):
     assert y0[half - 1] == pytest.approx(1.8, abs=0.01)  # end of the first stage, whatever its length here
     assert y0[-1] == pytest.approx(2.0, abs=0.01)  # no jump between stages, ends at the donor's level
     assert np.max(np.abs(np.diff(y0))) < 0.01
+
+
+def testLevelShiftsReplaceEachOtherInsteadOfAddingUp(toyBank, cfg):
+    gen = Generator(toyBank["library"], cfg)
+    n = 8 * 120
+    y0 = np.full(n, 2.0)
+    first = {"i0": 80, "course": np.array([0.0, 0.1, 0.2]), "new": 0.2, "lvl": 2.0}
+    second = {"i0": 400, "course": np.array([0.0, -0.05, -0.1]), "new": -0.1, "lvl": 2.0}
+    off, sup = gen.contactCourse([second, first], n, y0, "V1")  # order of insertion does not matter
+    assert off[200] == pytest.approx(0.4)  # 2 uS x 0.2 after the first shift
+    assert off[-1] == pytest.approx(-0.2)  # the second shift replaces the state: 2 x -0.1, not 0.4 - 0.2
+    assert not sup[83:400].any() and not sup[403:].any()  # lasting offsets are not labelled
+    assert sup[81:83].all() and sup[400:403].any()
+
+
+def testManyLevelShiftsKeepTheSignalInRange(toyBank, cfg):
+    lib = dict(toyBank["library"], C3=[{"relDelta": 0.5, "w": 0.2, "trace": [0.0, 0.25, 0.5]}])
+    gen = Generator(lib, cfg)
+    rec = gen.generate(
+        "x",
+        toyBank["motion"][0],
+        toyBank["phys"][1],
+        Condition(c=0.0, classes=("C3",), prevalence=0.3),
+        np.random.default_rng(8),
+    )
+    # 30 % of windows need many shifts. Added up they would reach several times the
+    # level; with replacement the offset stays near +50 % of the level at each shift
+    # (a little more while one shift blends into the next, and where y0 has fallen since)
+    assert len(rec.artifacts) > 10
+    assert np.max(rec.y / rec.y0) < 2.0
+    assert np.max(rec.y) <= cfg["generator"]["saturationLevel"]
+
+
+def testVariedResponseShapesKeepTheHeights(toyBank, cfg):
+    gen = Generator(toyBank["library"], cfg)
+    m = dict(toyBank["motion"][0])
+    p = dict(toyBank["phys"][1], residual=np.zeros((4, 40)))
+    a, ra = gen.clean(m, p, np.random.default_rng(3), 0.0)
+    gen.responseJitter = cfg["validation"]["g2Jitter"]
+    b, rb = gen.clean(m, p, np.random.default_rng(3), 0.0)
+    assert len(ra) == len(rb) and not np.allclose(a, b)  # same responses, different shapes
+    assert abs(a.max() - b.max()) < 0.2 * (a.max() - a.min())

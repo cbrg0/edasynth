@@ -113,6 +113,8 @@ class Generator:
         if mode not in ("control", "measured"):
             raise ValueError(f"unknown C4 gain mode {mode}")
         self.c4Gain = library.get("Gcontrol" if mode == "control" else "G", float("nan"))
+        # set by the G2 check only: per-response variation of the time constants
+        self.responseJitter = None
 
     # ------------------------------------------------------------ clean part
     def clean(self, motion: dict, phys: dict, rng: np.random.Generator, piR: float):
@@ -178,8 +180,22 @@ class Generator:
                 imp[idx] += r["area"]
             r["amp"] = r["area"] * hm
             r["peakSample"] = int((r["t"] + tp) * fs)
-        h = bateman(np.arange(0, self.g["kernelTauMultiple"] * tau0, 1 / fsF), tau0, tau1)
-        rF = fftconvolve(imp, h)[:nf]
+        if self.responseJitter is None:
+            h = bateman(np.arange(0, self.g["kernelTauMultiple"] * tau0, 1 / fsF), tau0, tau1)
+            rF = fftconvolve(imp, h)[:nf]
+        else:  # each response with its own time constants, so the shape differs from cvxEDA's
+            j = self.responseJitter
+            rF = np.zeros(nf)
+            for r in responses:
+                t0k = tau0 * (1 + rng.uniform(-j["tau0Rel"], j["tau0Rel"]))
+                t1k = rng.uniform(*j["tau1Range"])
+                hk = bateman(np.arange(0, self.g["kernelTauMultiple"] * t0k, 1 / fsF), t0k, t1k)
+                # same height as the unjittered response of this size
+                hk = hk / hMax(t0k, t1k) * hm
+                idx = int(round(r["t"] * fsF))
+                if idx < nf:
+                    seg = hk[: nf - idx] * r["area"]
+                    rF[idx : idx + seg.size] += seg
         clean8 = blockMean(s + rF)
         y0 = clean8 + self.noise(phys, clean8.size, rng)
         return y0, responses
@@ -227,7 +243,7 @@ class Generator:
         nf, fsF = n * UP, fs * UP
         # template sizes are relative to the level before the artifact (section 4.3)
         lvl = self.localLevel(y0, t0, fs) if cls in ("C1", "C2", "C3") else 1.0
-        if cls in ("C1", "C2", "C3") and prm.get("trace") is not None:
+        if cls in ("C1", "C2") and prm.get("trace") is not None:
             return self.transplant(cls, prm, t0, scale, n, fs, y0, lvl, variant)
         if cls == "C1":
             a = blockMean(trapezoid(nf, fsF, t0, prm["tauR"], 0.0, prm["tauF"], prm["relA"] * lvl * scale))
@@ -262,26 +278,61 @@ class Generator:
         raise ValueError(cls)
 
     def transplant(self, cls, prm, t0, scale, n, fs, y0, lvl, variant):
-        """Artifact with the measured course of a real episode (docs/METHOD.md section 4.3).
+        """Peak or drop with the measured course of a real episode (docs/METHOD.md section 4.3).
 
         The relative trace, times the movement scaling and bounded below by
         -rhoMax, is multiplied by the local level (V1) or by the signal itself (V2).
-        A level shift (C3) keeps its measured relative offset after the episode; that
-        lasting part is not labelled.
+        Level shifts (C3) are built by :meth:`contactCourse`.
         """
         tr = np.asarray(prm["trace"], float)
         i0 = min(int(round(t0 * fs)), n - 1)
         i1 = min(n, i0 + tr.size)
         rel = np.zeros(n)
         rel[i0:i1] = tr[: i1 - i0]
-        if cls == "C3":
-            rel[i1:] = prm["relDelta"]
         # an artifact can remove at most rhoMax of the signal, also after movement scaling
         rel = np.maximum(rel * scale, -self.g["rhoMax"])
         piece = y0 * rel if variant == "V2" else lvl * rel
         sup = np.zeros(n, bool)
         sup[i0:i1] = np.abs(piece[i0:i1]) >= self.g["labelThreshold"]
         return piece, sup
+
+    def c3Event(self, prm, t0, scale, n, fs, lvl):
+        """One level shift as (start, relative course during the change, new relative level)."""
+        i0 = min(int(round(t0 * fs)), n - 1)
+        if prm.get("trace") is not None:
+            course = np.asarray(prm["trace"], float)
+        else:  # simple shape: linear ramp of width w to the shift
+            k = max(1, int(np.ceil(prm["w"] * fs)))
+            course = prm["relDelta"] * np.arange(1, k + 1) / k
+        course = course[: n - i0] * scale
+        new = prm["relDelta"] * scale
+        return {"i0": i0, "course": course, "new": new, "lvl": lvl}
+
+    def contactCourse(self, c3, n, y0, variant):
+        """Offset produced by all level shifts, and the samples labelled as corrupted.
+
+        The level after a shift (the contact state) replaces the previous state instead
+        of adding to it, so shifts do not accumulate [decision, 1.4.0]. During a shift
+        the signal moves from the previous state to the measured course of the episode
+        (linear blend over the episode); only that change is labelled, the lasting
+        offset afterwards is not. Relative values are bounded below by -rhoMax.
+        """
+        lo = -self.g["rhoMax"]
+        sup = np.zeros(n, bool)
+        state = np.zeros(n)  # in uS for V1, relative to y0 for V2
+        for e in sorted(c3, key=lambda e: e["i0"]):
+            unit = 1.0 if variant == "V2" else e["lvl"]
+            i0 = e["i0"]
+            course = np.maximum(e["course"], lo) * unit
+            i1 = i0 + course.size
+            prev = state[i0]
+            v = np.arange(1, course.size + 1) / course.size
+            during = prev * (1 - v) + course
+            state[i0:i1] = during
+            state[i1:] = max(e["new"], lo) * unit
+            change = np.abs(during - prev) * (y0[i0:i1] if variant == "V2" else 1.0)
+            sup[i0:i1] |= change >= self.g["labelThreshold"]
+        return (y0 * state if variant == "V2" else state), sup
 
     def generate(self, pid: str, motion: dict, phys: dict, cond: Condition, rng: np.random.Generator) -> SynthRecord:
         fs = motion["fs"]
@@ -302,8 +353,11 @@ class Generator:
         shares = np.asarray(shares, float)
         shares = shares / shares.sum() if shares.sum() > 0 else np.full(len(cond.classes), 1 / len(cond.classes))
 
+        c3 = []  # level shifts, combined by contactCourse
+        c3sup = np.zeros(n, bool)
+
         def positiveWindows():
-            m = support | (replace & (np.abs(replaceVal - y0) >= thr))
+            m = support | c3sup | (replace & (np.abs(replaceVal - y0) >= thr))
             return m, windowLabels(m, nw, cond.labelRule)
 
         mask, lab = positiveWindows()
@@ -332,9 +386,12 @@ class Generator:
                 b = min(n, a + max(1, int(round(prm["D"] * fs))))
                 replace[a:b] = True
                 replaceVal[a:b] = 0.0 if prm.get("kind", "zero") == "zero" else self.g["saturationLevel"]
+            elif cls == "C3":
+                c3.append(self.c3Event(prm, t0, scale, n, fs, self.localLevel(y0, t0, fs)))
+                unused, c3sup = self.contactCourse(c3, n, y0, cond.variant)
             else:
-                # the level of the signal so far, including earlier artifacts, is the reference
-                piece, sup = self.artifactSignal(cls, prm, t0, scale, n, fs, y0 + art, acc, ev, cond.variant)
+                # sizes refer to the level of the clean signal, so artifacts add instead of compounding
+                piece, sup = self.artifactSignal(cls, prm, t0, scale, n, fs, y0, acc, ev, cond.variant)
                 art += piece
                 support |= sup
                 artByCls[cls] = artByCls.get(cls, np.zeros(n, bool)) | sup
@@ -350,7 +407,14 @@ class Generator:
                 }
             )
             mask, lab = positiveWindows()
+        if c3:
+            off, c3sup = self.contactCourse(c3, n, y0, cond.variant)
+            art = art + off
+            artByCls["C3"] = c3sup
         y = y0 + art
+        # together the artifacts can remove at most rhoMax of the signal, and the signal
+        # cannot exceed the upper range limit of the sensor (Kleckner et al., 2018, rule 1)
+        y = np.clip(y, (1 - self.g["rhoMax"]) * y0, self.g["saturationLevel"])
         y[replace] = replaceVal[replace]
         classWindows = {c: windowLabels(a, nw, "any") for c, a in artByCls.items()}
         if replace.any():

@@ -84,6 +84,9 @@ validation:
   g2RateMaxRel: 0.2
   g2KsP: 0.05
   c2stAucMax: 0.70
+  realism: loso
+  realismReps: 2
+  g2Jitter: {tau0Rel: 0.25, tau1Range: [0.35, 1.05]}
   g5MaxAbsDelta: 0.01
   g7Reference: {auprc0: 0.449, auprc1: 0.475, delta: 0.027}
   g7MaxAbsDiff: 0.10

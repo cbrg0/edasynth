@@ -4,6 +4,45 @@ All notable changes to this project are recorded here. Changes to the method aft
 the preregistration tag must also be released under a new tag
 ([docs/PREREGISTRATION.md](docs/PREREGISTRATION.md)).
 
+## 1.4.0 (28 October 2026)
+
+Changes after the tags `prereg-synth-v1` and `-v2`, released under `prereg-synth-v3`.
+They were made after the main grid of 1.3.0 had been computed and its summary looked
+at; see docs/PREREGISTRATION.md for what this means for the results.
+
+### Generator (error found in 1.3.0)
+
+- Artifacts refer to the level of the clean signal. In 1.3.0 they referred to the
+  signal including earlier artifacts, so overlapping artifacts multiplied: in the C3
+  and mixture cells about 20 % of samples exceeded twice the 99th percentile of the
+  clean signal, and the 15 % variant with *c* = 1 reached a median maximum of
+  281 µS. Found because that variant lowered AUPRC by about 0.10 for every feature set.
+- Level shifts set a contact state: a new shift replaces the previous offset instead
+  of adding to it; the previous offset fades during the new episode.
+- The final signal is kept between 5 % of the clean signal and 60 µS.
+- With these changes the shares above fell to 1–2 %.
+
+### Method
+
+- Logistic regression with fixed *C* = 1, as in the real-data comparison, instead of
+  choosing *C* by inner cross-validation in every replicate (about 20 times faster;
+  same model for synthetic and real data).
+- δ<sub>max</sub> = 10 s added to the grid (300 cells, 226 computed; label-noise grid
+  50 mixture cells), so that the generator also produces delays beyond the 5-s window
+  of the FB features.
+- G3 and G4 no longer let the generator see the participant it is judged on: for each
+  real participant a synthetic one is built from the other 19 (leave one participant
+  out), and all windows are pooled. Before, synthetic artifacts were compared with the
+  episodes they were built from. A split-half version was tried first and is still
+  reported: it failed G4 in one direction (AUC 0.76; 0.30 the other way), mostly
+  because of participant S10, whose recording has a six times coarser quantisation
+  step (0.006 µS) and contributes 60 of the 162 artifact windows of its half; without
+  S10 that direction gave 0.61. The leave-one-out scheme was chosen after seeing this;
+  both results are reported.
+- G2 is also run with responses whose time constants vary, so that the data do not
+  have the response shape cvxEDA assumes.
+- `buildLibrary` factored out of `buildBank`; `loadBank` also returns the estimates.
+
 ## 1.3.2 (28 October 2026)
 
 - `power` uses `--jobs` cores; before, it ran on one core whatever `--jobs` said.
