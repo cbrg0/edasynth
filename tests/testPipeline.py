@@ -135,3 +135,13 @@ def testLabelNoiseGridUsesOnlyTheMixtureCells(cfg):
     assert len(cells) == 34
     assert {c.classes for c in cells} == {tuple(cfg["grid"]["compositions"][-1])}
     assert len(gridCells(cfg, False, False)) == 154
+
+
+def testPowerDoesNotDependOnTheNumberOfJobs(toyBank, cfg):
+    from edasynth.experiment import bootstrapPower
+
+    small = merge(cfg, {"models": {"logreg": {"CSelection": "fixed"}}, "analysis": {"bootstrapN": 50}})
+    cond = Condition(c=1.0, classes=("C1",), prevalence=0.05)
+    a = bootstrapPower(toyBank, cond, small, 3, 2, nJobs=1)
+    b = bootstrapPower(toyBank, cond, small, 3, 2, nJobs=2)
+    assert a == b

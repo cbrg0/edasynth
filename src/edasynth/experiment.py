@@ -342,17 +342,29 @@ def compatibility(df: pd.DataFrame, observed: float, by: list[str], value: str =
     return df.groupby(by)[value].apply(f).unstack()
 
 
-def bootstrapPower(bank, cond: Condition, cfg: dict, nPart: int, reps: int, models=("logreg",)) -> dict:
-    """Goal 6: share of replicates whose participant-bootstrap CI of dA4 and dB excludes 0."""
-    res = {"dA4": [], "dB": []}
-    for rep in range(reps):
-        seed = cfg["seeds"]["power"] * 7919 + nPart * 1009 + rep
-        ds = makeDataset(bank, cond, cfg, seed, nParticipants=nPart)
-        row = evaluate(ds, cfg, models, seed)[0]
-        p = row["predictions"]
-        for d, name in (("dA4", "F0+FA4"), ("dB", "F0+FB")):
-            lo, hi, unused = bootstrapParticipants(
-                ds["y"], p["F0"], p[name], ds["groups"], cfg["analysis"]["bootstrapN"], seed
-            )
-            res[d].append(lo > 0)
-    return {d: float(np.mean(v)) for d, v in res.items()}
+def powerReplicate(bank, cond: Condition, cfg: dict, nPart: int, rep: int, models=("logreg",)) -> dict:
+    """One replicate of the power analysis: does the participant-bootstrap CI exclude 0?"""
+    seed = cfg["seeds"]["power"] * 7919 + nPart * 1009 + rep
+    ds = makeDataset(bank, cond, cfg, seed, nParticipants=nPart)
+    row = evaluate(ds, cfg, models, seed)[0]
+    p = row["predictions"]
+    out = {}
+    for d, name in (("dA4", "F0+FA4"), ("dB", "F0+FB")):
+        nB = cfg["analysis"]["bootstrapN"]
+        lo, hi, unused = bootstrapParticipants(ds["y"], p["F0"], p[name], ds["groups"], nB, seed)
+        out[d] = bool(lo > 0)
+    return out
+
+
+def bootstrapPower(bank, cond: Condition, cfg: dict, nPart: int, reps: int, models=("logreg",), nJobs: int = 1) -> dict:
+    """Goal 6: share of replicates whose participant-bootstrap CI of dA4 and dB excludes 0.
+
+    Every replicate has its own seed, so the result does not depend on ``nJobs``.
+    """
+    if nJobs > 1:
+        from joblib import Parallel, delayed
+
+        rows = Parallel(n_jobs=nJobs)(delayed(powerReplicate)(bank, cond, cfg, nPart, r, models) for r in range(reps))
+    else:
+        rows = [powerReplicate(bank, cond, cfg, nPart, r, models) for r in range(reps)]
+    return {d: float(np.mean([r[d] for r in rows])) for d in ("dA4", "dB")}

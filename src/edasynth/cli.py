@@ -563,7 +563,7 @@ def cmdPower(cfg, args):
     for rowIndex, c in comp.iterrows():
         cond = Condition(c=c.c, kappa=c.kappa, deltaMax=c.deltaMax, piR=c.piR, classes=mix)
         for n in cfg["power"]["participants"]:
-            pw = bootstrapPower(bank, cond, cfg, n, cfg["power"]["reps"])
+            pw = bootstrapPower(bank, cond, cfg, n, cfg["power"]["reps"], nJobs=args.jobs)
             rows.append({"condition": cond.key(), "nParticipants": n, **{key("power", k): v for k, v in pw.items()}})
             log(f"{cond.key()} n={n}: {pw}")
     pd.DataFrame(rows).to_csv(res / f"protocol-planning-{args.source}.csv", index=False)

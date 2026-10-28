@@ -4,6 +4,12 @@ All notable changes to this project are recorded here. Changes to the method aft
 the preregistration tag must also be released under a new tag
 ([docs/PREREGISTRATION.md](docs/PREREGISTRATION.md)).
 
+## 1.3.2 (28 October 2026)
+
+- `power` uses `--jobs` cores; before, it ran on one core whatever `--jobs` said.
+  Every replicate keeps its own seed, so the result does not depend on the number of
+  cores (a new test checks this). No change to any computed number.
+
 ## 1.3.1 (27 October 2026)
 
 First change after the tag `prereg-synth-v1`; released under the tag
