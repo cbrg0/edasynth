@@ -1,6 +1,6 @@
 # Implementation status
 
-Last updated: 28 October 2026, version 1.4.0. Tags `prereg-synth-v1` (25 October), `-v2` (27 October) and `-v3` (28 October 2026, to be created).
+Last updated: 30 October 2026, version 1.4.0. Tags `prereg-synth-v1` (25 October), `-v2` (27 October) and `-v3` (28 October 2026).
 
 This page states for every part of the study whether it exists, whether it has been
 tested and whether it has been run on the data it is meant for. It also lists known
@@ -102,11 +102,11 @@ AWW in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
 | Element | UTD | Development run |
 |---|---|---|
 | Pilot and number of replicates | *R* = 50 (cap) with 1.4.0 (largest SD of Δ 0.0206); *R* = 40 with 1.3.0 (largest SD of Δ 0.0160); *R* = 46 with 1.2.0; *R* = 50 with 1.1.2 | PASS (runs to completion) |
-| Main grid, 300 cells (226 computed) | run with 1.3.0 and WITHDRAWN (generator error, RESULTS.md §3.8); NOT RUN with 1.4.0 | PASS (runs to completion: 8 cells × 3 replicates, resumable) |
-| Variants and label-noise runs | NOT RUN (label-noise grid limited to the 34 mixture cells since 1.3.1) | NOT RUN |
-| Analysis, compatibility, sensitivity | NOT RUN | PASS (runs to completion) |
-| Power for the laboratory study | NOT RUN | PASS (runs to completion) |
-| Figures F1–F7 | NOT RUN | PASS (produced and inspected; the inspection found two errors that were fixed) |
+| Main grid, 300 cells (226 computed) | PASS with 1.4.0 (11 300 replicates, macOS, 28–30 October 2026; [RESULTS.md §4](RESULTS.md#4-synthetic-map)); the 1.3.0 run was WITHDRAWN (RESULTS.md §3.8) | PASS (runs to completion: 8 cells × 3 replicates, resumable) |
+| Variants and label-noise runs | PASS with 1.4.0 (variants 13 cells × 50, label-noise grid the 50 mixture cells × 50; Linux) | NOT RUN |
+| Analysis, compatibility, sensitivity | PASS with 1.4.0 (9 of 60 mixture cells compatible, 8 with label noise) | PASS (runs to completion) |
+| Power for the laboratory study | PASS with 1.4.0 (3 compatible cells × 4 sample sizes × 50 replicates; Linux; the run was cut by a time limit after 7 of 12 points and finished by `scripts/power_resume.py`, which skips the points already computed) | PASS (runs to completion) |
+| Figures F1–F7 | PASS with 1.4.0 for F1–F6 (inspected; F7 needs `detectors`, not run) | PASS (produced and inspected; the inspection found two errors that were fixed) |
 | Two-hand laboratory study | NOT IMPLEMENTED | — |
 
 ## Known problems
@@ -157,6 +157,13 @@ AWW in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
    them. After `estimate` was rerun with 1.2.0, the first `pilot` reused all 40
    replicates of 1.1.2 and reported the old *R*. Rows now carry the bank's
    checksum and the version, and a file made with another bank is refused.
+12. **The cost measure counts corrupted windows.** The share of lost responses
+   includes responses whose window also holds an artifact, so part of the higher cost
+   with the accelerometer is correct flagging. A measure restricted to clean windows
+   needs a rerun of the grid and was not computed ([RESULTS.md §4.6](RESULTS.md#46-caveats)).
+13. **`power` is not resumable.** It writes its file only at the end. The 1.4.0 run
+   on Linux was stopped by a time limit after 7 of 12 points; `scripts/power_resume.py`
+   reads the finished points from the log and computes the rest with the same code.
 
 ## Open design decisions (to settle before the tag `prereg-synth-v1`)
 

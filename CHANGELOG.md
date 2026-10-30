@@ -4,6 +4,13 @@ All notable changes to this project are recorded here. Changes to the method aft
 the preregistration tag must also be released under a new tag
 ([docs/PREREGISTRATION.md](docs/PREREGISTRATION.md)).
 
+## Results of 1.4.0 (30 October 2026)
+
+No change to the method. Results of the main grid, the variants, the label-noise
+grid, the analysis, the power and figures F1–F6 added to docs/RESULTS.md §4 and
+docs/STATUS.md. Added `scripts/power_resume.py`, which finishes a power run stopped
+before its end without recomputing the points already in its log (known problem 13).
+
 ## 1.4.0 (28 October 2026)
 
 Changes after the tags `prereg-synth-v1` and `-v2`, released under `prereg-synth-v3`.

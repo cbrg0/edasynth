@@ -10,7 +10,7 @@ explained in [METHOD.md §6](METHOD.md#6-models-and-performance-measures).
 | [1. Real-data comparison](#1-real-data-comparison) | UTD, published features | **final**: run and verified |
 | [2. Development run](#2-development-run-on-aww-not-a-result) | AWW, one person | run; checks the code, **not a result** |
 | [3. Checks on the raw UTD files](#3-first-run-on-the-raw-utd-files-version-112) | UTD raw recordings, versions 1.1.2 to 1.3.0 | run; with 1.3.0 all checks pass except G5, which fails by small losses (accepted exception) |
-| [4. Synthetic map](#4-synthetic-map) | UTD-based semi-synthetic data | run once with 1.3.0 and **withdrawn** (generator error); to be run with 1.4.0 |
+| [4. Synthetic map](#4-synthetic-map) | UTD-based semi-synthetic data | **run with 1.4.0** (the 1.3.0 run was withdrawn, §3.8) |
 
 ---
 
@@ -402,7 +402,162 @@ thresholds are unchanged.
 
 ## 4. Synthetic map
 
-Not run. The main experiment requires the raw UTD recordings, all validation checks
-passing on them, and the preregistration tag
-([PREREGISTRATION.md](PREREGISTRATION.md)). Until then, this repository makes no
-claim about when the accelerometer helps.
+**What was run.** Version 1.4.0, bank `5d7e3e8ad09e`, tag `prereg-synth-v3`.
+The main grid (300 cells, of which 226 are computed and the rest are copies of
+equivalent cells; 50 replicates each, 11 300 rows) was computed on macOS from
+28 to 30 October 2026. The variants (13 cells × 50) and the label-noise grid
+(the 50 mixture cells × 50) were computed on Linux. Logistic regression with
+fixed *C* = 1, leave-one-participant-out, 20 synthetic participants per replicate.
+`analyze` wrote `grid-summary-utd.csv`, `compatibility-utd.csv`,
+`compatibility-labelnoise-utd.csv` and `sensitivity-utd.csv`; `figures` wrote
+F1 to F6.
+
+### 4.1 Measured: where the accelerometer is useful
+
+A cell counts as useful when the mean Δ is at least 0.01 and its lower 95 % bound is
+above zero ([METHOD.md §8](METHOD.md)). Number of useful cells out of 60 per
+artifact composition:
+
+| Composition | Δ<sub>A</sub> (96 features) | Δ<sub>A4</sub> (4 features) | Δ<sub>B</sub> (4 coupling features) |
+|---|---|---|---|
+| C1 | 2 | 22 | 40 |
+| C2 | 0 | 12 | 28 |
+| C3 | 0 | 15 | 25 |
+| C5 | 0 | 0 | 0 |
+| mixture C1+C2+C3+C5 | 0 | 16 | 28 |
+| **all 300** | **2** | **65** | **121** |
+
+Mean Δ in the mixture cells by *c*, the share of artifacts caused by movement
+(each value is the mean over 12 cells):
+
+| *c* | 0 | 0.25 | 0.5 | 0.75 | 1 |
+|---|---|---|---|---|---|
+| Δ<sub>A</sub> | −0.027 | −0.034 | −0.033 | −0.029 | −0.020 |
+| Δ<sub>A4</sub> | −0.001 | −0.002 | +0.002 | +0.009 | +0.019 |
+| Δ<sub>B</sub> | −0.001 | +0.002 | +0.009 | +0.018 | +0.032 |
+| useful cells Δ<sub>A4</sub> / Δ<sub>B</sub> | 0 / 0 | 0 / 0 | 0 / 6 | 4 / 10 | 12 / 12 |
+
+Other parameters, mixture cells (mean Δ<sub>B</sub>): δ<sub>max</sub> 1 s +0.015,
+5 s +0.012, 10 s +0.008; π<sub>r</sub> 0 +0.017, 0.5 +0.007; κ 0 and 1 both +0.012.
+The largest mean Δ<sub>B</sub> of the whole grid is +0.074 (C1, *c* = 1, κ = 0,
+δ<sub>max</sub> = 1 s, π<sub>r</sub> = 0).
+
+**Sensitivity** (each parameter varied alone around the reference cell; range of the
+mean Δ): *c* 0.049 for Δ<sub>B</sub> and 0.029 for Δ<sub>A4</sub>; π<sub>r</sub>
+0.012 and 0.002; δ<sub>max</sub> 0.006 and 0.003; κ 0.002 and 0.001.
+
+**C5 (signal loss).** EDA alone finds these artifacts almost perfectly (AUPRC
+0.98 to 1.00), and every accelerometer feature set lowers AUPRC: Δ<sub>B</sub>
+about −0.025 at every *c*, Δ<sub>A4</sub> from −0.010 at *c* = 0 to −0.058 at *c* = 1.
+
+**Cost** (share of genuine responses ≥ 0.05 µS whose peak falls in a flagged window,
+at 95 % specificity). In cells with π<sub>r</sub> = 0.5, movement-evoked responses:
+F0 0.256, F0+FA4 0.279, F0+FB 0.285. Spontaneous responses: F0 0.200, F0+FB 0.196.
+
+### 4.2 Measured: compatibility with the real data
+
+A mixture cell is compatible when the real gain on UTD (Δ = 0.027) lies within
+the central 95 % of its replicate values of Δ<sub>A4</sub>.
+
+- Exact training labels: **9 of 60** mixture cells are compatible, one with
+  *c* = 0.75 (κ = 0, δ<sub>max</sub> = 1 s, π<sub>r</sub> = 0) and eight with *c* = 1.
+- Training labels made noisy to κ ≈ 0.62: **8 of 60**, all with *c* = 1.
+- No cell with *c* ≤ 0.5 is compatible in either version.
+
+### 4.3 Measured: variants
+
+| Variant | *c* | AUPRC F0 | Δ<sub>A</sub> | Δ<sub>A4</sub> | Δ<sub>B</sub> |
+|---|---|---|---|---|---|
+| prevalence 15 %, mixture | 0 | 0.79 | −0.014 | −0.001 | +0.001 |
+| | 0.5 | 0.78 | −0.012 | +0.002 | +0.007 |
+| | 1 | 0.73 | +0.019 | +0.033 | +0.027 |
+| window positive only if most of it is corrupted, mixture | 0 | 0.51 | −0.036 | −0.003 | −0.001 |
+| | 0.5 | 0.53 | −0.049 | −0.005 | −0.001 |
+| | 1 | 0.52 | −0.047 | −0.005 | +0.001 |
+| C4 (pressure on the electrode), control gain | 1 | 0.97 | −0.018 | +0.002 | +0.009 |
+| V2 multiplicative, C2 | 0 | 0.77 | −0.022 | −0.001 | −0.001 |
+| | 0.5 | 0.78 | −0.021 | +0.004 | +0.019 |
+| | 1 | 0.81 | −0.008 | +0.020 | +0.049 |
+| V2 multiplicative, C3 | 0 | 0.62 | −0.031 | −0.003 | −0.001 |
+| | 0.5 | 0.62 | −0.034 | +0.002 | +0.020 |
+| | 1 | 0.60 | −0.013 | +0.027 | +0.059 |
+
+Half-widths of the 95 % intervals of these means are 0.004 or less.
+
+### 4.4 Measured: power for a laboratory study
+
+Power is the share of 50 replicates in which the participant-bootstrap 95 % interval
+of Δ lies above zero, for three compatible mixture cells chosen at the quartiles of
+their mean Δ<sub>B</sub> ([METHOD.md §8](METHOD.md)). All three have *c* = 1, because
+almost every compatible cell has *c* = 1.
+
+| Cell (all *c* = 1, mixture) | mean Δ<sub>B</sub> | Feature set | 5 | 10 | 15 | 20 participants |
+|---|---|---|---|---|---|---|
+| κ = 1, δ<sub>max</sub> = 1 s, π<sub>r</sub> = 0.5 | 0.032 | FB | 0.08 | 0.38 | 0.64 | 0.72 |
+| | | FA4 | 0.06 | 0.14 | 0.18 | 0.34 |
+| κ = 0, δ<sub>max</sub> = 1 s, π<sub>r</sub> = 0.5 | 0.035 | FB | 0.12 | 0.34 | 0.44 | 0.62 |
+| | | FA4 | 0.02 | 0.08 | 0.16 | 0.34 |
+| κ = 1, δ<sub>max</sub> = 5 s, π<sub>r</sub> = 0 | 0.041 | FB | 0.14 | 0.62 | 0.94 | 1.00 |
+| | | FA4 | 0.00 | 0.04 | 0.18 | 0.26 |
+
+With 50 replicates each value has a standard error of up to 0.07.
+
+### 4.5 Interpretation
+
+- **The share of movement-caused artifacts decides the answer.** In every
+  composition except C5, the gain grows steadily with *c*, and *c* matters about
+  four times more than any other link parameter. Below *c* = 0.5 no cell is useful.
+- **Coupling features do better than summary features at equal count.** With four
+  features each, FB is useful in 121 cells and FA4 in 65. The 96 summary features (FA)
+  lose in almost every cell: with about 370 artifact windows per replicate, a
+  linear model with 120 inputs overfits (this explanation is a hypothesis; it was not
+  tested separately).
+- **A longer or more variable delay between movement and artifact weakens the
+  gain**, as expected for features computed over lags of 0 to 5 s. With
+  δ<sub>max</sub> = 10 s FB is still useful at *c* = 1.
+- **Real responses to movement make the task harder**, since a movement then
+  predicts a genuine response as well as an artifact (in the mixture cells
+  π<sub>r</sub> = 0.5 lowers the mean Δ<sub>B</sub> from 0.017 to 0.007).
+- **Where EDA alone is already near perfect (C5), the accelerometer only adds
+  errors.**
+- **A laboratory study needs about 15–20 participants for FB** in the compatible
+  cells (power 0.44 to 0.94 with 15 and 0.62 to 1.00 with 20); FA4 reaches at most 0.34
+  with 20, so with four summary features the gain would usually be missed.
+- **If the generator is right, the real UTD gain points to a strong link.** The
+  real Δ of 0.027 is reproduced only when nearly all artifacts are caused by
+  movement. This is a conditional statement about the model, and the caveats below
+  limit it.
+
+### 4.6 Caveats
+
+- **The labels.** The real Δ refers to expert labels, and one of the labelling
+  criteria refers to movement (§1.3). A link between movement and labels can
+  therefore come from the labelling as well as from the electrode. Compatibility at
+  *c* = 1 is consistent with both readings.
+- **Difficulty differs.** On the synthetic data EDA alone reaches AUPRC of about 0.65
+  in the mixture cells, against 0.45 on the real data. The synthetic artifacts are
+  easier to find than the real expert-labelled ones, and the same Δ may mean
+  something different at a different baseline.
+- **Window labels.** With the rule that a window counts as an artifact only when
+  most of it is corrupted, the gain disappears even at *c* = 1. The map therefore
+  depends on how windows are labelled; the main rule (any corrupted sample) was
+  fixed in the preregistration.
+- **Cost measure.** The share of lost responses also counts responses whose window
+  contains a real artifact, so part of the higher cost with the accelerometer is
+  correct flagging of corrupted windows. A cost measure restricted to clean windows
+  was not computed; this is planned for the laboratory study.
+- **Realism.** The checks of realism pass on the median but are borderline (§3.7).
+  The tonic level of the synthetic signals is a line plus a slow sinusoid fitted to
+  the donor (METHOD.md §4.2), and in F1 this slow wave is visible where the real
+  recordings do not show one.
+- **One data source.** All of this rests on 20 UTD participants recorded with one
+  device at one body site. The independent checks on EDABE and WESAD have not been
+  run yet.
+- **Power refers to the synthetic setting.** It assumes UTD-like recordings, the
+  window labels of this study and a link as strong as *c* = 1. A laboratory study with
+  another device, protocol or labelling can need more participants. The numbers are a
+  first orientation for planning, with about 20 participants as the lower end when
+  responses to movement are common (π<sub>r</sub> = 0.5).
+- **What the map does not say.** It does not measure *c* in the real world. It says
+  what gain to expect for each value of *c*, and the laboratory study is designed to
+  measure *c* directly.

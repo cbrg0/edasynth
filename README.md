@@ -106,7 +106,7 @@ there, so its strength is known exactly. AUPRC, the main score, is explained in
 
 ## Results so far
 
-Only one result is final, and it is on real data:
+The result on real data:
 
 | Model (leave-one-participant-out) | EDA only (24 features) | EDA + acceleration magnitude (28) | Gain | 95 % CI of the gain |
 |---|---|---|---|---|
@@ -118,9 +118,22 @@ artifact by at least two of three experts). The confidence intervals include zer
 **these data neither show a gain nor show that there is none.** Details, controls
 and what may and may not be concluded are in [docs/RESULTS.md](docs/RESULTS.md).
 
-The synthetic experiment has not produced results yet. A development run on a
-second data set, recorded from one person, shows that every step executes, and also that the
-synthetic data are not yet realistic enough; see the same file.
+The synthetic map (version 1.4.0, 300 cells × 50 replicates) is computed. Its main
+findings, all conditional on the generator:
+
+- The gain depends mostly on *c*, the share of artifacts caused by movement. In the
+  mixture of artifact classes no cell with *c* below 0.5 is useful; at *c* = 1 the four
+  coupling features (FB) add 0.032 AUPRC on average and the four acceleration-magnitude
+  features (FA4) 0.019.
+- FB is useful in 121 of 300 cells, FA4 in 65, the 96 features of Zhang et al. in 2.
+  For signal loss (C5), which EDA alone finds almost perfectly, every acceleration
+  feature set lowers AUPRC.
+- The real gain of 0.027 is reproduced only in cells with *c* ≥ 0.75 (9 of 60 mixture
+  cells, 8 with noisy labels, all at *c* = 1).
+- In those cells a laboratory study needs about 15–20 participants to detect the gain
+  of FB.
+
+Caveats and the full tables are in [docs/RESULTS.md §4](docs/RESULTS.md#4-synthetic-map).
 
 ## Getting started
 
