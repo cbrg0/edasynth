@@ -31,6 +31,11 @@ map changes when the movement comes from another device and another protocol.
   the UTD data). A block counts as artifact when any of its samples is labelled
   (`binarytarget`). Columns kept: `rawdata`, `cleandata`, `binarytarget`. The unit is
   taken to be µS (**assumption**; to be checked against the EDABE paper).
+- **EDABE start and end**: the first rows of a file show `rawdata` = 0 while the expert
+  signal is not zero, which looks like the device before recording started. Leading and
+  trailing samples with `rawdata` = 0 are therefore removed **[decision, added after
+  seeing the first three rows of one file and before any comparison]**; zeros inside a
+  recording are kept (they are signal loss, class C5).
 - **WESAD**: from `S*.pkl`, the wrist acceleration (32 Hz, units of 1/64 g as stored by
   the E4, **assumption** to be checked against the WESAD readme), the wrist EDA (4 Hz)
   and the protocol label, taken every 175th sample of the 700 Hz label (4 Hz). The
