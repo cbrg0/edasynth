@@ -36,8 +36,8 @@ map changes when the movement comes from another device and another protocol.
   trailing samples with `rawdata` = 0 are therefore removed **[decision, added after
   seeing the first three rows of one file and before any comparison]**; zeros inside a
   recording are kept (they are signal loss, class C5).
-- **WESAD**: from `S*.pkl`, the wrist acceleration (32 Hz, units of 1/64 g as stored by
-  the E4, **assumption** to be checked against the WESAD readme), the wrist EDA (4 Hz)
+- **WESAD**: from `S*.pkl`, the wrist acceleration (32 Hz, in units of 1/64 g according to
+  the WESAD readme; the E4 was worn on the non-dominant wrist), the wrist EDA (4 Hz)
   and the protocol label, taken every 175th sample of the 700 Hz label (4 Hz). The
   `.pkl` signals are synchronised by the WESAD authors; the separate E4 files are not
   synchronised with the protocol times.
