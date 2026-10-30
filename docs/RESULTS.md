@@ -11,6 +11,7 @@ explained in [METHOD.md §6](METHOD.md#6-models-and-performance-measures).
 | [2. Development run](#2-development-run-on-aww-not-a-result) | AWW, one person | run; checks the code, **not a result** |
 | [3. Checks on the raw UTD files](#3-first-run-on-the-raw-utd-files-version-112) | UTD raw recordings, versions 1.1.2 to 1.3.0 | run; with 1.3.0 all checks pass except G5, which fails by small losses (accepted exception) |
 | [4. Synthetic map](#4-synthetic-map) | UTD-based semi-synthetic data | **run with 1.4.0** (the 1.3.0 run was withdrawn, §3.8) |
+| [5. Checks on independent data](#5-checks-on-independent-data) | EDABE (43 recordings), WESAD (15) | run; all four checks pass |
 
 ---
 
@@ -550,9 +551,10 @@ With 50 replicates each value has a standard error of up to 0.07.
   The tonic level of the synthetic signals is a line plus a slow sinusoid fitted to
   the donor (METHOD.md §4.2), and in F1 this slow wave is visible where the real
   recordings do not show one.
-- **One data source.** All of this rests on 20 UTD participants recorded with one
-  device at one body site. The independent checks on EDABE and WESAD have not been
-  run yet.
+- **One data source for the generator.** The generator is built from 20 UTD
+  participants recorded with one device at one body site. Checks on two independent
+  data sets pass (§5), and they also show that the gain of FA4 depends on the movement
+  record.
 - **Power refers to the synthetic setting.** It assumes UTD-like recordings, the
   window labels of this study and a link as strong as *c* = 1. A laboratory study with
   another device, protocol or labelling can need more participants. The numbers are a
@@ -561,3 +563,78 @@ With 50 replicates each value has a standard error of up to 0.07.
 - **What the map does not say.** It does not measure *c* in the real world. It says
   what gain to expect for each value of *c*, and the laboratory study is designed to
   measure *c* directly.
+
+---
+
+## 5. Checks on independent data
+
+Planned in [EXTERNAL-CHECKS.md](EXTERNAL-CHECKS.md) on 30 October 2026 before they were
+run (commits `7e197d8` and `766a2c8`); version 1.4.0 unchanged; Linux; command
+`python scripts/external_checks.py edabe|wesad <file>`; outputs
+`results/external-edabe.json`, `results/external-wesad.json`.
+
+### 5.1 Measured: EDABE
+
+43 recordings, 53 590 windows of 5 s after removing leading and trailing zeros, 19.1 %
+of them with at least one sample labelled as artifact.
+
+| Check | Main version (features z-scored within recording) | Unscaled features | Criterion |
+|---|---|---|---|
+| E1, artifact windows, real against synthetic | AUC 0.678 (10 repetitions: 0.651–0.718) | 0.744 (0.681–0.781) | ≤ 0.70: **PASS** |
+| E2, clean windows | AUC 0.546 (0.529–0.583) | 0.914 (0.885–0.929) | ≤ 0.70: **PASS** |
+
+| E3, AUPRC on all 43 EDABE recordings | |
+|---|---|
+| (a) detector trained on synthetic data (median of 10) | 0.556 (0.537–0.583) |
+| (b) detector trained on the 20 real UTD recordings, expert labels | 0.537 |
+| (c) EDABE itself, leave one recording out (reference) | 0.611 |
+| guessing (share of artifact windows) | 0.191 |
+
+Criterion (a) ≥ (b) − 0.05: **PASS**.
+
+### 5.2 Measured: WESAD
+
+Movement donors: the 15 WESAD wrist recordings (83–104 min each after cropping to the
+protocol). Movement events per minute, median: 0.76 on WESAD against 1.22 on UTD.
+Physiology donors: those of UTD. Mixture, κ = 1, δ<sub>max</sub> = 1 s,
+π<sub>r</sub> = 0, 50 replicates of 15 synthetic participants per cell; UTD values are
+the same cells of the main grid (50 replicates of 20).
+
+| *c* | Δ<sub>B</sub>, WESAD movement | Δ<sub>B</sub>, UTD movement | Δ<sub>A4</sub>, WESAD movement | Δ<sub>A4</sub>, UTD movement |
+|---|---|---|---|---|
+| 0 | +0.000 (−0.000 to +0.001) | −0.001 (−0.002 to −0.000) | −0.002 (−0.003 to −0.002) | −0.002 (−0.003 to −0.002) |
+| 0.5 | **+0.014** (+0.013 to +0.016) | **+0.018** (+0.015 to +0.020) | **+0.011** (+0.010 to +0.013) | +0.004 (+0.003 to +0.005) |
+| 1 | **+0.043** (+0.040 to +0.046) | **+0.048** (+0.044 to +0.052) | **+0.055** (+0.052 to +0.058) | **+0.027** (+0.025 to +0.029) |
+
+Bold: useful (mean ≥ 0.01, lower bound > 0). Criterion: the decision for FB is the same
+as with UTD movement in all three cells: **PASS**.
+
+### 5.3 Interpretation
+
+- **Synthetic artifacts resemble artifacts marked by other experts on another device**
+  within the preregistered limit, though less closely than they resemble the UTD
+  artifacts they were built from (E1 0.68 against G4 0.555). The check passes close to
+  its limit, and one of 10 repetitions exceeds it (0.72).
+- **A detector trained only on synthetic data transfers to EDABE as well as one trained
+  on the real UTD recordings** (0.556 against 0.537), and comes within 0.06 of a detector
+  trained on EDABE itself. This is the most direct answer available to the concern that
+  the synthetic data only reproduce themselves: the generator never saw EDABE.
+- **Levels differ between devices.** Without scaling within recording, clean windows of
+  EDABE and synthetic data are almost fully separable (AUC 0.91). The comparison of
+  shapes therefore needs the scaling, which was fixed in the plan before the run; the
+  unscaled numbers are reported so that this choice can be judged.
+- **The shape of the map for FB transfers to another wrist device and protocol.** With
+  WESAD movement, FB is useless at *c* = 0 and useful at *c* = 0.5 and 1, with gains
+  within about 0.005 of those with UTD movement.
+- **The gain of the four summary features depends on the movement record.** With WESAD
+  movement Δ<sub>A4</sub> is about twice as large (+0.055 against +0.027 at *c* = 1) and
+  exceeds Δ<sub>B</sub>. A possible explanation, not tested: WESAD participants sat for
+  most of the protocol and moved less often, so any movement is a more specific sign of
+  an artifact. One consequence: the compatibility of the real UTD gain with *c* ≥ 0.75
+  (§4.2) is a statement about UTD-like movement; with less movement the same real gain
+  would correspond to a smaller *c*.
+- **What EDABE cannot show.** It has no acceleration, so it says nothing about the gain
+  from the accelerometer. Its labels are expert corrections of the EDA alone, which are
+  not a ground truth of contact disturbances either.
+- **What WESAD cannot show.** It keeps the assumed link between movement and artifacts,
+  so it says nothing about *c* on the E4. It has no artifact labels.

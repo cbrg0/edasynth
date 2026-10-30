@@ -133,7 +133,13 @@ findings, all conditional on the generator:
 - In those cells a laboratory study needs about 15–20 participants to detect the gain
   of FB.
 
-Caveats and the full tables are in [docs/RESULTS.md §4](docs/RESULTS.md#4-synthetic-map).
+- On independent data the generator holds up: its artifacts pass a realism test
+  against EDABE (another device, other experts; AUC 0.68, limit 0.70), a detector
+  trained only on synthetic data finds EDABE artifacts as well as one trained on the
+  real UTD data (AUPRC 0.556 against 0.537), and the map for FB keeps its shape with
+  movement from another wrist device (WESAD).
+
+Caveats and the full tables are in [docs/RESULTS.md §4–5](docs/RESULTS.md#4-synthetic-map).
 
 ## Getting started
 

@@ -4,6 +4,15 @@ All notable changes to this project are recorded here. Changes to the method aft
 the preregistration tag must also be released under a new tag
 ([docs/PREREGISTRATION.md](docs/PREREGISTRATION.md)).
 
+## Checks on independent data (31 October 2026)
+
+No change to the method. docs/EXTERNAL-CHECKS.md (plan, committed before the runs),
+scripts `edabe_pack.py`, `wesad_pack.py` and `external_checks.py`, results in
+docs/RESULTS.md §5: EDABE realism of artifact windows AUC 0.68 and of clean windows
+0.55 (limit 0.70); a detector trained on synthetic data reaches AUPRC 0.556 on EDABE
+against 0.537 when trained on real UTD data; with WESAD movement the usefulness of FB
+is the same as with UTD movement at *c* = 0, 0.5 and 1.
+
 ## Results of 1.4.0 (30 October 2026)
 
 No change to the method. Results of the main grid, the variants, the label-noise

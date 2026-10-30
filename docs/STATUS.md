@@ -1,6 +1,6 @@
 # Implementation status
 
-Last updated: 30 October 2026, version 1.4.0. Tags `prereg-synth-v1` (25 October), `-v2` (27 October) and `-v3` (28 October 2026).
+Last updated: 31 October 2026, version 1.4.0. Tags `prereg-synth-v1` (25 October), `-v2` (27 October) and `-v3` (28 October 2026).
 
 This page states for every part of the study whether it exists, whether it has been
 tested and whether it has been run on the data it is meant for. It also lists known
@@ -107,6 +107,7 @@ AWW in [RESULTS.md §2](RESULTS.md#2-development-run-on-aww-not-a-result).
 | Analysis, compatibility, sensitivity | PASS with 1.4.0 (9 of 60 mixture cells compatible, 8 with label noise) | PASS (runs to completion) |
 | Power for the laboratory study | PASS with 1.4.0 (3 compatible cells × 4 sample sizes × 50 replicates; Linux; the run was cut by a time limit after 7 of 12 points and finished by `scripts/power_resume.py`, which skips the points already computed) | PASS (runs to completion) |
 | Figures F1–F7 | PASS with 1.4.0 for F1–F6 (inspected; F7 needs `detectors`, not run) | PASS (produced and inspected; the inspection found two errors that were fixed) |
+| Checks on independent data (EDABE E1–E3, WESAD W1) | PASS (31 October 2026, Linux; [RESULTS.md §5](RESULTS.md#5-checks-on-independent-data)); E1 close to its limit (AUC 0.68, limit 0.70) | — |
 | Two-hand laboratory study | NOT IMPLEMENTED | — |
 
 ## Known problems
