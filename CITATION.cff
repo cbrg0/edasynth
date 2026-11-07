@@ -7,3 +7,13 @@ authors:
   - family-names: Doskaliyeva
     given-names: Nuray
 repository-code: "https://github.com/cbrg0/edasynth"
+date-released: 2026-11-07
+abstract: "Does a wrist accelerometer improve the detection of motion artifacts in electrodermal activity? A semi-synthetic model with 300 scenarios of the movement-artifact link, validated on two independent data sets (EDABE, WESAD), shows that the gain depends mainly on the share of artifacts caused by movement, and that features coupling EDA changes to movement in time outperform summaries of movement strength. Analysis rules were preregistered with public git tags."
+keywords:
+  - electrodermal activity
+  - skin conductance
+  - wearables
+  - motion artifacts
+  - accelerometer
+  - signal processing
+  - reproducible research

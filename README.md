@@ -1,5 +1,7 @@
 # edasynth
 
+[![tests](https://github.com/cbrg0/edasynth/actions/workflows/ci.yml/badge.svg)](https://github.com/cbrg0/edasynth/actions/workflows/ci.yml) [![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE) [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
+
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cbrg0/edasynth/blob/main/notebooks/quickstart.ipynb) Reproduce the main results in the browser in about 15 minutes, nothing to install.
 
 **Does a wrist accelerometer help to detect motion artifacts in skin-conductance
