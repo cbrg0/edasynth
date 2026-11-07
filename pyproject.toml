@@ -38,6 +38,8 @@ addopts = "-q --strict-markers"
 markers = ["slow: needs downloaded data and minutes; deselect with -m 'not slow'"]
 
 [tool.ruff]
+# The program lives in program-code, so ruff is told where to find it when it sorts imports.
+src = ["program-code"]
 line-length = 120
 target-version = "py311"
 
