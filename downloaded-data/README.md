@@ -1,15 +1,19 @@
 # Data
 
 The data are not stored in the repository. The command `make data` downloads them from
-their sources into this folder and checks every file against a list of checksums, so
-that everyone works with exactly the same files.
+their sources into this folder and compares every file with a list of checksums. A
+checksum is a short code computed from the content of a file, so a matching checksum
+shows that everyone works with exactly the same files.
 
-| Data | Source | Licence |
+| Data | Where they come from | Licence |
 |---|---|---|
-| wristband recordings of 20 people (UTD) | PhysioNet, Non-EEG Dataset, version 1.0.0 (Birjandtalab et al., 2016, 2017) | ODC-By 1.0 |
-| expert artifact labels for these recordings | Zhang et al. (2017), github.com/IdeasLabUT/EDA-Artifact-Detection, commit `7c4bd46` | BSD |
+| Wristband recordings of 20 people, called UTD in this project. | PhysioNet, the Non-EEG Dataset for Assessment of Neurological Status, version 1.0.0, by Birjandtalab et al. (2016, 2017). | Open Data Commons Attribution License 1.0 |
+| The artifact labels that three experts gave these recordings. | The repository of Zhang et al. (2017) at github.com/IdeasLabUT/EDA-Artifact-Detection, at commit `7c4bd46`. | BSD licence |
 
-PhysioNet does not state the unit of EDA; the values are treated as microsiemens, as
-on the device used (Affectiva Q Sensor). The data sets EDABE and WESAD, used only for
-the independent checks, are downloaded by hand from their authors' pages and prepared
-with the scripts in `data-download-and-external-checks/`.
+PhysioNet does not state the unit of the EDA values. They are treated as microsiemens,
+because other recordings from the same device, the Affectiva Q Sensor, which Zhang et
+al. (2017) published, give EDA in microsiemens.
+
+The data sets EDABE and WESAD are used only for the checks on independent data. They
+are downloaded by hand from the pages of their authors and prepared with the scripts
+in the folder `data-download-and-external-checks/`.

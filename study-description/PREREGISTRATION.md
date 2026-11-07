@@ -1,113 +1,147 @@
 # Preregistration
 
-With 300 cells, several measures and variants, some numbers will look interesting by
-chance. So the rules for running and judging the experiment were fixed **before** the
-main results, and the moment of fixing was made public with git tags. Every later
-change is listed here with its reason. The full original texts are in the repository
-at each tag.
+The study computes 300 cells, several measures and several variants. Among so many
+numbers some will look interesting by chance, and an author who chooses the rules
+after seeing the numbers can find almost any result. To prevent this, the rules for
+running and judging the experiment were fixed **before** the main results existed. The
+moment of fixing was made public with git tags: a tag marks one exact state of the
+repository with its date, and that state can no longer be changed without the change
+being visible. Every later change is listed in this file with its reason. The full
+original texts can be read in the repository at each tag.
 
-| Tag | Commit date | What it fixed |
+| Tag | Date of the commit | What it fixed |
 |---|---|---|
-| `prereg-synth-v1` | 25 Oct 2026 | configuration, code and number of replicates before the main grid (version 1.3.0) |
-| `prereg-synth-v2` | 27 Oct 2026 | label-noise grid on the mixture cells only (1.3.1) |
-| `prereg-synth-v3` | 28 Oct 2026 | the corrected generator and checks (1.4.0), after the 1.3.0 grid was withdrawn |
+| `prereg-synth-v1` | 25 October 2026 | the settings, the code and the number of replicates before the main grid, in version 1.3.0 |
+| `prereg-synth-v2` | 27 October 2026 | that the grid with noisy labels is computed for the mixture cells only, in version 1.3.1 |
+| `prereg-synth-v3` | 28 October 2026 | the corrected generator and checks of version 1.4.0, after the grid of version 1.3.0 was withdrawn |
+
+At the time of the tags the folders had shorter names: the settings were in
+`configs/`, the code in `src/` and the results in `results/`. They were renamed later,
+as the last part of the section "Changes after the tags" describes.
 
 ## What is fixed
 
-1. `settings/default.yaml` in full: grid, thresholds, seeds, model settings, features,
-   decision and compatibility rules, sensitivity reference cell, power settings.
-2. The code in `program-code/edasynth/` at the tagged commit.
-3. The number of replicates *R* from the pilot (`result-tables/pilot-utd-R.json`).
+1. The whole settings file, now `settings/default.yaml`. It contains the grid, the
+   thresholds of all checks, the random seeds, the settings of the models and the
+   features, the decision rule, the rule for agreement with the real data, the
+   reference cell of the sensitivity analysis and the settings of the power
+   calculation.
+2. The code of the program at the tagged commit, now in `program-code/edasynth/`.
+3. The number of replicates *R*, which the pilot run determined and wrote to
+   `result-tables/pilot-utd-R.json`.
 
-**Order of work.** Before the tag: data checks, estimation, checks G1–G7, pilot
-(`make before-tag`). After the tag: grid, variants, label-noise runs, analysis, power,
-figures (`make after-tag`). The checks and the pilot test the generator; they do not
-use the outcome of the grid.
+**The order of work.** Before the tag, the data were checked, the parameters were
+measured, the checks G1 to G7 were run and the pilot was computed; the command
+`make before-tag` does all of this. After the tag, the grid, the variants, the runs
+with noisy labels, the analysis, the power calculation and the figures were computed;
+the command `make after-tag` does this. The checks and the pilot test the generator and
+do not use any result of the grid.
 
-**Primary outcome.** For each cell, the mean Δ<sub>A4</sub> and Δ<sub>B</sub> over *R*
-replicates with a 95 % *t*-interval. A cell is *useful* when the mean is ≥ 0.01 and the
-lower bound > 0. All cells are reported; no single cell is singled out afterwards.
+**The primary outcome.** For each cell, the mean gains Δ<sub>A4</sub> and
+Δ<sub>B</sub> over the *R* replicates are reported with their 95 % *t*-intervals. A
+cell is useful when the mean gain is at least 0.01 and the lower bound of the interval
+is above zero. All cells are reported, and no single cell is picked out afterwards.
 
-**Secondary outcomes,** reported whatever their values: Δ<sub>A</sub> and
-Δ<sub>B</sub> − Δ<sub>A4</sub>; sensitivity at 95 % specificity; lost genuine responses;
-the variants (V2, 15 % prevalence, majority rule, C4); compatibility with the real
-Δ = 0.027 with and without label noise; sensitivity ranges and power for 5–20
-participants.
+**The secondary outcomes** are reported whatever their values turn out to be. They are
+the gain Δ<sub>A</sub>, the difference Δ<sub>B</sub> − Δ<sub>A4</sub>, the sensitivity at
+95 % specificity, the share of lost genuine responses, the variants, the agreement with
+the real gain of 0.027 with and without noisy labels, the effect of each parameter
+alone, and the power for 5 to 20 participants.
 
-**Checks before the grid.** G1–G7 with the thresholds in the configuration. If a check
-fails, the generator is corrected, the correction is recorded, and all checks are run
-again. **Thresholds are never changed to make a check pass.**
+**The checks before the grid.** The checks G1 to G7 use the thresholds written in the
+settings file. If a check fails, the generator is corrected, the correction is
+recorded, and all checks are run again. **A threshold is never changed to make a check
+pass.**
 
-## Changes made after seeing check results, before the first tag
+## Changes made before the first tag, after the results of checks were seen
 
-Each was triggered by a failed check (see RESULTS.md §2); no threshold changed.
+Each of these changes was caused by a failed check, as section 2 of RESULTS.md shows.
+No threshold was changed.
 
-| Version | Change | Triggered by |
+| Version | What was changed | What caused it |
 |---|---|---|
-| 1.2.0 | residual-block noise; relative artifact sizes; S18 excluded as physiology donor; response sizes from clean windows | G3; level mismatch; inspection |
-| 1.3.0 | measured artifact courses; tonic from the donor's own stages; C4 control gain; equivalent cells computed once; power cells at the quartiles | G4; negative signals; G6; computing cost |
+| 1.2.0 | the noise is taken from blocks of the remainder of the decomposition, artifact sizes are stored relative to the signal level, participant S18 is no longer a physiology donor, and response sizes are measured in clean windows only | check G3 failed, the artifact sizes did not match the signal level, and an inspection of the data showed the other two problems |
+| 1.3.0 | artifacts copy the measured course of real episodes, the tonic level follows the donor's own stages, C4 uses a control gain, equivalent cells are computed once, and the power is computed for cells at the quartiles | check G4 failed, some clean signals became negative, check G6 failed, and the full grid would have taken too long |
 
-**G5 is an accepted exception** (decided 25 October 2026): without a link every feature
-set loses slightly (FA −0.032, FA4 −0.002, FB −0.002) and none gains. The rule was kept;
-in the map a gain is also compared with that no-link loss.
+**Check G5 is an accepted exception.** This was decided on 25 October 2026. Without a
+link between movement and artifacts, no feature set gains, but every set loses
+slightly: FA by 0.032, FA4 by 0.002 and FB by 0.002. The rule of G5 was kept as it was,
+and in the map every gain is also compared with this loss.
 
-**Kept on purpose:** the τ₀ range of 2–4 s and the episode class rules, although 71 %
-of UTD episodes fall into C3; changing them after seeing the shares would fit the data.
+**Kept on purpose.** The range of τ₀ from 2 to 4 seconds and the rules that assign
+episodes to classes were kept unchanged, although 71 % of the UTD episodes fall into
+the class C3. Changing these rules after seeing the shares would have fitted the method
+to the data.
 
 ## Changes after the tags
 
-**v2 (27 October).** The label-noise grid is computed for the mixture cells only,
-because only they enter its analysis. Made while the main grid was running and before
-any of its results were seen.
+**Tag v2, 27 October 2026.** The grid with noisy labels is computed for the mixture
+cells only, because only these cells enter its analysis. The change was made while the
+main grid was running and before any of its results had been seen.
 
-**v3 (28 October), made after the summary of the 1.3.0 grid had been seen.** An odd
-result in the 15 % variant revealed that overlapping artifacts multiplied; the 1.3.0
-grid was withdrawn. While correcting this, three circular checks were also fixed:
-synthetic artifacts had been judged against the episodes they were built from (G4),
-the generator only produced delays inside the 5-s window of the FB features, and G2
-used data with exactly the response shape the estimation assumes. To make the rerun
-feasible, *C* = 1 is fixed as in the real-data comparison.
+**Tag v3, 28 October 2026, made after the summary of the grid of version 1.3.0 had been
+seen.** An odd result in the variant with 15 % artifacts revealed that overlapping
+artifacts multiplied each other, and the grid of version 1.3.0 was withdrawn. While
+this error was being corrected, three checks that had been circular were fixed as
+well. First, synthetic artifacts had been compared with the very episodes they were
+built from (check G4). Second, the generator produced delays only within the five
+seconds that the coupling features look at. Third, check G2 used data with exactly the
+response shape that the measurement assumes. To make the new run possible in the time
+available, the regularisation constant was fixed at *C* = 1, as in the comparison on
+real data.
 
-Changes: clean reference level and contact state for artifacts, range limits;
-δ<sub>max</sub> = 10 s added (300 cells); fixed *C*; G2 also with varied shapes; G3/G4
-with a generator that never sees the compared participant, median over 10 repetitions
-(chosen after seeing a split-half result and the variation between seeds).
+The changes of tag v3 are these. Artifacts now use a clean reference level and a
+contact state, and their range is limited. A delay of up to 10 seconds was added,
+which brings the grid to 300 cells. The constant *C* is fixed. Check G2 also uses
+varied response shapes. Checks G3 and G4 compare each real participant with a generator
+that never saw this participant and take the median over 10 repetitions; this design
+was chosen after a split-half result and the variation between random seeds had been
+seen.
 
-Unchanged: primary outcome, decision rule, every threshold, compatibility rule, the
-reading of gains against the G5 loss, the rule for *R*.
+The following stayed unchanged: the primary outcome, the decision rule, every
+threshold, the rule for agreement with the real data, the reading of gains against
+the loss of G5, and the rule for *R*.
 
-Because the 1.3.0 summary was seen first, a reader cannot rule out that it influenced
-these changes. None of them targets a particular cell or direction of the map.
+Because the summary of version 1.3.0 had been seen first, a reader cannot rule out
+that it influenced these changes. None of them, however, targets a particular cell or
+a particular direction of the map.
 
-**Folder names (7 November 2026).** After all results were obtained, the folders were
-renamed so that their content is clear from the name, for example `src` became
-`program-code`, `configs` became `settings` and `results` became `result-tables`. The
-tags keep the old names. No number changed: a replicate recomputed after the renaming
-equals the reported value exactly.
+**New folder names, 7 November 2026.** After all results had been obtained, the
+folders were renamed so that their content is clear from the name; for example, `src`
+became `program-code`, `configs` became `settings` and `results` became
+`result-tables`. The tags keep the old names. No number changed: one replicate
+recomputed after the renaming equals the reported value exactly.
 
-## Plan of the checks on independent data (30 October 2026)
+## Plan of the checks on independent data, 30 October 2026
 
-Written before any synthetic data were compared with EDABE or WESAD and before any
-detector was applied to them; at that point only the EDABE column names, sample counts,
-artifact shares and value ranges, and the WESAD file list had been seen. Version 1.4.0
-unchanged.
+This plan was written before any synthetic data had been compared with EDABE or WESAD
+and before any detector had been applied to them. At that point only the column names
+of EDABE, its numbers of samples, its shares of artifacts and its value ranges had been
+seen, as well as the list of files in WESAD. Version 1.4.0 stayed unchanged.
 
-- **E1, E2:** the realism test of G3/G4 between EDABE and synthetic artifact (E1) and
-  clean (E2) windows; 10 repetitions of 20 synthetic participants (mixture, *c* = 0.5,
-  κ = 1, δ<sub>max</sub> = 1 s, π<sub>r</sub> = 0). Features z-scored within each
-  recording (main version) because devices differ in level; unscaled also reported.
-  **Criterion: median AUC ≤ 0.70.**
-- **E3:** AUPRC on EDABE of a detector trained on synthetic data (a), on real UTD (b)
-  and on EDABE itself (c). **Criterion: (a) ≥ (b) − 0.05.**
-- **W1:** the map with the 15 WESAD wrist recordings as movement donors, *c* ∈ {0, 0.5,
-  1}, 50 replicates. **Criterion: the usefulness decision for FB is the same as with
-  UTD movement in all three cells.**
-- Preparation: EDABE averaged to 8 Hz (a block is an artifact if any sample is
-  labelled); leading and trailing zeros removed (added after seeing the first three rows
-  of one file, before any comparison); WESAD acceleration in 1/64 g averaged to 8 Hz,
-  stages rest (baseline, meditation) and load (others).
+- **E1 and E2.** The realism test of checks G3 and G4 is repeated between EDABE and
+  synthetic data, for artifact windows in E1 and for clean windows in E2. It uses 10
+  repetitions of 20 synthetic participants in the cell with the mixture, *c* = 0.5,
+  κ = 1, δ<sub>max</sub> = 1 s and π<sub>r</sub> = 0. Because devices differ in their
+  signal level, the features are scaled within each recording in the main version, and
+  the unscaled result is reported as well. **The check passes when the median AUC is
+  at most 0.70.**
+- **E3.** Three detectors are tested on EDABE by their AUPRC: (a) one trained on
+  synthetic data, (b) one trained on the real UTD recordings, and (c) one trained on
+  EDABE itself. **The check passes when (a) is at least (b) minus 0.05.**
+- **W1.** The map is computed with the 15 WESAD wrist recordings as movement donors,
+  for *c* equal to 0, 0.5 and 1, with 50 replicates. **The check passes when the
+  decision about the usefulness of FB is the same as with the UTD movements in all
+  three cells.**
+- **Preparation of the data.** EDABE is averaged down to 8 samples per second, and a
+  block counts as an artifact when any of its samples is labelled. Zeros at the start
+  and the end of each EDABE recording are removed; this rule was added after the first
+  three rows of one file had been seen, before any comparison. The WESAD acceleration,
+  stored in units of 1/64 g, is averaged down to 8 samples per second, and its stages
+  are grouped into rest, which covers the baseline and meditation, and load, which
+  covers all other stages.
 
-**Limit of this evidence.** These plan commits are dated 30 October 2026, 21:34 and
-21:35, hours before the runs, but they reached GitHub together with the results on
-31 October. Their timing therefore rests on the commit dates, which a reader cannot
-verify independently, unlike the tags above.
+**The limit of this evidence.** The commits with this plan are dated 30 October 2026
+at 21:34 and 21:35, hours before the runs. However, they reached GitHub together with
+the results on 31 October. Their timing therefore rests on the dates written in the
+commits, which a reader cannot verify independently, unlike the dates of the tags.

@@ -1,35 +1,34 @@
 # References
 
-This page lists every source used by the project, what it is used for, and whether
-the specific claim was checked against the source text. References follow APA 7.
+This page lists every source the project uses and says what each source is used for.
+The last column says whether the statement that this repository attributes to the
+source was compared with the text of the source. "Checked" means that it was.
+"Background" means that the source is cited for a general point that was not compared
+with its text again. The references follow the APA style, 7th edition.
 
 ## What each source contributes
 
-"Checked" means that the statement attributed to the source in this repository was
-compared with the text of the source on 23 October 2026. "Not re-checked" means the
-source is cited for a general point that has not been compared with the text again.
-
-| Source | Used for | Checked |
+| Source | What it is used for | Compared with the text |
 |---|---|---|
-| Birjandtalab et al. (2016, 2017) | UTD data: 20 participants, wrist sensors, protocol stages | checked (data set page) |
-| Zhang et al. (2017) | expert labels for UTD; labelling criteria; 5-s windows; F0 and FA features; artifact shares 3.8 % (UTD) and 15 % (AWW rest); the gain from acceleration and its two explanations; device | checked |
-| IdeasLabUT (n.d.) | the label files and feature matrices of Zhang et al., commit `7c4bd46` | used directly |
-| Greco et al. (2016) | Bateman response; τ<sub>1</sub> = 0.7 s and τ<sub>0</sub> ∈ [2, 4] s; α = 8·10⁻⁴, γ = 10⁻², 10-s knots; τ<sub>0</sub> chosen by the residual norm (from which this project departs); synthetic tonic = linear trend + sinusoid with period 45–90 s | checked |
-| lciti (n.d.) | reference implementation of cvxEDA, used as an optional cross-check | not used yet |
-| Kleckner et al. (2018) | valid range 0.05–60 µS (rule 1), 5 s around invalid data (rule 4), 0.05 µS as minimum response amplitude | checked |
-| Taylor et al. (2015) | 5-s epochs; expert criteria (peak without exponential decay, quantisation error, sudden change correlated with motion, level ≤ 0); acceleration not given to their classifier | checked |
-| Posada-Quintero & Chon (2020) | response onset 1–5 s after a stimulus and 0.05 µS threshold (both citing Boucsein et al., 2012); disagreement between decomposition methods; general background on EDA | checked |
-| Hossain et al. (2022) | P<sub>n</sub>, the share of power above 0.4 Hz; walking artifacts in foot EDA being mostly high-frequency | checked |
-| Chen et al. (2015) | wavelet-based artifact removal (background) | not re-checked |
-| Donoho & Johnstone (1994) | noise estimate from the median absolute level-1 wavelet detail | not re-checked (standard estimator) |
-| Amin et al. (2024) | accelerometer as a noise reference for artifact reduction (background) | not re-checked beyond the title |
-| U.S. Food and Drug Administration (2018) | Embrace cleared as an adjunct to seizure monitoring "during periods of rest", using EDA and motion data | checked |
-| Llanes-Jurado et al. (2023) | EDABE data set: 43 Shimmer3 GSR+ recordings with expert artifact labels | checked (data set page) |
-| Schmidt et al. (2018) | WESAD: Empatica E4 wrist EDA and acceleration, protocol labels, acceleration in 1/64 g | checked (readme) |
-| Pedregosa et al. (2011) | scikit-learn | — |
-| Pollard et al. (2026) | citation requested by PhysioNet for its data | checked (data set page) |
+| Birjandtalab et al. (2016, 2017) | The UTD recordings: 20 participants, the sensors on the wrist and the stages of the protocol. | checked on the page of the data set |
+| Zhang et al. (2017) | The expert labels for UTD and the criteria the experts used, the five-second windows, the feature sets F0 and FA, the share of artifacts of 3.8 % in UTD and 15 % in the resting recordings of their second data set, the small gain from acceleration with its two possible explanations, and the device. | checked |
+| IdeasLabUT (n.d.) | The files with the labels and the feature tables of Zhang et al., used at commit `7c4bd46`. | used directly |
+| Greco et al. (2016) | The shape of a response, the constants τ₁ = 0.7 s, τ₀ between 2 and 4 s, α = 8·10⁻⁴ and γ = 10⁻², the curve pieces joined every 10 seconds, the choice of τ₀ by the smallest difference between model and signal, from which this project departs, and the synthetic tonic level made of a linear trend and a sine wave with a period of 45 to 90 seconds. | checked |
+| lciti (n.d.) | The authors' own code of cvxEDA, which can be used instead of the built-in solver for comparison. | not used so far |
+| Kleckner et al. (2018) | The valid range of EDA from 0.05 to 60 µS (their rule 1), the margin around invalid data (their rule 4) and 0.05 µS as the smallest size of a response. | checked |
+| Taylor et al. (2015) | Five-second pieces of the signal, the criteria experts use to mark artifacts, and the fact that their classifier did not receive the acceleration. | checked |
+| Posada-Quintero & Chon (2020) | The start of a response one to five seconds after a stimulus and the threshold of 0.05 µS, both of which they cite from Boucsein et al. (2012); the disagreement between decomposition methods; general background on EDA. | checked |
+| Hossain et al. (2022) | The measure *P<sub>n</sub>*, the share of power above 0.4 Hz, and the finding that walking artifacts in EDA measured on the foot are mostly fast. | checked |
+| Chen et al. (2015) | Removal of artifacts with wavelets. | background |
+| Donoho & Johnstone (1994) | The estimate of noise from the median of the finest wavelet details. | background, a standard estimator |
+| Amin et al. (2024) | The accelerometer as a reference signal for reducing artifacts. | background, checked only against the title |
+| U.S. Food and Drug Administration (2018) | The Embrace wristband was cleared as an aid to seizure monitoring "during periods of rest", using EDA and motion data. | checked |
+| Llanes-Jurado et al. (2023) | The EDABE data set: 43 recordings from a Shimmer3 GSR+ device with expert artifact labels. | checked on the page of the data set |
+| Schmidt et al. (2018) | The WESAD data set: EDA and acceleration from an Empatica E4 wristband, the stages of the protocol, and acceleration stored in units of 1/64 g. | checked in its description file |
+| Pedregosa et al. (2011) | The scikit-learn library, which trains the detectors. | not applicable |
+| Pollard et al. (2026) | The citation that PhysioNet asks users of its data to include. | checked on the page of the data set |
 
-Boucsein et al. (2012) is cited only through Posada-Quintero & Chon (2020).
+Boucsein et al. (2012) is cited only as Posada-Quintero & Chon (2020) summarise it.
 
 ## Reference list
 
