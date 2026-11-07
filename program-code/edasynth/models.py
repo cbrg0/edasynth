@@ -1,8 +1,15 @@
-"""This file trains the detectors and measures how well they find artifacts.
+"""This file belongs to the sixth step, detecting artifacts and measuring how well it
+works.
 
-A detector is always tested on a person it has never seen: it is trained on all
-participants except one and tested on that one, in turn for everybody. The file then
-computes the quality of the detector and the uncertainty of the result.
+The main detector is a logistic regression, a simple and transparent model whose result
+depends on the features and not on the tuning of a complex model; a random forest is
+used on the real data to check that the conclusion does not depend on the type of model.
+Every detector is tested on a person it has never seen, by training on all participants
+except one and testing on that one in turn, which is a common way to evaluate wearable
+data. The quality is measured by the area under the precision–recall curve, which suits
+rare events, and its uncertainty by drawing the participants at random many times.
+
+The outcome is the quality of each detector and its uncertainty.
 """
 
 from __future__ import annotations

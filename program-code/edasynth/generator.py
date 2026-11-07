@@ -1,10 +1,21 @@
-"""This file is the heart of the study: it builds synthetic wristband recordings.
+"""This file is the fourth step and the core of the study. It builds synthetic wristband
+recordings in which the cause of every artifact is known.
 
-Each synthetic person combines the real movements of one participant with the measured
-physiology of another, and the file adds artifacts in a controlled way. Because the file
-places every artifact itself, it knows exactly which artifacts were caused by movement,
-which real recordings never tell. Its outcome is a synthetic recording with true labels
-for every window.
+Real recordings cannot answer the question of the study, because nobody recorded which
+artifacts movement caused. The generator therefore assembles new recordings from real
+material. Each synthetic person takes the real movements of one participant and the
+measured physiology of another, so that any link between movement and skin signal exists
+only where the generator puts it. The artifacts copy the shapes of real episodes marked
+by experts. Several values come from the literature: responses that follow a stimulus
+start one to five seconds later (Boucsein et al., 2012, as summarised by Posada-Quintero
+& Chon, 2020), the signal is limited to the valid range of Kleckner et al. (2018), and
+3.8 % of windows contain an artifact, as in the labels of Zhang et al. (2017). Applying
+the delay of a response to movement is an assumption, because the source describes
+responses to stimuli and not to movement. The strength of the link between movement and
+artifacts is not fixed at all: it is varied over the scenarios, because it is unknown.
+
+The outcome is a synthetic recording with acceleration, electrodermal activity and a
+true label for every window.
 """
 
 from __future__ import annotations

@@ -1,8 +1,10 @@
-"""This file stores the measurements of the previous step in one place, called the bank.
+"""This file closes the third step, measuring. It stores everything the measuring step
+found in one place, called the bank, so that the generator never has to read the raw
+recordings again.
 
-It gathers what estimation.py measured for each participant, groups the artifact shapes
-by type and writes everything to two files in result-tables. The generator later reads
-only this bank and never the raw recordings.
+It groups the measured artifact shapes by type, computes the share of each type and
+writes two files to result-tables. Storing the measurements once also means that every
+synthetic data set of the study is built from exactly the same measured values.
 """
 
 from __future__ import annotations

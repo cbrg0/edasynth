@@ -1,10 +1,18 @@
-"""This file turns each five-second piece of a recording into a set of numbers, called
-features, which the detectors use.
+"""This file belongs to the fifth step, preparing the input of the detectors. It turns
+every five-second window into a set of numbers, called features.
 
-It computes the 24 features of electrodermal activity and the 96 acceleration features
-of earlier work, the 4 features of movement strength, and the 4 coupling features
-proposed in this study, which ask whether the skin signal changes right after a
-movement. The same code is used for real and synthetic recordings.
+The 24 features of electrodermal activity and the 96 acceleration features are those of
+Zhang et al. (2017), computed with their formulas, so that the comparison starts from
+their published result. The 4 features of movement strength are the first four of their
+acceleration features. The 4 coupling features are proposed in this study. Zhang et al.
+suggested that their acceleration features might be unsuited to the task, and the
+coupling features address this by asking directly whether the skin signal changes right
+after a movement. They look up to 5 seconds back, the longest usual delay of a response
+after a stimulus (Boucsein et al., 2012, as summarised by Posada-Quintero & Chon, 2020),
+and they use only the past, so a wristband could compute them while recording.
+
+The outcome is a table with one row per window and one column per feature, computed in
+the same way for real and synthetic recordings.
 """
 
 from __future__ import annotations

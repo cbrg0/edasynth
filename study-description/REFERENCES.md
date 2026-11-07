@@ -25,6 +25,8 @@ with its text again. The references follow the APA style, 7th edition.
 | U.S. Food and Drug Administration (2018) | The Embrace wristband was cleared as an aid to seizure monitoring "during periods of rest", using EDA and motion data. | checked |
 | Llanes-Jurado et al. (2023) | The EDABE data set: 43 recordings from a Shimmer3 GSR+ device with expert artifact labels. | checked on the page of the data set |
 | Schmidt et al. (2018) | The WESAD data set: EDA and acceleration from an Empatica E4 wristband, the stages of the protocol, and acceleration stored in units of 1/64 g. | checked in its description file |
+| Lopez-Paz & Oquab (2017) | The classifier two-sample test, the idea behind the realism checks: two sets of data look alike when a classifier cannot tell them apart. | background |
+| Makowski et al. (2021) | NeuroKit2, an open toolbox that also offers cvxEDA, cited as an example of its use in open practice. | checked in the source code of the toolbox |
 | Pedregosa et al. (2011) | The scikit-learn library, which trains the detectors. | not applicable |
 | Pollard et al. (2026) | The citation that PhysioNet asks users of its data to include. | checked on the page of the data set |
 
@@ -53,6 +55,10 @@ Kleckner, I. R., Jones, R. M., Wilder-Smith, O., Wormwood, J. B., Akcakaya, M., 
 lciti. (n.d.). *cvxEDA* [Computer software]. GitHub. https://github.com/lciti/cvxEDA
 
 Llanes-Jurado, J., Carrasco-Ribelles, L. A., Alcañiz, M., Soria-Olivas, E., & Marín-Morales, J. (2023). Automatic artifact recognition and correction for electrodermal activity based on LSTM-CNN models. *Expert Systems with Applications, 230*, Article 120581. https://doi.org/10.1016/j.eswa.2023.120581
+
+Lopez-Paz, D., & Oquab, M. (2017). Revisiting classifier two-sample tests. In *International Conference on Learning Representations (ICLR)*. https://arxiv.org/abs/1610.06545
+
+Makowski, D., Pham, T., Lau, Z. J., Brammer, J. C., Lespinasse, F., Pham, H., Schölzel, C., & Chen, S. H. A. (2021). NeuroKit2: A Python toolbox for neurophysiological signal processing. *Behavior Research Methods, 53*(4), 1689–1696. https://doi.org/10.3758/s13428-020-01516-y
 
 Pedregosa, F., Varoquaux, G., Gramfort, A., Michel, V., Thirion, B., Grisel, O., Blondel, M., Prettenhofer, P., Weiss, R., Dubourg, V., Vanderplas, J., Passos, A., Cournapeau, D., Brucher, M., Perrot, M., & Duchesnay, É. (2011). Scikit-learn: Machine learning in Python. *Journal of Machine Learning Research, 12*, 2825–2830. https://jmlr.org/papers/v12/pedregosa11a.html
 

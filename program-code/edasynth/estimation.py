@@ -1,10 +1,23 @@
-"""This file is the measuring step: it learns from the real recordings everything the
-generator needs.
+"""This file is the third step of the study, measuring the real recordings. It learns from
+the UTD recordings every property that the generator later reproduces, so that as little
+as possible in the synthetic data is invented.
 
-For every participant it measures the noise, the responses, the slow level, the shape of
-each artifact marked by the experts and the moments of movement. Its outcome is a
-collection of measured values, which the file bank.py stores. Nothing in the generator
-is invented where it could be measured here.
+Each measurement follows a source wherever one exists. A response counts only when it is
+at least 0.05 microsiemens high, the threshold accepted in the literature (Kleckner et
+al., 2018; Boucsein et al., 2012, as summarised by Posada-Quintero & Chon, 2020). Clean
+windows are taken only with a clean neighbour on each side, after the margin around
+invalid data of Kleckner et al. (2018). The share of fast oscillation in an artifact is
+measured above 0.4 Hz, as Hossain et al. (2022) did. The usual estimate of noise (Donoho
+& Johnstone, 1994) gave zero on these recordings because the noise is smaller than the
+device's smallest step, so the noise is instead taken directly from the part of the
+signal that the decomposition leaves unexplained. Where no source exists, as for the
+rules that sort artifact episodes into types or the threshold that defines a movement,
+the values are decisions of this study, written into the settings before the main
+results and listed in study-description/METHOD.md.
+
+The outcome is, for every participant, the noise, the rates and sizes of responses, the
+course of the slow level, the measured shape of each artifact and the moments of
+movement.
 """
 
 from __future__ import annotations

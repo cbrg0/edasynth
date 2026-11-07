@@ -1,10 +1,20 @@
-"""This file is the first step of the program after the download: it loads the real
-recordings and the expert labels.
+"""This file belongs to the first step of the study, preparing the data. It loads the real
+recordings and the expert labels so that all later steps work with the same objects.
 
-It reads the 20 UTD recordings from PhysioNet, with the acceleration and the
-electrodermal activity of each person, assigns every moment to a stage of the experiment
-and attaches the labels that three experts gave each five-second window. The result is
-one object per person, which all later steps use.
+The recordings are the UTD data set published on PhysioNet (Birjandtalab et al., 2016,
+2017): 20 people wore a wristband that recorded wrist acceleration and electrodermal
+activity 8 times per second. The labels come from Zhang et al. (2017), in whose study
+three experts marked every five-second window as clean or as an artifact. The
+five-second window is taken from these authors and from Taylor et al. (2015), who
+labelled artifacts in the same way, so the program uses the unit in which the labels
+exist. A window counts as an artifact when at least two of the three experts marked it.
+This majority rule is a decision of this study; it keeps a window that only one expert
+doubted out of the artifacts.
+
+The PhysioNet files mark the transitions between the stages of the experiment but do not
+explain their codes. The file therefore reads the stages by their order, and stops with
+an error if their number does not fit, so that a wrong reading cannot pass unnoticed.
+The outcome is one object per person with the signals, the stages and the labels.
 """
 
 from __future__ import annotations

@@ -1,10 +1,17 @@
-"""This file checks that the expert labels belong to the right parts of the recordings,
-before any analysis starts.
+"""This file belongs to the first step, preparing the data. It checks that every expert
+label lies on the right piece of the recording before any analysis uses the labels.
 
-The labels and the recordings were published separately, and nowhere is it written which
-label window matches which piece of signal. This file recomputes a few simple numbers
-from the signal and compares them with the numbers published together with the labels.
-If they match, the labels are in the right place. All 20 participants passed this check.
+The check is needed because Zhang et al. (2017) published their labels separately from
+the PhysioNet recordings, and neither source states which label window matches which
+samples. Together with the labels, Zhang et al. published a table of simple features of
+each window. The file recomputes four of these features from the raw recording with the
+formulas of their script and correlates them with the published values. If the labels
+were shifted, the correlation would drop. A participant is accepted when all four
+correlations reach 0.999; this threshold is a decision of this study and was set so high
+because a correct alignment should reproduce the published numbers almost exactly.
+
+The outcome is the list of accepted participants with the shift between labels and
+signal. All 20 participants were accepted without a shift.
 """
 
 from __future__ import annotations

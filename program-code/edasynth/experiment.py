@@ -1,9 +1,17 @@
-"""This file runs the main experiment of the study.
+"""This file is the main experiment of the study, run only after the generator passed its
+checks.
 
-For each of the 300 scenarios it builds synthetic data sets 50 times, trains the
-detectors with and without acceleration and records the gain. It then summarises the
-gains, decides in which scenarios the accelerometer is useful, compares them with the
-real data and estimates how many participants a laboratory study would need.
+Because the link between movement and artifacts is unknown, the experiment does not
+assume one. It describes the link by five parameters and tries every combination, 300
+scenarios in total, which turns the question "does the accelerometer help?" into the map
+"under which conditions does it help?". Each scenario is built 50 times with new
+synthetic people, a number chosen from a pilot run so that the uncertainty of each
+scenario stays small. The rule that decides when the accelerometer counts as useful was
+fixed and published before the results existed, so it could not be adjusted to them.
+
+The outcome is the gain for every scenario, the scenarios in which the accelerometer is
+useful, their agreement with the real data and an estimate of how many participants a
+laboratory study would need.
 """
 
 from __future__ import annotations

@@ -1,10 +1,18 @@
-"""This file carries out the comparison on real data, which is the starting point of the
-study.
+"""This file is the second step of the study, the comparison on real data. It repeats on
+the UTD recordings the question that Zhang et al. (2017) raised: does a detector find
+artifacts better when it sees the acceleration in addition to the electrodermal
+activity?
 
-It trains one detector that sees only the electrodermal activity and one that also sees
-the acceleration, tests both on the real UTD recordings and reports how much the
-acceleration helps. Its outcome is the gain of about 0.027 with an uncertain sign, which
-motivates the rest of the study.
+It trains one detector on the 24 EDA features and one on the same features plus 4
+features of the acceleration magnitude, and tests each of them on every participant
+after training on the other 19. Testing on people the detector has never seen is a
+common way to evaluate wearable data, because windows of the same person resemble each
+other and would make the result look better than it is. The quality is measured by the
+area under the precision–recall curve, which suits rare events such as artifacts, which
+make up only 3.8 % of the windows.
+
+The outcome is a gain of about 0.027 whose uncertainty includes zero. This uncertain
+result is the reason for the rest of the study.
 """
 
 from __future__ import annotations

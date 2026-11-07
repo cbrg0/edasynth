@@ -1,10 +1,16 @@
-"""This script carries out the external validation, the last step of the study.
+"""This script is the external validation, the last step of the study. It tests the
+generator on two data sets it never saw, because a model that only fits the recordings
+it was built from would say little about wristbands in general.
 
-It tests the generator on two data sets it never saw. With EDABE, recordings of another
-device marked by other experts, it checks whether synthetic artifacts look like real
-ones and whether a detector trained only on synthetic data works on real recordings.
-With WESAD, movements of another wristband, it checks whether the main result keeps its
-shape. The outcome is written to result-tables/external-edabe.json and
+EDABE (Llanes-Jurado et al., 2023) contains recordings of another device, marked by
+other experts. With it, the script checks whether synthetic artifacts look like these
+real ones, using the same classifier test as the checks of the generator, and whether a
+detector trained only on synthetic data finds real EDABE artifacts. WESAD (Schmidt et
+al., 2018) provides the movements of another wristband, and the script checks whether
+the main result keeps its shape with them. The criteria were written down before the
+script was run, as study-description/PREREGISTRATION.md shows.
+
+The outcome is written to result-tables/external-edabe.json and
 result-tables/external-wesad.json.
 
 Usage:

@@ -1,9 +1,12 @@
-"""This file reads the PhysioNet files in which the UTD recordings are stored.
+"""This file belongs to the first step, preparing the data. It reads the files in which
+PhysioNet stores the UTD recordings.
 
-PhysioNet uses its own file format, called WFDB. This file turns it into ordinary
-numbers and checks every signal against the checksum written in the file, so that a
-reading error would be noticed at once. It serves the file data.py and is not called
-directly.
+PhysioNet stores its recordings in its own format, called WFDB, and documents it
+publicly. The file implements only the part of that format the UTD recordings use. It
+checks every signal against the checksum written in the file, which is how the format
+itself guards against reading errors; when the official wfdb package is installed, a
+test also compares both readers on the real files. The outcome is the signals as
+ordinary numbers in physical units.
 """
 
 from __future__ import annotations

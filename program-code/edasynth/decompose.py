@@ -1,9 +1,16 @@
-"""This file splits an electrodermal signal into its slow level and its fast responses,
-which is needed to measure how real signals behave.
+"""This file belongs to the third step, measuring how real signals behave. It splits an
+electrodermal signal into its slow level and its fast responses, because the generator
+needs to know both separately.
 
-It uses the published method cvxEDA (Greco et al., 2016). The file estimation.py calls
-it for every real recording, and the parts it returns tell the generator how large and
-how frequent the responses are and how the slow level moves.
+The method is cvxEDA by Greco et al. (2016), a published and freely available method
+that is also offered in open toolboxes for electrodermal activity, such as NeuroKit2
+(Makowski et al., 2021). Posada-Quintero and Chon (2020) note in their review that
+different decomposition methods give different results, so the program uses one
+documented method with the constants of its authors. One choice departs from the
+authors: the speed of the response's decay is chosen by the best value of the method's
+own objective, because a test on synthetic signals with a known answer showed that the
+authors' criterion did not find the right value. The outcome is the slow level, the fast
+part and the remainder of every recording.
 """
 
 from __future__ import annotations

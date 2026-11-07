@@ -1,9 +1,17 @@
-"""This file checks that the generator can be trusted, before the main experiment is run.
+"""This file is the check that comes before the main experiment. It tests whether the
+generator can be trusted, because conclusions drawn from synthetic data are only as good
+as their resemblance to real data.
 
-It asks, among other things, whether the generator recovers physiology that was put into
-it, whether a classifier can tell synthetic recordings from real ones, and whether a
-gain appears where none should. Each check has a limit fixed in advance, and the file
-reports whether it passed.
+The main test asks a classifier to tell synthetic windows from real ones. This way of
+comparing two sets of data is known as the classifier two-sample test (Lopez-Paz &
+Oquab, 2017): if the classifier cannot separate them, the two sets look alike to it.
+Other tests check that the generator recovers physiology that was put into it, that no
+gain appears where no link exists, and that a link that was built in is found. Every
+test has a limit fixed in the settings before the first run, and a failed test led to a
+correction of the generator, never to a change of its limit.
+
+The outcome is a report saying which tests passed, with the numbers behind each
+decision.
 """
 
 from __future__ import annotations
