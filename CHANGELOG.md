@@ -6,6 +6,7 @@ after a preregistration tag are released under a new tag
 
 | Version | Date (2026) | Change |
 |---|---|---|
+| – | 7 Nov | README and the Russian overview rewritten in full sentences: the place of this stage in the larger aim, what a scenario is, what each check tests and why, where each computation ran and how the figures are drawn. The notebook also runs in Jupyter on the author's own computer. |
 | – | 7 Nov | Colab notebook `notebooks/quickstart.ipynb`: the map and all checks recomputed from the committed tables, the real-data result from the public data, the unit tests. |
 | 1.4.1 | 7 Nov | Repository shortened: documentation condensed into README, METHOD, RESULTS and PREREGISTRATION; unused code removed (untrained reference detectors, `inspect`, the one-person development run, a one-off power script); reported results and figures committed; summary figure F0. No change to any computation: a grid replicate recomputed after the cut matches the reported value exactly. |
 | – | 31 Oct | Checks on EDABE and WESAD, planned before running (all pass). |
