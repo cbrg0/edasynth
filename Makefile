@@ -15,7 +15,7 @@ install:            ## editable install with test and reference extras
 	$(PY) -m pip install -e ".[dev,reference]"
 
 data:               ## download and verify both data sources
-	PYTHON=$(PY) bash scripts/download-data.sh
+	PYTHON=$(PY) bash data-download-and-external-checks/download-data.sh
 
 check:              ## re-verify checksums of downloaded data
 	$(RUN) check-data

@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "${{ matrix.python-version }}", cache: pip}
       - run: python -m pip install --upgrade pip && pip install -e ".[dev]"
-      - run: ruff check src tests
+      - run: ruff check program-code program-tests
       - name: G1 unit tests (data-free)
         run: pytest -m "not slow"
   data-tests:
@@ -23,6 +23,6 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.12", cache: pip}
       - run: python -m pip install --upgrade pip && pip install -e ".[dev]" wfdb PyWavelets
-      - run: bash scripts/download-data.sh
+      - run: bash data-download-and-external-checks/download-data.sh
       - name: readers and published-feature checks on real data
         run: pytest

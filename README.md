@@ -1,11 +1,11 @@
 # edasynth
 
-[![tests](https://github.com/cbrg0/edasynth/actions/workflows/ci.yml/badge.svg)](https://github.com/cbrg0/edasynth/actions/workflows/ci.yml) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cbrg0/edasynth/blob/main/notebooks/quickstart.ipynb)
+[![tests](https://github.com/cbrg0/edasynth/actions/workflows/ci.yml/badge.svg)](https://github.com/cbrg0/edasynth/actions/workflows/ci.yml) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cbrg0/edasynth/blob/main/run-in-browser/quickstart.ipynb)
 
 **Can the accelerometer of a wristband help to recognise skin-conductance artifacts
 caused by movement?**
 
-A Russian version of this page is in [docs/README-RU.md](docs/README-RU.md).
+A Russian version of this page is in [study-description/README-RU.md](study-description/README-RU.md).
 
 ## About the project
 
@@ -29,7 +29,7 @@ improvement may be zero. Real recordings cannot explain this, because nobody rec
 which artifacts were caused by movement. A computer model of wristband recordings was
 therefore built from real material, and in it the cause of every artifact is known.
 
-![Gain from adding acceleration against the share of artifacts caused by movement](figures/F0-summary.png)
+![Gain from adding acceleration against the share of artifacts caused by movement](result-figures/F0-summary.png)
 
 The figure shows how much the detection improves when acceleration is added (vertical
 axis) depending on the share of artifacts that movement causes (horizontal axis). The
@@ -56,25 +56,25 @@ experiment that measures it.
    outcome.
 
 The rules of the analysis were fixed and published before the main results were
-obtained. All numbers and their limits are in [docs/RESULTS.md](docs/RESULTS.md).
+obtained. All numbers and their limits are in [study-description/RESULTS.md](study-description/RESULTS.md).
 
 ## What is in this repository
 
 | Folder or file | What it contains |
 |---|---|
-| `docs/METHOD.md` | the method step by step, with the source of every number |
-| `docs/RESULTS.md` | all results and what they do not show |
-| `docs/PREREGISTRATION.md` | the rules fixed before the results, and every later change with its reason |
-| `docs/REFERENCES.md` | the literature |
-| `docs/README-RU.md` | this page in Russian |
-| `figures/` | the figures |
-| `results/` | the result tables from which the figures are drawn |
-| `notebooks/` | a notebook that repeats the main results in the browser |
-| `src/edasynth/` | the program |
-| `tests/` | automatic tests of the program |
-| `scripts/` | programs that download the data and prepare EDABE and WESAD |
-| `configs/` | all settings that can change a result |
-| `data/` | where the data come from and how they are downloaded |
+| `study-description/METHOD.md` | the method step by step, with the source of every number |
+| `study-description/RESULTS.md` | all results and what they do not show |
+| `study-description/PREREGISTRATION.md` | the rules fixed before the results, and every later change with its reason |
+| `study-description/REFERENCES.md` | the literature |
+| `study-description/README-RU.md` | this page in Russian |
+| `result-figures/` | the figures |
+| `result-tables/` | the result tables from which the figures are drawn |
+| `run-in-browser/` | a notebook that repeats the main results in the browser |
+| `program-code/edasynth/` | the program |
+| `program-tests/` | automatic tests of the program |
+| `data-download-and-external-checks/` | programs that download the data and run the checks on EDABE and WESAD |
+| `settings/` | all settings that can change a result |
+| `downloaded-data/` | the downloaded data appear here; the folder describes where they come from |
 | other files in the main folder | technical files for installation, citation and the licence |
 
 ## Running it

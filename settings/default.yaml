@@ -1,0 +1,152 @@
+# Main configuration. Every number that can change a result is here.
+# Values marked "decision" are choices of this project; all others are measured or cited.
+# study-description/METHOD.md explains every value (parameter table in section 11).
+# This file is frozen by the preregistration tag (study-description/PREREGISTRATION.md).
+
+paths:
+  noneeg: downloaded-data/raw/noneeg-1.0.0           # PhysioNet UTD records (downloaded by data-download-and-external-checks/download-data.sh)
+  zhang: downloaded-data/external/eda-artifact-detection   # Zhang et al. repository at commit 7c4bd46
+  results: result-tables
+  figures: result-figures
+
+data:
+  excludeSubjects: []          # filled only with documented reasons (alignment failure)
+  alignmentMinR: 0.999        # decision; on AWW the same check gives r = 1.0000
+
+seeds:
+  grid: 20261022
+  power: 7
+  validation: 11
+
+estimation:
+  minResponseAmp: 0.05        # uS, accepted minimum response amplitude (Kleckner et al., 2018; Boucsein et al., 2012, via Posada-Quintero & Chon, 2020)
+  cvxeda:
+    backend: auto               # authors' cvxEDA.py if importable (needs cvxopt), else the built-in solver
+    tau1: 0.7                   # s (Greco et al., 2016)
+    tau0Min: 2.0               # s, range of Greco et al. (2016)
+    tau0Max: 4.0
+    tau0Step: 0.1              # decision; tau0 chosen by the smallest objective (departs from Greco et al., who used the residual norm)
+    alpha: 8.0e-4               # Greco et al. (2016); z-scoring the input is a decision of this project
+    gamma: 1.0e-2
+    knotS: 10.0
+  tonic:
+    periodMinS: 45            # period range of the synthetic tonic of Greco et al. (2016)
+    periodMaxS: 90
+    periodStepS: 1            # decision
+  episodes:                     # artifact-episode measurement and class rules (decision, fixed in advance)
+    baselineS: 2.0
+    minAmp: 0.05
+    shiftSigma: 3.0
+    dropoutLevel: 0.01
+    saturationLevel: 60.0      # uS, upper limit of Kleckner et al. (2018) rule 1; dropoutLevel is a decision
+    flatMinS: 1.0
+    levelFloor: 0.05           # uS; artifact sizes are stored relative to max(local level, levelFloor); floor = lower limit of Kleckner et al. (2018) rule 1, its use here is a decision
+    pnWalk: 0.5
+    walkStages: [physical, walk]
+  donor:                       # who may serve as a physiology donor (decision; study-description/METHOD.md section 4.1)
+    minLevel: 0.05             # uS, lower limit of Kleckner et al. (2018) rule 1
+    maxShareBelow: 0.5         # decision: excluded if more than half of the samples lie below minLevel
+  noise:
+    blockS: 5.0                # decision: residual blocks of one window (40 samples)
+  motion:
+    percentile: 99              # decision; sensitivity at 95 and 99.9
+    minLen: 4                  # samples (0.5 s)
+    mergeS: 1.0
+  plausibility:
+    maxRatePerMin: 10.0      # decision; warning only, not a gate (literature range to be verified)
+  reference:
+    windowS: [-1.0, 5.0]       # decision
+  c4:
+    smoothS: 2.0               # decision: 'fast part' = signal minus 2-s moving mean
+    stages: [physical, walk]
+
+generator:
+  tau1: 0.7
+  kernelTauMultiple: 10       # Bateman kernel length = 10 tau0 (exp(-10) ~ 5e-5)
+  motionResponseLatencyS: [1.0, 5.0]   # stimulus latency of Boucsein et al. (2012), via Posada-Quintero & Chon (2020); use for movement is an assumption
+  labelThreshold: 0.05         # uS, decision = minimum visible response
+  noise: residualBootstrap     # decision: blocks of the donor's decomposition residual (alternative: gaussian, with the donor's sigma)
+  levelWindowS: 5.0            # decision: local level = median of the clean signal over the 5 s before an artifact
+  c4:
+    gain: control              # decision: 'control' (G set by controlTargetUs) or 'measured' (G from section 3.8; about 0 on UTD)
+    controlTargetUs: 0.1       # decision: the median movement event gives a C4 artifact of median size 0.1 uS (twice the label threshold)
+  rhoMax: 0.95                 # V2: maximum lost contact fraction
+  saturationLevel: 60.0
+  maxArtifactsPerParticipant: 400
+  allowFallbackTemplates: false   # true only for development runs without measured templates
+  fallbackTemplates: {}
+
+features:
+  derivative: central           # as in the published script of Zhang et al.; 'forward' reproduces their stored matrices
+  fb:
+    maxLagS: 5.0
+    contextS: 5.0
+    medianS: 60.0
+    cohBand: [0.5, 3.0]
+    cohSegS: 2.5
+
+models:
+  logreg:
+    CGrid: [0.01, 0.1, 1.0, 10.0]
+    CSelection: fixed          # decision (1.4.0): C = CDefault as in the real-data comparison (section realdata); before: inner grouped CV over CGrid
+    solver: newton-cholesky     # same L2 objective as lbfgs; ~20x faster on these features (measured)
+    innerFolds: 5              # decision: grouped 5-fold inside each training set ('loso' allowed, ~4x slower)
+    CDefault: 1.0
+    classWeight: balanced
+    maxIter: 5000
+  rf:
+    nEstimators: 500
+    classWeight: null
+    nJobs: 1
+
+realdata:                       # settings that reproduce the published-feature baseline
+  models:
+    logreg: {CGrid: [1.0], CSelection: fixed, innerFolds: 5, CDefault: 1.0, classWeight: balanced, maxIter: 5000, solver: newton-cholesky}
+    rf: {nEstimators: 500, classWeight: null, nJobs: -1}
+  nShuffles: 20
+
+analysis:
+  specificity: 0.95
+  bootstrapN: 1000
+  decision: {minDelta: 0.01}   # accelerometer 'useful' in a cell: mean delta >= 0.01 and lower 95% bound > 0
+  observedDelta: 0.027         # real UTD difference (stored features, logistic regression)
+  labelNoiseKappa: 0.62       # measured Fleiss kappa of the three UTD experts; its use as a target is an assumption
+  sensitivityReference: {c: 0.5, kappa: 1.0, deltaMax: 1.0, piR: 0.0}
+
+grid:
+  c: [0.0, 0.25, 0.5, 0.75, 1.0]
+  kappa: [0.0, 1.0]
+  deltaMax: [1.0, 5.0, 10.0]   # 10 s (1.4.0): beyond the 5-s lag window of the FB features
+  piR: [0.0, 0.5]
+  compositions: [[C1], [C2], [C3], [C5], [C1, C2, C3, C5]]   # last = mixture in measured UTD shares
+  prevalence: 0.038
+
+variants:
+  c: [0.0, 0.5, 1.0]
+  highPrevalence: 0.15         # AWW resting data (Zhang et al., 2017)
+
+pilot:
+  reps: 10
+  halfWidth: 0.005
+  maxReps: 50
+
+power:
+  nConditions: 3
+  participants: [5, 10, 15, 20]
+  reps: 50
+
+validation:
+  shiftMinS: 60
+  controlReps: 10
+  g2Participants: 20
+  g2Tau0MaxErrS: 0.3
+  g2RateMaxRel: 0.2
+  g2KsP: 0.05
+  c2stAucMax: 0.70
+  realismReps: 10              # decision (1.4.0): median AUC over 10 repetitions; one repetition varied from 0.49 to 0.73 between seeds
+  realism: loso                # decision (1.4.0): G3/G4 with a generator built without the participant it is compared with (leave one participant out); split-half reported too
+  g2Jitter: {tau0Rel: 0.25, tau1Range: [0.35, 1.05]}   # decision (1.4.0): G2 also with responses whose time constants differ from the ones cvxEDA assumes
+  g5MaxAbsDelta: 0.01
+  g7Reference: {auprc0: 0.449, auprc1: 0.475, delta: 0.027}
+  g7MaxAbsDiff: 0.10
+
