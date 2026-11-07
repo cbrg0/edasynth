@@ -50,13 +50,10 @@ deltas = {"dA": "F0+FA", "dA4": "F0+FA4", "dB": "F0+FB"}
 
 
 def loadBank(path: str | Path, cfg: dict) -> dict:
-    """Load the measured parameters and the movement donors that the command estimate
-    wrote.
-    """
     path = Path(path)
     text = path.with_suffix(".json").read_text()
     meta = json.loads(text)
-    if meta["library"].get("G") is None:  # It is written as null when no C4 gain could be measured.
+    if meta["library"].get("G") is None:
         meta["library"]["G"] = float("nan")
     arrays = np.load(path.with_suffix(".npz"), allow_pickle=True)
     motion = []
@@ -81,8 +78,6 @@ def loadBank(path: str | Path, cfg: dict) -> dict:
         if key not in arrays.files or "validDonor" not in p:
             raise ValueError(f"{path}: bank written before version 1.2.0; run `estimate` again")
         p["residual"] = arrays[key]
-    # This identifies the bank in result files, so that rows made with another bank are
-    # not reused.
     bankId = hashlib.sha256(text.encode()).hexdigest()[:12]
     return {
         "motion": motion,
@@ -90,7 +85,7 @@ def loadBank(path: str | Path, cfg: dict) -> dict:
         "library": meta["library"],
         "source": meta["source"],
         "bankId": bankId,
-        "estimates": meta["estimates"],  # used by the realism checks that split the participants into halves
+        "estimates": meta["estimates"],
     }
 
 
@@ -113,13 +108,6 @@ def makeDataset(
     nParticipants: int | None = None,
     accShift: bool = False,
 ) -> dict:
-    """Generate one replicate and compute its features.
-
-    The argument accShift shifts each accelerometer recording in a circle by a random
-    delay of at least validation.shiftMinS seconds after the data have been generated.
-    This is a negative control: the movement stays real but no longer lines up with the
-    artifacts.
-    """
     rng = np.random.default_rng(seed)
     shiftRng = np.random.default_rng([seed, 1])
     gen = Generator(bank["library"], cfg)
@@ -135,7 +123,6 @@ def makeDataset(
         m = motion[k]
         p = phys[int(perm[k])]
         rec = gen.generate(f"syn{gi:02d}", m, p, cond, rng)
-        # A separate random stream is used, so the EDA and labels are the same as in the unshifted data set.
         if accShift:
             lag = int(shiftRng.integers(int(cfg["validation"]["shiftMinS"] * m["fs"]), rec.acc.shape[0] - 1))
             rec.acc = np.roll(rec.acc, lag, axis=0)
@@ -151,12 +138,6 @@ def makeDataset(
 
 
 def applyLabelNoise(y: np.ndarray, kappaTarget: float, rng: np.random.Generator) -> tuple[np.ndarray, float]:
-    """Flip labels at random in both directions until their agreement with the truth,
-    measured by Cohen's kappa, is about kappaTarget.
-
-    This is the simplest model of imperfect expert labels; it is an assumption, and its
-    effect is reported separately.
-    """
     lo, hi = 0.0, 0.5
     for iteration in range(30):
         f = 0.5 * (lo + hi)
@@ -173,9 +154,6 @@ def applyLabelNoise(y: np.ndarray, kappaTarget: float, rng: np.random.Generator)
 def evaluate(
     ds: dict, cfg: dict, models: tuple = ("logreg",), seed: int = 0, labels: np.ndarray | None = None
 ) -> list[dict]:
-    """Compute the measures for every model and feature set, and the differences between
-    them that form the map.
-    """
     y = ds["y"] if labels is None else labels
     yTrue = ds["y"]
     g = ds["groups"]
@@ -214,9 +192,6 @@ def recordOffsets(records):
 
 
 def lostResponses(records, scores: np.ndarray, thr: float) -> dict:
-    """Return the share of true responses whose peak lies in a window that the detector
-    flags as an artifact.
-    """
     res = {"spontaneous": [], "motion": []}
     for r, off in zip(records, recordOffsets(records), strict=True):
         nw = r.labels.size
@@ -228,9 +203,6 @@ def lostResponses(records, scores: np.ndarray, thr: float) -> dict:
 
 
 def detectedByClass(records, scores: np.ndarray, thr: float) -> dict:
-    """Return, for each class of artifacts, the share of its windows that the detector
-    flags.
-    """
     hits: dict = {}
     for r, off in zip(records, recordOffsets(records), strict=True):
         nw = r.labels.size
@@ -253,15 +225,6 @@ def gridConditions(cfg: dict) -> list[Condition]:
 
 
 def canonicalCondition(cond: Condition, cfg: dict) -> Condition:
-    """Return the cell of the grid that generates the same data, as section 8 of
-    study-description/METHOD.md describes.
-
-    When c = 0, no artifact is tied to movement, so kappa and deltaMax have no effect.
-    In the cells with C5 only, artifacts replace values, so kappa, which scales a size,
-    has no effect. Such cells are computed once, with the first grid value of the
-    parameters that have no effect, and their replicates are reused for the equivalent
-    cells.
-    """
     g = cfg["grid"]
     upd = {}
     if cond.c == 0:
@@ -272,9 +235,6 @@ def canonicalCondition(cond: Condition, cfg: dict) -> Condition:
 
 
 def gridToRun(cfg: dict) -> list[Condition]:
-    """Return the cells of the grid that are actually generated, one for each group of
-    equivalent cells.
-    """
     seen, out = set(), []
     for cond in gridConditions(cfg):
         canon = canonicalCondition(cond, cfg)
@@ -285,9 +245,6 @@ def gridToRun(cfg: dict) -> list[Condition]:
 
 
 def expandGrid(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
-    """Add the rows of the equivalent cells, which are copies of the replicates of their
-    computed cell.
-    """
     parts = [df]
     for cond in gridConditions(cfg):
         canon = canonicalCondition(cond, cfg)
@@ -301,9 +258,6 @@ def expandGrid(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
 
 def variantConditions(cfg: dict) -> list[Condition]:
-    """Return the cells of the variants, which use c equal to 0, 0.5 and 1 with kappa = 1,
-    deltaMax = 1 and piR = 0.
-    """
     v = cfg["variants"]
     base = dict(kappa=1.0, deltaMax=1.0, piR=0.0)
     out = []
@@ -337,16 +291,10 @@ def runCell(bank, cond: Condition, cfg: dict, rep: int, models: tuple, labelNois
 
 
 def requiredReps(sdDelta: float, halfWidth: float, cap: int) -> int:
-    """Return R = ceil((1.96 s / h)^2), kept between 2 and cap, as section 8 of
-    study-description/METHOD.md describes.
-    """
     return int(min(cap, max(2, np.ceil((1.96 * sdDelta / halfWidth) ** 2))))
 
 
 def summarise(df: pd.DataFrame, by: list[str], value: str, rule: dict) -> pd.DataFrame:
-    """Return the mean, the 95 % t-interval and the result of the decision rule for each
-    cell.
-    """
     from scipy import stats
 
     def agg(x):
@@ -368,9 +316,6 @@ def summarise(df: pd.DataFrame, by: list[str], value: str, rule: dict) -> pd.Dat
 
 
 def compatibility(df: pd.DataFrame, observed: float, by: list[str], value: str = "dA4") -> pd.DataFrame:
-    """Check for each cell whether the real gain lies within the middle 95 % of the cell's
-    replicates.
-    """
 
     def f(x):
         lo, hi = np.percentile(x, [2.5, 97.5])
@@ -380,9 +325,6 @@ def compatibility(df: pd.DataFrame, observed: float, by: list[str], value: str =
 
 
 def powerReplicate(bank, cond: Condition, cfg: dict, nPart: int, rep: int, models=("logreg",)) -> dict:
-    """Compute one replicate of the power analysis and report whether the bootstrap
-    interval over participants excludes zero.
-    """
     seed = cfg["seeds"]["power"] * 7919 + nPart * 1009 + rep
     ds = makeDataset(bank, cond, cfg, seed, nParticipants=nPart)
     row = evaluate(ds, cfg, models, seed)[0]
@@ -396,11 +338,6 @@ def powerReplicate(bank, cond: Condition, cfg: dict, nPart: int, rep: int, model
 
 
 def bootstrapPower(bank, cond: Condition, cfg: dict, nPart: int, reps: int, models=("logreg",), nJobs: int = 1) -> dict:
-    """Return the share of replicates whose bootstrap interval of dA4 and dB over
-    participants excludes zero.
-
-    Every replicate has its own random seed, so the result does not depend on nJobs.
-    """
     if nJobs > 1:
         from joblib import Parallel, delayed
 

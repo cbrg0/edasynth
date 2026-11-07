@@ -34,9 +34,6 @@ def testBatemanPeakHeight(tau0, expected):
 
 
 def testResponseCountIsPoisson(toyBank, cfg):
-    """Over a long recording, the number of spontaneous responses lies within the 95 %
-    Poisson interval.
-    """
     gen = Generator(toyBank["library"], cfg)
     m = dict(toyBank["motion"][0])
     n = int(8 * 3600 * 3)
@@ -72,8 +69,8 @@ def testBlockMeanDownsamplesByEight():
 
 def testWindowLabelRules():
     m = np.zeros(80, bool)
-    m[3] = True  # one corrupted sample in window 0
-    m[40:65] = True  # 25 of the 40 samples in window 1
+    m[3] = True
+    m[40:65] = True
     assert list(windowLabels(m, 2, "any")) == [1, 1]
     assert list(windowLabels(m, 2, "majority")) == [0, 1]
 
@@ -141,9 +138,6 @@ def testKappaScalesAmplitudeWithMotionIntensity(toyBank, cfg):
 
 
 def testLevelShiftLabelsOnlyTheTransition(toyBank, cfg):
-    """A shift of level C3 leaves a lasting offset, but only the windows of the change are
-    labelled.
-    """
     gen = Generator(toyBank["library"], cfg)
     rec = gen.generate(
         "x",
@@ -153,7 +147,7 @@ def testLevelShiftLabelsOnlyTheTransition(toyBank, cfg):
         np.random.default_rng(6),
     )
     offset = np.abs(rec.y - rec.y0) >= cfg["generator"]["labelThreshold"]
-    assert offset.mean() > rec.mask.mean()  # The offset stays after the labelled part.
+    assert offset.mean() > rec.mask.mean()
     assert rec.labels.mean() < 0.05
 
 
@@ -163,7 +157,7 @@ def testNoiseIsMadeOfWholeResidualBlocks(toyBank, cfg):
     p["residual"] = np.arange(3 * 40, dtype=float).reshape(3, 40)
     e = gen.noise(p, 130, np.random.default_rng(0))
     assert e.size == 130
-    for k in range(3):  # Every full block is one of the stored blocks, in their order.
+    for k in range(3):
         assert any(np.array_equal(e[40 * k : 40 * k + 40], b) for b in p["residual"])
     p["residual"] = np.zeros((0, 40))
     with pytest.raises(ValueError):
@@ -182,10 +176,9 @@ def testArtifactSizeScalesWithTheLocalLevel(toyBank, cfg):
         heights.append(a.max())
         d, sup = gen.artifactSignal("C3", {"relDelta": -0.1, "w": 0.5}, 30.0, 1.0, n, fs, y0, acc, None, "V1")
         assert d[-1] == pytest.approx(-0.1 * max(level, 0.05))
-    # Averaging down to 8 samples per second lowers a sharp peak slightly.
     assert heights[0] == pytest.approx(0.2, rel=0.1)
     assert heights[1] == pytest.approx(3 * heights[0])
-    assert heights[2] == pytest.approx(0.05 * heights[0])  # a level below the lower limit
+    assert heights[2] == pytest.approx(0.05 * heights[0])
 
 
 def testInvalidPhysiologyDonorsAreNeverUsed(toyBank):
@@ -199,7 +192,7 @@ def testInvalidPhysiologyDonorsAreNeverUsed(toyBank):
         counts = np.bincount(perm, minlength=4)[[0, 1, 3]]
         assert counts.max() - counts.min() <= 1
     perm = assignDonors(toyBank["motion"], toyBank["phys"], np.random.default_rng(3))
-    assert sorted(perm) == [0, 1, 2, 3]  # All donors are valid, so the pairing is a derangement.
+    assert sorted(perm) == [0, 1, 2, 3]
 
 
 def testC4ControlGainGivesTheTargetSize(toyBank, cfg):
@@ -209,7 +202,7 @@ def testC4ControlGainGivesTheTargetSize(toyBank, cfg):
     t = np.arange(n) / fs
     acc = np.column_stack([np.zeros(n), np.zeros(n), np.ones(n)])
     events = []
-    for s in range(80, n - 80, 160):  # identical bursts of an oscillation at 2 Hz
+    for s in range(80, n - 80, 160):
         acc[s : s + 40, 2] += 0.3 * np.sin(2 * np.pi * 2.0 * t[s : s + 40])
         events.append({"onset": s, "end": s + 40, "intensity": 1.0})
     motion = [{"pid": "M", "fs": fs, "acc": acc, "events": events}]
@@ -231,17 +224,16 @@ def testTransplantedEpisodeKeepsItsMeasuredCourse(toyBank, cfg):
         "C1", {"relA": 0.3, "tauR": 0.1, "tauF": 0.1, "trace": trace}, 10.0, 1.0, n, fs, y0, acc, None, "V1"
     )
     assert np.allclose(a[80:86], 2.0 * np.array(trace)) and np.all(a[86:] == 0)
-    # Inside the episode the artifact moves the signal by at least 0.05 microsiemens.
     assert list(np.where(sup)[0]) == [81, 82, 83, 84]
     step = [0.0, -0.1, -0.2, -0.2]
     d, sup = gen.artifactSignal(
         "C3", {"relDelta": -0.2, "w": 0.2, "trace": step}, 10.0, 1.0, n, fs, y0, acc, None, "V1"
     )
-    assert np.allclose(d[84:], -0.4) and not sup[84:].any()  # the lasting offset, which is not labelled
+    assert np.allclose(d[84:], -0.4) and not sup[84:].any()
     deep, sup = gen.artifactSignal(
         "C2", {"relDepth": 0.9, "w": 0.1, "D": 1.0, "trace": [-0.9] * 8}, 10.0, 5.0, n, fs, y0, acc, None, "V1"
     )
-    assert deep.min() == pytest.approx(-cfg["generator"]["rhoMax"] * 2.0)  # The limit holds after the movement scaling.
+    assert deep.min() == pytest.approx(-cfg["generator"]["rhoMax"] * 2.0)
 
 
 def testTonicFollowsTheDonorsOwnLevels(toyBank, cfg):
@@ -252,15 +244,14 @@ def testTonicFollowsTheDonorsOwnLevels(toyBank, cfg):
     m["stage"] = np.array(["relax1"] * (n // 2) + ["physical"] * (n - n // 2), dtype=object)
     p = dict(toyBank["phys"][0], rates={"rest": {"ratePerS": 0.0}, "load": {"ratePerS": 0.0}})
     p["residual"] = np.zeros((4, 40))
-    p["tonic"] = [  # The end levels are 1.0 + 0.002 * 400 = 1.8 and 3.0 - 0.001 * 1000 = 2.0.
+    p["tonic"] = [
         {"s0": 1.0, "b": 0.002, "AS": 0.0, "TT": 60.0, "stageType": "rest", "stage": "relax1", "durationS": 400.0},
         {"s0": 3.0, "b": -0.001, "AS": 0.0, "TT": 60.0, "stageType": "load", "stage": "physical", "durationS": 1000.0},
     ]
     y0, resp = gen.clean(m, p, np.random.default_rng(0), 0.0)
     half = n // 2
     assert y0[0] == pytest.approx(1.0, abs=0.01)
-    assert y0[half - 1] == pytest.approx(1.8, abs=0.01)  # the end of the first stage, whatever its length is here
-    # There is no jump between stages, and the level ends at the donor's level.
+    assert y0[half - 1] == pytest.approx(1.8, abs=0.01)
     assert y0[-1] == pytest.approx(2.0, abs=0.01)
     assert np.max(np.abs(np.diff(y0))) < 0.01
 
@@ -271,12 +262,10 @@ def testLevelShiftsReplaceEachOtherInsteadOfAddingUp(toyBank, cfg):
     y0 = np.full(n, 2.0)
     first = {"i0": 80, "course": np.array([0.0, 0.1, 0.2]), "new": 0.2, "lvl": 2.0}
     second = {"i0": 400, "course": np.array([0.0, -0.05, -0.1]), "new": -0.1, "lvl": 2.0}
-    # The order in which the shifts are inserted does not matter.
     off, sup = gen.contactCourse([second, first], n, y0, "V1")
-    assert off[200] == pytest.approx(0.4)  # 2 microsiemens times 0.2 after the first shift
-    # The second shift replaces the state, so the offset is 2 times -0.1 and not 0.4 - 0.2.
+    assert off[200] == pytest.approx(0.4)
     assert off[-1] == pytest.approx(-0.2)
-    assert not sup[83:400].any() and not sup[403:].any()  # Lasting offsets are not labelled.
+    assert not sup[83:400].any() and not sup[403:].any()
     assert sup[81:83].all() and sup[400:403].any()
 
 
@@ -290,11 +279,6 @@ def testManyLevelShiftsKeepTheSignalInRange(toyBank, cfg):
         Condition(c=0.0, classes=("C3",), prevalence=0.3),
         np.random.default_rng(8),
     )
-    # 30 % of the windows need many shifts. Added up, they would reach several times the
-    # level. With
-    # replacement, the offset stays near +50 % of the level at each shift, a little more
-    # while one shift
-    # blends into the next and where y0 has fallen since.
     assert len(rec.artifacts) > 10
     assert np.max(rec.y / rec.y0) < 2.0
     assert np.max(rec.y) <= cfg["generator"]["saturationLevel"]
@@ -307,5 +291,5 @@ def testVariedResponseShapesKeepTheHeights(toyBank, cfg):
     a, ra = gen.clean(m, p, np.random.default_rng(3), 0.0)
     gen.responseJitter = cfg["validation"]["g2Jitter"]
     b, rb = gen.clean(m, p, np.random.default_rng(3), 0.0)
-    assert len(ra) == len(rb) and not np.allclose(a, b)  # the same responses with different shapes
+    assert len(ra) == len(rb) and not np.allclose(a, b)
     assert abs(a.max() - b.max()) < 0.2 * (a.max() - a.min())

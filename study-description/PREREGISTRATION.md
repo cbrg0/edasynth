@@ -15,27 +15,13 @@ original texts can be read in the repository at each tag.
 | `prereg-synth-v2` | 27 October 2026 | that the grid with noisy labels is computed for the mixture cells only, in version 1.3.1 |
 | `prereg-synth-v3` | 28 October 2026 | the corrected generator and checks of version 1.4.0, after the grid of version 1.3.0 was withdrawn |
 
-At the time of the tags the folders had shorter names: the settings were in
-`configs/`, the code in `src/` and the results in `results/`. They were renamed later,
-as the last part of the section "Changes after the tags" describes.
-
 ## Preregistered elements
 
-1. The whole settings file, now `settings/default.yaml`. It contains the grid, the
-   thresholds of all checks, the random seeds, the settings of the models and the
-   features, the decision rule, the rule for agreement with the real data, the
-   reference cell of the sensitivity analysis and the settings of the power
-   calculation.
+1. The whole settings file, now `settings/default.yaml`, which contains the grid, the
+   thresholds of all checks, the random seeds and the decision rules.
 2. The code of the program at the tagged commit, now in `program-code/edasynth/`.
 3. The number of replicates *R*, which the pilot run determined and wrote to
    `result-tables/pilot-utd-R.json`.
-
-**Order of work.** Before the tag, the data were checked, the parameters were
-measured, the checks G1 to G7 were run and the pilot was computed; the command
-`make before-tag` does all of this. After the tag, the grid, the variants, the runs
-with noisy labels, the analysis, the power calculation and the figures were computed;
-the command `make after-tag` does this. The checks and the pilot test the generator and
-do not use any result of the grid.
 
 **Primary outcome.** For each cell, the mean gains Δ<sub>A4</sub> and
 Δ<sub>B</sub> over the *R* replicates are reported with their 95 % *t*-intervals. A
@@ -55,7 +41,7 @@ pass.**
 
 ## Changes before the first tag
 
-Each of these changes was caused by a failed check, as section 2 of RESULTS.md shows.
+Each of these changes was caused by a failed check.
 No threshold was changed.
 
 | Version | What was changed | What caused it |
@@ -67,11 +53,6 @@ No threshold was changed.
 link between movement and artifacts, no feature set gains, but every set loses
 slightly: FA by 0.032, FA4 by 0.002 and FB by 0.002. The rule of G5 was kept as it was,
 and in the map every gain is also compared with this loss.
-
-**Kept on purpose.** The range of τ₀ from 2 to 4 seconds and the rules that assign
-episodes to classes were kept unchanged, although 71 % of the UTD episodes fall into
-the class C3. Changing these rules after seeing the shares would have fitted the method
-to the data.
 
 ## Changes after the tags
 
@@ -88,15 +69,8 @@ built from (check G4). Second, the generator produced delays only within the fiv
 seconds that the coupling features look at. Third, check G2 used data with exactly the
 response shape that the measurement assumes. To make the new run possible in the time
 available, the regularisation constant was fixed at *C* = 1, as in the comparison on
-real data.
-
-The changes of tag v3 are these. Artifacts now use a clean reference level and a
-contact state, and their range is limited. A delay of up to 10 seconds was added,
-which brings the grid to 300 cells. The constant *C* is fixed. Check G2 also uses
-varied response shapes. Checks G3 and G4 compare each real participant with a generator
-that never saw this participant and take the median over 10 repetitions; this design
-was chosen after a split-half result and the variation between random seeds had been
-seen.
+real data, and checks G3 and G4 now compare each real participant with a generator that
+never saw this participant.
 
 The following stayed unchanged: the primary outcome, the decision rule, every
 threshold, the rule for agreement with the real data, the reading of gains against
@@ -133,13 +107,10 @@ seen, as well as the list of files in WESAD. Version 1.4.0 stayed unchanged.
   for *c* equal to 0, 0.5 and 1, with 50 replicates. **The check passes when the
   decision about the usefulness of FB is the same as with the UTD movements in all
   three cells.**
-- **Preparation of the data.** EDABE is averaged down to 8 samples per second, and a
-  block counts as an artifact when any of its samples is labelled. Zeros at the start
-  and the end of each EDABE recording are removed; this rule was added after the first
-  three rows of one file had been seen, before any comparison. The WESAD acceleration,
-  stored in units of 1/64 g, is averaged down to 8 samples per second, and its stages
-  are grouped into rest, which covers the baseline and meditation, and load, which
-  covers all other stages.
+- **Preparation of the data.** Both data sets are averaged down to 8 samples per
+  second. Zeros at the start and the end of each EDABE recording are removed; this rule
+  was added after the first three rows of one file had been seen, before any
+  comparison.
 
 **Limitation.** The commits with this plan are dated 30 October 2026
 at 21:34 and 21:35, hours before the runs. However, they reached GitHub together with

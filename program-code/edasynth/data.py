@@ -28,20 +28,19 @@ import pandas as pd
 
 from .wfdbio import readAnnotations, readRecord
 
-WIN = 40  # A five-second window contains 40 samples at 8 samples per second.
+WIN = 40
 
 
 @dataclass
 class Recording:
-    """One continuous recording of one person."""
 
     pid: str
     fs: float
     eda: np.ndarray
-    acc: np.ndarray  # an array with one row per sample and the columns x, y and z in units of g
+    acc: np.ndarray
     temp: np.ndarray | None = None
-    stage: np.ndarray | None = None  # the name of the protocol stage for every sample
-    labels3: np.ndarray | None = None  # the labels of the three experts, 0 or 1, with one row per window
+    stage: np.ndarray | None = None
+    labels3: np.ndarray | None = None
     units: dict = field(default_factory=dict)
     meta: dict = field(default_factory=dict)
 
@@ -54,12 +53,6 @@ class Recording:
         return self.n // WIN
 
     def cropped(self, offset: int) -> "Recording":
-        """Return the same recording without its first offset samples; the labels stay
-        unchanged.
-
-        This is used when the alignment check found that the expert windows begin offset
-        samples after the start of the raw recording.
-        """
         if offset <= 0:
             return self
         cut = lambda a: None if a is None else a[offset:]  # noqa: E731
@@ -76,7 +69,6 @@ class Recording:
         )
 
     def majority(self) -> np.ndarray:
-        """Return the label that at least two of the three experts gave each window."""
         if self.labels3 is None:
             raise ValueError("no labels")
         return (self.labels3.sum(axis=1) >= 2).astype(int)
@@ -95,22 +87,10 @@ utdStages = [
 
 
 def stageType(name: str) -> str:
-    """Map a stage of the protocol to one of the two types, rest or load, used when
-    parameters are measured.
-    """
     return "rest" if name.startswith("relax") or name == "rest" else "load"
 
 
 def assignStages(n: int, annotations: list, stages: list[str] = utdStages) -> np.ndarray:
-    """Turn the transition annotations of a recording into a stage name for every sample.
-
-    The PhysioNet page says that the annotation file "indicates the time locations and
-    labels of the transition states", but it does not explain the codes. The function
-    therefore relies on the order of the annotations. When there are as many annotations
-    as stages, they are taken as the starts of the stages. When there is one annotation
-    fewer, they are taken as the boundaries between stages, and the first stage starts
-    at zero. Any other number raises an error, so a mismatch is never accepted silently.
-    """
     t = sorted(a.sample for a in annotations)
     if len(t) == len(stages):
         starts = t
@@ -130,11 +110,6 @@ def assignStages(n: int, annotations: list, stages: list[str] = utdStages) -> np
 
 
 def loadUtdLabels(zhangRoot: str | Path) -> pd.DataFrame:
-    """Load the expert labels of Zhang et al. for UTD, with one row per five-second window.
-
-    The columns are the group from 0 to 19, the number of the window within the
-    participant, the labels of the three experts e1, e2 and e3, and the majority label.
-    """
     root = Path(zhangRoot) / "UTDallas"
     groups = pd.read_csv(root / "UTD_groups.csv", header=None)[0].astype(int).to_numpy()
     all3 = pd.read_csv(root / "UTD_label_All3.csv", header=None).to_numpy().astype(int)
@@ -148,9 +123,6 @@ def loadUtdLabels(zhangRoot: str | Path) -> pd.DataFrame:
 
 
 def loadUtdStoredFeatures(zhangRoot: str | Path) -> tuple[np.ndarray, np.ndarray]:
-    """Load the published feature tables, which are already scaled within each participant:
-    24 EDA features and 96 acceleration features.
-    """
     root = Path(zhangRoot) / "UTDallas"
     eda = pd.read_csv(root / "UTD_eda.csv", header=None).to_numpy(float)
     acc = pd.read_csv(root / "UTD_acc.csv", header=None).to_numpy(float)
@@ -158,12 +130,6 @@ def loadUtdStoredFeatures(zhangRoot: str | Path) -> tuple[np.ndarray, np.ndarray
 
 
 def loadUtdParticipant(noneegRoot: str | Path, subject: int, labels: pd.DataFrame | None = None) -> Recording:
-    """Load the recording Subject{subject}_AccTempEDA, counted from 1, with its stages and,
-    when they are given, its labels.
-
-    The group g in the label files belongs to Subject{g+1}. The module alignment checks
-    this correspondence before the data are used.
-    """
     rec = Path(noneegRoot) / f"Subject{subject}_AccTempEDA"
     sig, hdr = readRecord(rec)
     idx = {name: k for k, name in enumerate(hdr.names)}
@@ -189,7 +155,7 @@ def loadUtdParticipant(noneegRoot: str | Path, subject: int, labels: pd.DataFram
     return r
 
 
-awwFiles = [  # the order used by Zhang et al. in FeatureMatrix_AWW.py: 5 walking days, then 6 resting days
+awwFiles = [
     "2013_04_24_1hour_walk&chat&drink",
     "2013_05_06 - 1hour_walking",
     "2013_05_28_1hour_walking",
@@ -212,13 +178,6 @@ def awwColumns(path: Path) -> list[str]:
 
 
 def loadAww(zhangRoot: str | Path) -> list[Recording]:
-    """Load the 11 AWW recordings with their expert labels.
-
-    The header of the raw files lists the columns as Z-axis, Y-axis, X-axis, Battery,
-    Celsius and EDA(uS), so the axes are taken by their names and not by their
-    positions. The labels are coded as in Zhang et al.: 0, which means not labelled,
-    counts as clean, 1 becomes clean (0) and 2 becomes artifact (1).
-    """
     root = Path(zhangRoot) / "AlanWalksWales" / "Raw"
     out = []
     for name in awwFiles:

@@ -46,9 +46,6 @@ def setup():
 
 
 def zWithin(X: np.ndarray, g: np.ndarray) -> np.ndarray:
-    """Scale each feature within each recording to mean 0 and standard deviation 1;
-    constant features become 0.
-    """
     Z = np.zeros_like(X, dtype=float)
     for k in np.unique(g):
         m = g == k
@@ -58,16 +55,12 @@ def zWithin(X: np.ndarray, g: np.ndarray) -> np.ndarray:
 
 
 def loadEdabe(path: str, deriv: str):
-    """Return the F0 features, the window labels and the recording number of every EDABE
-    window; a window is an artifact when any of its samples is labelled.
-    """
     z = np.load(path)
     names = sorted({k.rsplit("__", 1)[0] for k in z.files})
     X, y, g, info = [], [], [], []
     for k, name in enumerate(names):
         raw = np.asarray(z[name + "__raw"], float)
         lab = np.asarray(z[name + "__label"], int)
-        # Zeros at the start and the end mean that the device was not yet or no longer recording.
         nz = np.flatnonzero(raw != 0)
         if nz.size == 0:
             continue
@@ -147,9 +140,6 @@ def cmdEdabe(args):
 
 
 def wesadMotion(path: str, cfg: dict) -> list[dict]:
-    """Prepare the WESAD wrist recordings as movement donors, for check W1 of the last
-    section of study-description/PREREGISTRATION.md.
-    """
     z = np.load(path)
     subjects = sorted({k.split("__")[0] for k in z.files}, key=lambda s: int(s.lstrip("S")))
     motion = []
@@ -204,7 +194,7 @@ def cmdWesad(args):
     grid = cli.readGrid(res / "grid-metrics-utd.csv", cfg)
     rows, cells = [], []
     part = res / "external-wesad.json"
-    if part.exists():  # When an interrupted run is continued, the cells it already finished are kept.
+    if part.exists():
         prev = json.loads(part.read_text())
         cells = prev.get("cells", [])
         rows = pd.read_csv(res / "external-wesad-replicates.csv").to_dict("records")
@@ -238,7 +228,6 @@ def cmdWesad(args):
         cell["sameDecisionFB"] = cell["dB_wesad"]["useful"] == cell["dB_utd"]["useful"]
         cells.append(cell)
         cli.log(f"WESAD c={c}: {cell}")
-        # This file is kept if a later cell is interrupted.
         pd.DataFrame(rows).to_csv(res / "external-wesad-replicates.csv", index=False)
         (res / "external-wesad.json").write_text(json.dumps({**out, "cells": cells, "partial": True}, indent=1))
     out["cells"] = cells

@@ -19,7 +19,6 @@ import pandas as pd  # noqa: E402
 
 from .config import key  # noqa: E402
 
-# how the gains are written in figures, with subscripts as in the method
 SYMBOL = {"dA": r"$\Delta_{A}$", "dA4": r"$\Delta_{A4}$", "dB": r"$\Delta_{B}$"}
 
 CB = ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#000000"]
@@ -33,14 +32,6 @@ def saveFigure(fig, out: Path, name: str):
 
 
 def f1RealVsSynthetic(real, synth, out: Path, minutes: float = 10.0):
-    """Draw a real and a synthetic recording side by side on the same scale, with EDA,
-    acceleration magnitude and labels.
-
-    The real recording should be the physiology donor of the synthetic participant, so
-    that the EDA levels are comparable; the synthetic movement comes from another
-    person, its movement donor. Each column starts one minute before its first artifact
-    window.
-    """
     fig, ax = plt.subplots(3, 2, figsize=(11, 6), sharex="col", layout="constrained")
     cols = [
         (f"Real ({real.pid})", real.eda, real.acc, real.majority(), real.fs),
@@ -77,7 +68,6 @@ def f1RealVsSynthetic(real, synth, out: Path, minutes: float = 10.0):
 
 
 def f2Classes(examples: dict, fs: float, out: Path):
-    """Add each class of artifacts to the same clean segment."""
     fig, ax = plt.subplots(1, len(examples), figsize=(3 * len(examples), 2.6), sharey=True)
     for a, (cls, (clean, dirty)) in zip(np.atleast_1d(ax), examples.items(), strict=True):
         t = np.arange(clean.size) / fs
@@ -103,12 +93,6 @@ def f3Realism(g3: dict, names: list[str], out: Path):
 
 
 def f4Map(summary: pd.DataFrame, out: Path, reference: dict | None = None):
-    """Draw heat maps of the mean dA4 and dB over c and kappa.
-
-    One file is drawn for each composition of artifacts, named F4-map followed by the
-    composition. Within a file there is one row of panels for each combination of
-    deltaMax and piR. Different compositions are never averaged together.
-    """
     s = summary.reset_index()
     vmax = float(np.nanmax(np.abs(s[["meanDA4", "meanDB"]].to_numpy()))) or 0.01
     for comp, sc in s.groupby("classes"):
@@ -174,9 +158,8 @@ def f6Cost(df: pd.DataFrame, out: Path):
 
 
 def f0Summary(summary: pd.DataFrame, out: Path, observed: float):
-    """Draw the main result: the mean gain over the mixture cells for each value of c."""
     s = summary.reset_index()
-    mix = s[s.classes == max(s.classes.unique(), key=len)]  # The mixture has the longest name among the compositions.
+    mix = s[s.classes == max(s.classes.unique(), key=len)]
     m = mix.groupby("c")[[key("mean", d) for d in ("dA", "dA4", "dB")]].mean()
     fig, ax = plt.subplots(figsize=(6.4, 4.0), layout="constrained")
     names = {"dB": "4 coupling features (FB)", "dA4": "4 movement-strength features (FA4)", "dA": "96 features (FA)"}

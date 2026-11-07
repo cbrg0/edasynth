@@ -32,22 +32,12 @@ from .generator import Condition, Generator, assignDonors
 
 
 def g2ParameterRecovery(bank: dict, cfg: dict, n: int, seed: int) -> dict:
-    """Run check G2 with the response shape that cvxEDA assumes and with varied shapes;
-    both must pass.
-    """
     plain = g2Recovery(bank, cfg, n, seed, None)
     jitter = g2Recovery(bank, cfg, n, seed + 1, cfg["validation"]["g2Jitter"])
     return {**plain, "variedShapes": jitter, "passed": bool(plain["passed"] and jitter["passed"])}
 
 
 def g2Recovery(bank: dict, cfg: dict, n: int, seed: int, jitter) -> dict:
-    """Generate participants without artifacts from known physiology and measure that
-    physiology again.
-
-    With the option jitter, every synthetic response gets its own time constants, so the
-    data no longer have the response shape that the decomposition assumes, as section 7
-    of study-description/METHOD.md describes.
-    """
     v = cfg["validation"]
     rng = np.random.default_rng(seed)
     gen = Generator(bank["library"], cfg)
@@ -101,9 +91,6 @@ def stageTypeAt(rec, t):
 
 
 def classifierTwoSample(Xr, gr, Xs, gs, folds: int = 5) -> dict:
-    """Return the AUC of a classifier that separates real from synthetic windows, tested by
-    cross-validation grouped by participant.
-    """
     X = np.vstack([Xr, Xs])
     y = np.r_[np.zeros(len(Xr)), np.ones(len(Xs))]
     g = np.r_[gr, gs + 10000]
@@ -116,18 +103,6 @@ def classifierTwoSample(Xr, gr, Xs, gs, folds: int = 5) -> dict:
 
 
 def g3G4Realism(real: list[Recording], bank: dict, cfg: dict, seed: int) -> dict:
-    """Run checks G3 and G4 without letting the generator see the real windows it is
-    compared with.
-
-    With the setting validation.realism equal to loso, which is a decision of version
-    1.4.0, one synthetic participant is built for every real participant from the other
-    19 participants only, both their donors and their artifact episodes. The real and
-    synthetic windows of all participants are then pooled in one classifier test. The
-    comparison in which the generator is built from one half of the participants and
-    compared with the other half, in both directions, is reported as well. The setting
-    pooled reproduces the comparison of version 1.3.0, in which the synthetic artifacts
-    came from the same episodes they were compared with.
-    """
     scheme = cfg["validation"].get("realism", "pooled")
     if scheme == "pooled":
         return realismPair(real, bank, cfg, seed)
@@ -153,9 +128,6 @@ def g3G4Realism(real: list[Recording], bank: dict, cfg: dict, seed: int) -> dict
 
 
 def realismLoso(real: list[Recording], bank: dict, cfg: dict, seed: int) -> dict:
-    """Run one realism comparison that leaves each participant out, with one synthetic
-    participant for every real one.
-    """
     deriv = cfg["features"]["derivative"]
     mix = tuple(cfg["grid"]["compositions"][-1])
     parts = {k: [] for k in ("Xr3", "gr3", "Xr4", "gr4", "Xs3", "gs3", "Xs4", "gs4")}
@@ -180,9 +152,6 @@ def realismLoso(real: list[Recording], bank: dict, cfg: dict, seed: int) -> dict
 
 
 def withoutParticipants(bank: dict, drop: set, cfg: dict) -> dict:
-    """Return the bank without some participants, with the library of artifacts rebuilt
-    from the others.
-    """
     from .bank import buildLibrary
 
     keep = [e for e in bank["estimates"] if e["pid"] not in drop]
@@ -195,9 +164,6 @@ def withoutParticipants(bank: dict, drop: set, cfg: dict) -> dict:
 
 
 def realismSplitHalf(real: list[Recording], bank: dict, cfg: dict, seed: int) -> dict:
-    """Build the generator from one half of the participants and compare it with the real
-    windows of the other half, in both directions.
-    """
     pids = sorted(p["pid"] for p in bank["phys"])
     order = np.random.default_rng(seed).permutation(len(pids))
     halves = [{pids[i] for i in order[: len(pids) // 2]}, {pids[i] for i in order[len(pids) // 2 :]}]

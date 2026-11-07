@@ -36,8 +36,7 @@ physical stress (standing and walking on a treadmill), relaxation, cognitive str
 relaxation, emotional stress and relaxation. The file headers give the unit of EDA as
 "NU", which means that no unit is stated. The values are treated as microsiemens (µS),
 because the median values of the participants lie between 0.03 and 7.8, which is
-plausible for this unit. Every channel is checked against the checksum stored in its
-file header. The program reads these files with its modules `data` and `wfdbio`.
+plausible for this unit.
 
 **Expert labels.** Zhang et al. (2017) published artifact labels for these
 recordings in their repository IdeasLabUT, which is used here at commit `7c4bd46`.
@@ -58,8 +57,7 @@ window the mean, the standard deviation, the maximum and the minimum of the EDA 
 the raw signal and correlates them with the same values in the feature table published
 by Zhang et al. A participant is accepted when all four correlations are at least
 0.999; this threshold is a decision of the study. All 20 participants were accepted,
-and no shift between labels and signal was found. This step is done by the module
-`alignment` and the command `align`.
+and no shift between labels and signal was found.
 
 **Independent data.** Two further data sets are used only for the checks described in
 section 4 of RESULTS.md. EDABE (Llanes-Jurado et al., 2023) contains 43 recordings made
@@ -67,15 +65,13 @@ with a Shimmer3 GSR+ device at 128 samples per second, in which every sample is 
 as artifact or clean; it has no acceleration. WESAD (Schmidt et al., 2018) contains
 recordings of 15 participants who wore an Empatica E4 wristband, with EDA at 4 samples
 per second, acceleration at 32 samples per second and the stages of the protocol, but
-without artifact labels. The scripts `edabe_pack.py` and `wesad_pack.py` in the folder
-`data-download-and-external-checks/` prepare these data sets.
+without artifact labels.
 
 ## 3. Parameter estimation
 
-The command `estimate` (module `estimation`) measures how real recordings behave and
-stores the results in a file called the bank, `result-tables/bank-utd.json` together
-with `bank-utd.npz`. When the generator later builds a recording, it draws values from
-this bank. It does not assume a mathematical distribution for them.
+The program measures how real recordings behave and stores the results in a
+collection called the bank; when the generator later builds a recording, it draws
+values from this bank instead of assuming a mathematical distribution for them.
 
 **Clean windows.** A window counts as clean when all three experts marked it as clean
 and both neighbouring windows are clean as well. The margin of one window on each side
@@ -120,10 +116,7 @@ afterwards; this is a decision of the study. The program tries τ₀ in steps of
 and keeps the value at which the optimisation problem reaches its smallest value. Greco
 et al. chose τ₀ by the smallest difference between the model and the signal instead.
 This study departs from them because, on synthetic recordings with a known τ₀, only
-the smallest value of the problem recovered the true τ₀; the program test
-`testTau0SelectionRecoversKnownValue` shows this. When the authors' code, which needs
-the package `cvxopt`, is not installed, a built-in solver (`decompose.numpySolve`) is
-used.
+the smallest value of the problem recovered the true τ₀.
 
 **Responses.** A response is a peak of the fast part that rises at least 0.05 µS above
 its surroundings. This minimum size is the accepted one in the literature (Kleckner et
@@ -183,8 +176,6 @@ a positive control, a case in which the right answer is known in advance. It is 
 claim about how large walking artifacts are in reality.
 
 ## 4. Synthetic data generation
-
-The generator, in the module `generator`, builds synthetic recordings from the bank.
 
 **4.1 Donors.** Each synthetic participant combines the real acceleration and stages of
 one participant, the movement donor, with the measured physiology of another
@@ -253,8 +244,8 @@ when most of it is corrupted. In the fourth, only C4 artifacts appear.
 ## 5. Feature extraction
 
 A detector does not look at the raw signal. It looks at a set of numbers computed for
-each five-second window, called features. The module `features` computes them, with
-the same code for real and synthetic recordings.
+each five-second window, called features, which are computed in the same way for
+real and synthetic recordings.
 
 | Set | What it contains | Source |
 |---|---|---|
@@ -274,8 +265,6 @@ All four use only the current window and the five seconds before it, so a wristb
 could compute them in real time.
 
 ## 6. Detection models and evaluation metrics
-
-The modules `models` and `experiment` train the detectors and measure their quality.
 
 - **The detector** is a logistic regression with L2 regularisation. The features are
   scaled before training, the two classes are weighted so that the rare artifacts
@@ -306,8 +295,7 @@ The modules `models` and `experiment` train the detectors and measure their qual
 
 ## 7. Generator validation
 
-The command `validate` (module `validation`) runs seven checks before the main
-calculations. If a check fails, the generator is corrected; its threshold is never
+Seven checks are run before the main calculations. If a check fails, the generator is corrected; its threshold is never
 changed to make it pass.
 
 | Check | What it tests | When it passes |
@@ -326,8 +314,6 @@ PREREGISTRATION.md, and the gains in the map are therefore also compared with th
 loss.
 
 ## 8. Experimental design and statistical analysis
-
-The commands `pilot`, `grid`, `analyze` and `power` run the experiment.
 
 - **The grid.** The five parameters of section 4.4 give 5 × 2 × 3 × 2 × 5 = 300
   scenarios, also called cells. In some cells a parameter has no effect: κ and
@@ -353,20 +339,3 @@ The commands `pilot`, `grid`, `analyze` and `power` run the experiment.
   quartiles of their mean Δ<sub>B</sub>, 50 laboratory studies with 5, 10, 15 or 20
   participants are simulated. The power is the share of these studies in which the
   bootstrap interval of the gain lies above zero.
-
-## 9. Limitations
-
-- The synthetic results hold under the assumed link and the assumed shapes of
-  artifacts. They do not say how often movement disturbs the electrode in real people.
-- The generator is built from one device, one protocol and 20 people. The checks on
-  two other data sets, described in section 4 of RESULTS.md, support its transfer to
-  other devices but do not prove it.
-- The expert labels partly depend on movement, so they are not an independent truth
-  about the cause of an artifact.
-- Artifact sizes are stored relative to the signal level, which assumes that artifacts
-  grow with the level of the signal.
-- The noise made of remainder blocks keeps its internal correlations only within five
-  seconds.
-- The features published for UTD were scaled within each participant, while the
-  synthetic pipeline scales them over the training set. This difference matters for
-  the comparison with the real data.

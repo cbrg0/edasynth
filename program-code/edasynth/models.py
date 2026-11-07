@@ -71,9 +71,6 @@ def chooseC(X, y, groups, cfg, seed):
 
 
 def losoPredict(X: np.ndarray, y: np.ndarray, groups: np.ndarray, model: str, cfg: dict, seed: int = 0):
-    """Return, for every window, the probability of an artifact predicted by a model that
-    never saw this window's participant.
-    """
     preds = np.zeros(y.size)
     chosen = []
     for tr, te in LeaveOneGroupOut().split(X, y, groups):
@@ -100,9 +97,6 @@ def auroc(y, s) -> float:
 
 
 def thresholdAtSpecificity(y, s, spec: float = 0.95) -> float:
-    """Return the score threshold at which the requested share of clean windows is
-    recognised as clean.
-    """
     neg = np.sort(s[y == 0])
     return float(np.quantile(neg, spec)) if neg.size else float("inf")
 
@@ -114,9 +108,6 @@ def sensitivityAtSpecificity(y, s, spec: float = 0.95) -> float:
 
 
 def bootstrapParticipants(y, sA, sB, groups, nBoot: int, seed: int, metric=auprc):
-    """Return the percentile interval of metric(sB) - metric(sA), obtained by drawing
-    participants at random with replacement.
-    """
     rng = np.random.default_rng(seed)
     ug = np.unique(groups)
     idxByG = {g: np.where(groups == g)[0] for g in ug}

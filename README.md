@@ -68,7 +68,7 @@ obtained. All numbers and their limits are in [study-description/RESULTS.md](stu
 | `study-description/METHOD.md` | The method step by step, with the source of every number. |
 | `study-description/RESULTS.md` | All results, and what they do not show. |
 | `study-description/PREREGISTRATION.md` | The rules fixed before the results, and every later change with its reason. |
-| `study-description/REFERENCES.md` | The literature, with what each source is used for. |
+| `study-description/REFERENCES.md` | The literature. |
 | `study-description/README-RU.md` | This page in Russian. |
 | `result-figures/` | The figures of the study. |
 | `result-tables/` | The tables with all results, from which the program draws the figures. |
@@ -77,8 +77,7 @@ obtained. All numbers and their limits are in [study-description/RESULTS.md](stu
 | `program-tests/` | Automatic tests that check the program. |
 | `data-download-and-external-checks/` | Programs that download the data and run the checks on EDABE and WESAD. |
 | `settings/` | The settings file, which contains every number that can change a result. |
-| `downloaded-data/` | The downloaded data are placed here; the description in this folder says where they come from. |
-| other files in the main folder | Technical files needed for installing the program, citing it and stating its licence. |
+| `downloaded-data/` | The folder into which the program downloads the public data. |
 
 ## Reproducing the results
 

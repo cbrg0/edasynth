@@ -54,9 +54,6 @@ def compare(X0, X1, y, g, cfg, model="logreg", seed=0) -> dict:
 
 
 def shuffledControl(xEda, xAcc, y, g, cfg, nShuffles: int, seed: int) -> dict:
-    """Shuffle the rows of acceleration features within each participant, so that they no
-    longer belong to their windows.
-    """
     rng = np.random.default_rng(seed)
     p0, unused = losoPredict(xEda, y, g, "logreg", cfg, seed)
     base = auprc(y, p0)
@@ -72,7 +69,4 @@ def shuffledControl(xEda, xAcc, y, g, cfg, nShuffles: int, seed: int) -> dict:
 
 
 def singleFeatureAuprc(X, y) -> list[float]:
-    """Return the AUPRC of each feature used alone as a score, where a larger value means
-    more like an artifact.
-    """
     return [auprc(y, X[:, k]) for k in range(X.shape[1])]

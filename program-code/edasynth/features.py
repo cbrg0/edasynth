@@ -36,19 +36,10 @@ fbNames = ["B1Lagcorr", "B2LagS", "B3Cooccur", "B4Coherence"]
 
 
 def stats4(x: np.ndarray) -> np.ndarray:
-    """Return the mean, the population standard deviation, the maximum and the minimum
-    along the last axis.
-    """
     return np.stack([x.mean(-1), x.std(-1), x.max(-1), x.min(-1)], axis=-1)
 
 
 def derivatives(w: np.ndarray, mode: str = "central") -> tuple[np.ndarray, np.ndarray]:
-    """Return the first and second differences along the last axis.
-
-    The option central computes (x[n+1] - x[n-1]) / 2, as in the published script of
-    Zhang et al. The option forward computes x[n+1] - x[n], which reproduces their
-    stored feature tables.
-    """
     if mode == "central":
         d1 = (w[..., 2:] - w[..., :-2]) / 2.0
     elif mode == "forward":
@@ -60,13 +51,6 @@ def derivatives(w: np.ndarray, mode: str = "central") -> tuple[np.ndarray, np.nd
 
 
 def haarDetails(w: np.ndarray, levels: int = 3) -> list[np.ndarray]:
-    """Return the Haar detail coefficients cD1, cD2 and cD3 along the last axis.
-
-    The sign follows PyWavelets, cD[k] = (x[2k] - x[2k+1]) / sqrt(2). For a window of 40
-    samples every level has an even length of 40, 20 and 10, so no extension at the
-    borders is needed, and the result equals pywt.wavedec(w, 'haar', level=3) exactly;
-    the tests check this when PyWavelets is installed.
-    """
     out = []
     a = np.asarray(w, dtype=float)
     for iteration in range(levels):
@@ -79,7 +63,6 @@ def haarDetails(w: np.ndarray, levels: int = 3) -> list[np.ndarray]:
 
 
 def windows(x: np.ndarray, win: int = WIN) -> np.ndarray:
-    """Reshape a signal, or an array with several columns, into one row per window."""
     nw = x.shape[0] // win
     return x[: nw * win].reshape(nw, win, *x.shape[1:])
 
@@ -91,14 +74,10 @@ def block24(w: np.ndarray, deriv: str) -> np.ndarray:
 
 
 def f0(eda: np.ndarray, deriv: str = "central") -> np.ndarray:
-    """Return the 24 EDA features of every window, as an array with one row per window and
-    24 columns.
-    """
     return block24(windows(eda), deriv)
 
 
 def fa(acc: np.ndarray, deriv: str = "central") -> np.ndarray:
-    """Return the 96 accelerometer features of every window, in the order of Zhang et al."""
     mag = np.sqrt((acc**2).sum(1))
     chans = [windows(mag), windows(acc[:, 0]), windows(acc[:, 1]), windows(acc[:, 2])]
     statPart, wavePart = [], []
@@ -111,14 +90,10 @@ def fa(acc: np.ndarray, deriv: str = "central") -> np.ndarray:
 
 
 def fa4(acc: np.ndarray) -> np.ndarray:
-    """Return the mean, the standard deviation, the maximum and the minimum of the
-    acceleration magnitude in every window.
-    """
     return stats4(windows(np.sqrt((acc**2).sum(1))))
 
 
 def jerk(acc: np.ndarray, fs: float) -> np.ndarray:
-    """Return the jerk j[n] = fs * ||a[n] - a[n-1]|| in g per second, with j[0] = 0."""
     j = np.zeros(acc.shape[0])
     j[1:] = fs * np.sqrt((np.diff(acc, axis=0) ** 2).sum(1))
     return j
@@ -136,23 +111,6 @@ def fb(
     cohBand: tuple[float, float] = (0.5, 3.0),
     cohSegS: float = 2.5,
 ) -> np.ndarray:
-    """Return the four coupling features of every window, as an array with one row per
-    window and 4 columns.
-
-    B1 is the largest correlation between the jerk j[n - lag] and the speed of EDA
-    change v[n] = fs * |y[n] - y[n-1]| within the window, over delays from 0 to L. B2 is
-    the delay at which B1 is reached, in seconds. B3 multiplies two ratios: the largest
-    v in the window divided by (the median v over 60 seconds plus qEda*fs), and the
-    largest j in the context divided by (the median j over 60 seconds plus qAcc*fs). The
-    medians are taken over the 60 seconds before the window, or over the window itself
-    when there is nothing before it. B4 is the mean magnitude-squared coherence of the
-    acceleration magnitude and y in the band cohBand. It is computed over the context,
-    which is the five seconds before the window together with the window, by Welch's
-    method with segments of 2.5 seconds that overlap by half.
-
-    The quantisation terms keep the ratios finite on flat, quantised signals. B4 is set
-    to 0 where a signal is constant, because the coherence is then undefined.
-    """
     n = eda.size
     nw = n // WIN
     v = np.zeros(n)
@@ -167,7 +125,6 @@ def fb(
     for i in range(nw):
         s, e = i * WIN, (i + 1) * WIN
         vw = v[s:e]
-        # B1 and B2: a correlation over delays that uses only the past or current jerk
         best, bestLag = 0.0, 0
         if vw.std() > 0:
             for ell in range(0, min(lag, s) + 1):
@@ -178,21 +135,17 @@ def fb(
                         best, bestLag = r, ell
         out[i, 0] = best
         out[i, 1] = bestLag / fs
-        # B3: unusually fast EDA change times unusually strong jerk
         ps = max(0, s - med)
         pastV = v[ps:s] if s > ps else vw
         cs = max(0, s - ctx)
         pastJ = j[ps:s] if s > ps else j[cs:e]
         out[i, 2] = (vw.max() / (np.median(pastV) + qEda * fs)) * (j[cs:e].max() / (np.median(pastJ) + qAcc * fs))
-        # B4: coherence between the acceleration magnitude and the EDA
         xa, ya = mag[cs:e], eda[cs:e]
         if xa.std() > 0 and ya.std() > 0:
             with np.errstate(invalid="ignore", divide="ignore"):
                 f, cxy = coherence(xa, ya, fs=fs, nperseg=seg, noverlap=seg // 2)
             band = (f >= cohBand[0]) & (f <= cohBand[1])
             vals = cxy[band][np.isfinite(cxy[band])]
-            # A constant segment has no spectrum, so the coherence is undefined and is
-            # set to 0.
             out[i, 3] = float(vals.mean()) if vals.size else 0.0
     return out
 
@@ -206,7 +159,6 @@ def featureMatrix(
     deriv: str = "central",
     fbKwargs: dict | None = None,
 ) -> dict[str, np.ndarray]:
-    """Compute all feature sets for one recording."""
     return {
         "F0": f0(eda, deriv),
         "FA": fa(acc, deriv),

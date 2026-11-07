@@ -15,7 +15,7 @@ with zipfile.ZipFile("WESAD.zip") as z:
     names = sorted(n for n in z.namelist() if n.endswith(".pkl"))
     for n in names:
         with z.open(n) as f:
-            d = pickle.load(f, encoding="latin1")  # noqa: S301 - these are the published WESAD files
+            d = pickle.load(f, encoding="latin1")  # noqa: S301
         s = d["subject"]
         w = d["signal"]["wrist"]
         out[f"{s}__acc"] = np.asarray(w["ACC"], np.float32)

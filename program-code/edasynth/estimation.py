@@ -30,13 +30,6 @@ from .features import haarDetails, jerk, windows
 
 
 def cleanWindows(rec: Recording) -> np.ndarray:
-    """Return the windows that all three experts called clean and whose two neighbours they
-    also called clean.
-
-    The margin of one window on each side corresponds to the five-second transition zone
-    of Kleckner et al. (2018), because labelling errors gather at the borders of
-    artifacts.
-    """
     unanClean = rec.labels3.sum(1) == 0
     ok = unanClean.copy()
     ok[1:] &= unanClean[:-1]
@@ -51,19 +44,10 @@ def windowMaskToSamples(mask: np.ndarray, n: int) -> np.ndarray:
 
 
 def windowStage(rec: Recording) -> np.ndarray:
-    """Return the stage of each window, which is the stage of its first sample."""
     return rec.stage[: rec.nWindows * WIN : WIN]
 
 
 def noiseSigma(rec: Recording, clean: np.ndarray, withSource: bool = False):
-    """Estimate the noise as sigma = median(|d1|) / 0.6745 over clean rest windows (Donoho
-    & Johnstone, 1994).
-
-    A recording without any clean rest window, such as an AWW walking day, uses all
-    clean windows instead, and the source is returned so that the bank records it.
-    Windows with movement may contain fast physiological or mechanical changes, so this
-    fallback can overestimate sigma.
-    """
     st = windowStage(rec)
     sel = clean & np.array([stageType(s) == "rest" for s in st])
     source = "cleanRest"
@@ -79,15 +63,6 @@ def noiseSigma(rec: Recording, clean: np.ndarray, withSource: bool = False):
 
 
 def residualBlocks(rec: Recording, residual: np.ndarray, clean: np.ndarray, blockS: float) -> dict:
-    """Return blocks of the remainder of the decomposition, which the generator uses as
-    noise, as section 3 of study-description/METHOD.md describes.
-
-    The remainder is the recorded signal minus the slow and the fast part found by
-    cvxEDA. It is cut into blocks of blockS seconds inside clean rest windows, or inside
-    all clean windows when there is no clean rest window, as for the noise level. Each
-    block is shifted to a mean of zero, so that joining blocks in the generator creates
-    no steps.
-    """
     st = windowStage(rec)
     sel = clean & np.array([stageType(s) == "rest" for s in st])
     source = "cleanRest"
@@ -105,26 +80,12 @@ def residualBlocks(rec: Recording, residual: np.ndarray, clean: np.ndarray, bloc
 
 
 def donorLevelCheck(eda: np.ndarray, cfg: dict) -> dict:
-    """Decide whether a recording can serve as a physiology donor, as section 4.1 of
-    study-description/METHOD.md describes.
-
-    Kleckner et al. (2018, rule 1) treat EDA below 0.05 uS as invalid. A recording with
-    more than maxShareBelow of its samples below that level is not used as a physiology
-    donor; this is a decision of the study. It can still serve as a movement donor.
-    """
     c = cfg["estimation"]["donor"]
     share = float(np.mean(eda < c["minLevel"]))
     return {"shareBelowMinLevel": share, "validDonor": bool(share <= c["maxShareBelow"])}
 
 
 def quantisationStep(x: np.ndarray, decimals: int = 9, minShare: float = 0.01) -> float:
-    """Return the quantisation step of a recorded signal, which is the smallest change the
-    device can record.
-
-    The step is the smallest non-zero difference between neighbouring samples that makes
-    up at least minShare of all non-zero differences, so that rare tiny values caused by
-    rounding are ignored.
-    """
     d = np.round(np.abs(np.diff(x)), decimals)
     d = d[d > 0]
     if d.size == 0:
@@ -135,18 +96,6 @@ def quantisationStep(x: np.ndarray, decimals: int = 9, minShare: float = 0.01) -
 
 
 def decomposeParticipant(rec: Recording, clean: np.ndarray, cfg: dict) -> dict:
-    """Scale the whole recording to mean 0 and standard deviation 1, decompose it with each
-    value of tau0 on the grid, and keep the best decomposition.
-
-    The value of tau0 is the one with the smallest value of the cvxEDA objective, which
-    adds the fit and the penalties for sparsity and smoothness, over the whole
-    recording; this is a decision of the study. The size of the remainder alone was
-    tried first and rejected, because it hardly changes with tau0 and pointed to the
-    wrong end of the grid on synthetic recordings with a known tau0, as the test
-    testTau0SelectionRecoversKnownValue in program-tests/testEstimation.py shows. The
-    size of the remainder on clean samples is still stored for reference. The result is
-    scaled back to the units of the signal.
-    """
     c = cfg["estimation"]["cvxeda"]
     y = rec.eda.astype(float)
     mu, sd = float(y.mean()), float(y.std())
@@ -187,19 +136,6 @@ def decomposeParticipant(rec: Recording, clean: np.ndarray, cfg: dict) -> dict:
 
 
 def scrEvents(r: np.ndarray, fs: float, tau0: float, tau1: float, minAmp: float) -> list[dict]:
-    """Find the responses as peaks of the fast part r that rise at least minAmp above their
-    surroundings.
-
-    The height A of a response is the prominence of its peak, which is the rise above
-    the deepest point between the peak and the neighbouring higher peaks. The onset is
-    the latest lowest sample in the five seconds before the peak. The area that gives
-    the same height in the generator is a = A / hMax(tau0).
-
-    Counting runs of a non-zero driver p was tried first and rejected. On noisy,
-    quantised recordings the cvxEDA driver is non-zero at most samples, so its runs
-    split into many false responses, between 14 and 95 per minute on the AWW development
-    data. Peaks of r gave between 1.7 and 2.5 per minute on the AWW resting days.
-    """
     from scipy.signal import find_peaks
 
     pk, prop = find_peaks(r, prominence=minAmp)
@@ -209,15 +145,12 @@ def scrEvents(r: np.ndarray, fs: float, tau0: float, tau1: float, minAmp: float)
     for k, A in zip(pk, prop["prominences"], strict=True):
         s0 = max(0, k - back)
         seg = r[s0 : k + 1]
-        onset = s0 + seg.size - 1 - int(np.argmin(seg[::-1]))  # the latest minimum before the peak
+        onset = s0 + seg.size - 1 - int(np.argmin(seg[::-1]))
         events.append({"onset": int(onset), "peak": int(k), "area": float(A / hm), "amp": float(A)})
     return events
 
 
 def eventsToPhasic(events: list[dict], n: int, fs: float, tau0: float, tau1: float) -> np.ndarray:
-    """Return the sum of the Bateman responses of all detected responses, each one its size
-    times h(t - onset), in the units of the signal.
-    """
     from scipy.signal import fftconvolve
 
     from .decompose import bateman
@@ -230,9 +163,6 @@ def eventsToPhasic(events: list[dict], n: int, fs: float, tau0: float, tau1: flo
 
 
 def responseRates(rec: Recording, events: list[dict], clean: np.ndarray) -> dict:
-    """Estimate the Poisson rate of responses for each type of stage as their number K
-    divided by the clean duration T.
-    """
     st = windowStage(rec)
     out = {}
     for g in ("rest", "load"):
@@ -245,11 +175,6 @@ def responseRates(rec: Recording, events: list[dict], clean: np.ndarray) -> dict
 
 
 def fitTonic(t: np.ndarray, fs: float, periodGrid: np.ndarray) -> dict:
-    """Fit the curve s0 + b*tau + AS sin(2 pi tau / T + phi) by least squares.
-
-    This form, a slow trend with one slow oscillation, is a decision of the study. A
-    published source for the sine term has not been verified.
-    """
     tau = np.arange(t.size) / fs
     best = None
     for T in periodGrid:
@@ -279,7 +204,7 @@ def tonicByStage(rec: Recording, t: np.ndarray, cfg: dict) -> list[dict]:
     ends = np.r_[starts[1:], rec.n]
     for s, e in zip(starts, ends, strict=True):
         if (e - s) / rec.fs < 2 * c["periodMaxS"]:
-            continue  # The stage is too short to identify an oscillation with a period of 45 to 90 seconds.
+            continue
         fit = fitTonic(t[s:e], rec.fs, grid)
         fit.update(stage=str(names[s]), stageType=stageType(str(names[s])), durationS=(e - s) / rec.fs)
         out.append(fit)
@@ -287,13 +212,6 @@ def tonicByStage(rec: Recording, t: np.ndarray, cfg: dict) -> list[dict]:
 
 
 def artifactEpisodes(rec: Recording, sigma: float, cfg: dict) -> list[dict]:
-    """Measure every run of artifact windows marked by the majority of experts, and assign
-    it to a class.
-
-    The local baseline is a straight line between the medians of the two seconds before
-    and after the episode. The rules for the classes are written in the settings, in the
-    section estimation.episodes, and were fixed before the data were inspected.
-    """
     c = cfg["estimation"]["episodes"]
     maj = rec.majority()
     y = rec.eda
@@ -343,12 +261,6 @@ def artifactEpisodes(rec: Recording, sigma: float, cfg: dict) -> list[dict]:
             "pn": pn,
             "shift": float(shift),
             "stage": str(rec.stage[s]) if rec.stage is not None else "",
-            # The measured course of the episode relative to the level before it is the
-            # shape that the
-            # generator later uses for the artifact. It is the deviation from the
-            # baseline or, for a
-            # shift of level, the change from the level before (section 3 of
-            # study-description/METHOD.md).
             "traceDev": [float(v) for v in dev / lvl],
             "traceStep": [float(v) for v in (y[s:e] - b0) / lvl],
         }
@@ -358,9 +270,6 @@ def artifactEpisodes(rec: Recording, sigma: float, cfg: dict) -> list[dict]:
 
 
 def classifyEpisode(ep: dict, seg: np.ndarray, sigma: float, c: dict) -> str:
-    """Assign an episode to a class by the rules fixed in advance in the settings, section
-    estimation.episodes, applied in their order.
-    """
     flat = np.diff(seg) == 0
     run = longestRun(flat) / 8.0
     if (seg.min() <= c["dropoutLevel"] or seg.max() >= c["saturationLevel"]) or (
@@ -385,15 +294,6 @@ def longestRun(mask: np.ndarray) -> int:
 
 
 def templateParameters(ep: dict, levelFloor: float) -> dict:
-    """Convert the measurements of the episodes into the parameters of the generator's
-    templates.
-
-    For edges that rise linearly, the time from 10 % to 90 % is 0.8 of the whole edge
-    time. Sizes are stored relative to the level before the episode, max(level,
-    levelFloor), which is a decision of the study described in section 3 of
-    study-description/METHOD.md. The generator multiplies them by the local level of the
-    synthetic signal.
-    """
     tr = max(ep["riseS"] / 0.8, 1 / 64)
     tf = max(ep["returnS"] / 0.8, 1 / 64)
     cls = ep["cls"]
@@ -416,15 +316,6 @@ def templateParameters(ep: dict, levelFloor: float) -> dict:
 
 
 def motionEvents(rec: Recording, cfg: dict) -> tuple[list[dict], float]:
-    """Find the movement events, in which the jerk exceeds the participant's own percentile
-    at rest.
-
-    Runs in which the jerk j stays above the threshold theta for at least minLen samples
-    are kept first, and kept runs closer than mergeS seconds are then joined. Joining
-    isolated single samples first would create false events. The function returns the
-    events, each with its start, end and intensity, which is the largest jerk, together
-    with theta.
-    """
     c = cfg["estimation"]["motion"]
     j = jerk(rec.acc, rec.fs)
     rest = np.array([stageType(str(s)) == "rest" for s in rec.stage])
@@ -437,7 +328,7 @@ def motionEvents(rec: Recording, cfg: dict) -> tuple[list[dict], float]:
             s = k
             while k < above.size and above[k]:
                 k += 1
-            if k - s >= c["minLen"]:  # The rule on length applies to the raw runs, before they are joined.
+            if k - s >= c["minLen"]:
                 runs.append([s, k])
         else:
             k += 1
@@ -453,9 +344,6 @@ def motionEvents(rec: Recording, cfg: dict) -> tuple[list[dict], float]:
 
 
 def utdReferencePoint(episodes: list[dict], events: list[dict], fs: float, cfg: dict) -> dict:
-    """Describe how the UTD labels relate to movement; this describes the labels and not
-    the reality behind them.
-    """
     lo, hi = cfg["estimation"]["reference"]["windowS"]
     onE = np.array([e["onset"] for e in events]) / fs
     delays, linked = [], 0
@@ -482,9 +370,6 @@ def utdReferencePoint(episodes: list[dict], events: list[dict], fs: float, cfg: 
 
 
 def walkingGain(rec: Recording, cfg: dict) -> dict:
-    """Regress the fast part of EDA on the fast part of the acceleration magnitude in
-    walking windows, for class C4.
-    """
     c = cfg["estimation"]["c4"]
     k = int(round(c["smoothS"] * rec.fs))
     kern = np.ones(k) / k
@@ -501,27 +386,11 @@ def walkingGain(rec: Recording, cfg: dict) -> dict:
 
 
 def cleanEvents(events: list[dict], clean: np.ndarray) -> list[dict]:
-    """Return the responses whose onset and peak both lie in clean windows, as section 3 of
-    study-description/METHOD.md describes.
-
-    Only these responses give response sizes. A peak inside an artifact window can be
-    the artifact itself: on UTD, in version 1.1.2, 25 of 1 092 detected heights were
-    larger than the whole range of the participant's recording.
-    """
     last = clean.size - 1
     return [e for e in events if clean[min(e["onset"] // WIN, last)] and clean[min(e["peak"] // WIN, last)]]
 
 
 def plausibilityWarnings(rates: dict, dec: dict, cfg: dict, amps=(), signalRange: float = float("inf")) -> list[str]:
-    """Return warnings for values outside the commonly reported ranges. These warnings do
-    not stop the program.
-
-    A response rate above maxRatePerMin suggests that the driver is absorbing artifacts
-    or noise. This limit is a decision of the study and was set well above the few
-    responses per minute usually described at rest; the exact range in the literature
-    has not yet been verified. A value of tau0 at the edge of its grid means that the
-    best value may lie outside the grid.
-    """
     c = cfg["estimation"].get("plausibility", {"maxRatePerMin": 10.0})
     w = []
     for g, v in rates.items():
@@ -538,9 +407,6 @@ def plausibilityWarnings(rates: dict, dec: dict, cfg: dict, amps=(), signalRange
 
 
 def estimateParticipant(rec: Recording, cfg: dict) -> dict:
-    """Run all measurements of section 3 of study-description/METHOD.md for one labelled
-    recording.
-    """
     clean = cleanWindows(rec)
     sigma, sigmaSource = noiseSigma(rec, clean, withSource=True)
     if not np.isfinite(sigma):
@@ -552,23 +418,10 @@ def estimateParticipant(rec: Recording, cfg: dict) -> dict:
     ev = scrEvents(dec["r"], rec.fs, dec["tau0"], c["cvxeda"]["tau1"], c["minResponseAmp"])
     rates = responseRates(rec, ev, clean)
     sized = cleanEvents(ev, clean)
-    # If no response is fully clean, the rule for the rate, a clean onset, is used, so that the
-    # generator can still draw sizes.
     if not sized:
         sized = [e for e in ev if clean[min(e["onset"] // WIN, clean.size - 1)]] or ev
-    # The generator rebuilds the signal as the slow level plus the detected responses.
-    # The fast part
-    # of cvxEDA also contains activity below the response threshold, so its slow part
-    # alone lies too
-    # low, on AWW by several microsiemens. The level the generator needs is therefore
-    # the signal
-    # without the detected responses, t + r - rEvents.
     rEv = eventsToPhasic(ev, rec.n, rec.fs, dec["tau0"], c["cvxeda"]["tau1"])
     tonic = tonicByStage(rec, dec["t"] + dec["r"] - rEv, cfg)
-    # The lower limit of the noise for classifying episodes: the measured sigma can be 0
-    # when the noise
-    # is smaller than the quantisation step, and rounding alone has a standard deviation
-    # of q / sqrt(12).
     eps = artifactEpisodes(rec, max(sigma, q / np.sqrt(12.0)), cfg)
     resid = residualBlocks(rec, rec.eda - dec["t"] - dec["r"], clean, c["noise"]["blockS"])
     mev, theta = motionEvents(rec, cfg)

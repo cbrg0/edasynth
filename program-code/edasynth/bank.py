@@ -36,14 +36,6 @@ physKeys = (
 
 
 def buildLibrary(estimates: list[dict], cfg: dict, log=None) -> dict:
-    """Build the artifact templates, the shares of the artifact classes and the walking
-    gain from the measurements of all participants.
-
-    Episodes that start below the lowest valid EDA level (rule 1 of Kleckner et al.,
-    2018) have no meaningful size relative to the level, so they are left out of the
-    templates and of the shares. The realism checks also call this function with half of
-    the participants, as section 7 of study-description/METHOD.md describes.
-    """
     floor = cfg["estimation"]["episodes"]["levelFloor"]
     allEpisodes = [ep for e in estimates for ep in e["episodes"]]
     episodes = [ep for ep in allEpisodes if ep["level"] >= floor]
@@ -66,7 +58,7 @@ def buildLibrary(estimates: list[dict], cfg: dict, log=None) -> dict:
 def gitCommit() -> str:
     try:
         return subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
-    except Exception:  # noqa: BLE001 - recording the program version is helpful but not essential
+    except Exception:  # noqa: BLE001
         return "unknown"
 
 
@@ -84,7 +76,7 @@ def buildBank(recordings: list[Recording], cfg: dict, source: str, out: str | Pa
 
         estimates = Parallel(n_jobs=nJobs)(delayed(estimateParticipant)(rec, cfg) for rec in recordings)
     arrays = {}
-    for e in estimates:  # The noise blocks are stored in the .npz file and not in the JSON file.
+    for e in estimates:
         arrays[f"resid{e['pid']}"] = np.asarray(e.pop("residual"), float)
     library = buildLibrary(estimates, cfg, log)
     phys = [{k: e[k] for k in physKeys} for e in estimates]
@@ -119,9 +111,6 @@ def buildBank(recordings: list[Recording], cfg: dict, source: str, out: str | Pa
 
 
 def toJson(obj) -> str:
-    """Write JSON in which missing or infinite numbers become null, because standard JSON
-    has no NaN.
-    """
     import math
 
     def clean(o):

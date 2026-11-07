@@ -18,7 +18,7 @@ def testLosoPredictionsIgnoreTheTestParticipantsLabels(cfg):
     y = (X[:, 0] + 0.5 * rng.standard_normal(600) > 1).astype(int)
     p1, unused = losoPredict(X, y, g, "logreg", cfg)
     y2 = y.copy()
-    y2[g == 2] = 1 - y2[g == 2]  # Only the labels of participant 2 change.
+    y2[g == 2] = 1 - y2[g == 2]
     p2, unused = losoPredict(X, y2, g, "logreg", cfg)
     assert np.allclose(p1[g == 2], p2[g == 2])
     assert not np.allclose(p1[g != 2], p2[g != 2])
@@ -72,10 +72,6 @@ def testNumpyAndReferenceBackendsReachTheSameObjective():
 @needsZhang
 @pytest.mark.slow
 def testReproducesPublishedFeatureBaseline(cfg):
-    """Reproduce the published comparison on the stored features: AUPRC 0.449 with EDA only
-    and 0.475 with the acceleration magnitude added, by logistic regression leaving one
-    participant out.
-    """
     from edasynth.config import merge
     from edasynth.data import loadUtdLabels, loadUtdStoredFeatures
     from edasynth.realdata import compare

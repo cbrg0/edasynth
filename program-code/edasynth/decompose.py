@@ -22,30 +22,20 @@ from scipy.signal import lfilter
 
 
 def bateman(t: np.ndarray, tau0: float, tau1: float = 0.7) -> np.ndarray:
-    """Return the Bateman function h(t) = (exp(-t/tau0) - exp(-t/tau1)) for t >= 0 and zero
-    before, as in equation 4 of Greco et al. (2016).
-    """
     t = np.asarray(t, dtype=float)
-    tp = np.maximum(t, 0.0)  # This prevents exp(-t/tau) from overflowing for negative t.
+    tp = np.maximum(t, 0.0)
     return np.where(t >= 0, np.exp(-tp / tau0) - np.exp(-tp / tau1), 0.0)
 
 
 def tPeak(tau0: float, tau1: float = 0.7) -> float:
-    """Return the time at which the Bateman function reaches its maximum, ln(tau0/tau1)
-    tau0 tau1 / (tau0 - tau1).
-    """
     return float(np.log(tau0 / tau1) * tau0 * tau1 / (tau0 - tau1))
 
 
 def hMax(tau0: float, tau1: float = 0.7) -> float:
-    """Return the height of the Bateman function at its maximum."""
     return float(bateman(np.array([tPeak(tau0, tau1)]), tau0, tau1)[0])
 
 
 def armaCoefficients(delta: float, tau0: float, tau1: float) -> np.ndarray:
-    """Return the denominator of the Bateman filter after the bilinear transform, as in
-    equations 5 to 7 of the paper.
-    """
     a1 = 1.0 / min(tau1, tau0)
     a0 = 1.0 / max(tau1, tau0)
     return np.array(
@@ -58,11 +48,6 @@ def armaCoefficients(delta: float, tau0: float, tau1: float) -> np.ndarray:
 
 
 def splineBasis(n: int, delta: float, knotS: float = 10.0) -> sparse.csc_matrix:
-    """Return the columns of a smooth cubic curve with joints every knotS seconds.
-
-    Each cubic piece is obtained by convolving two triangles whose half-width equals the
-    distance between joints. The columns are centred on the joints 0, k, 2k and so on.
-    """
     k = int(round(knotS / delta))
     knots = np.arange(0, n + k // 2, k)
     tri = np.concatenate((np.arange(1.0, k), np.arange(k, 0.0, -1.0)))
@@ -82,7 +67,6 @@ def splineBasis(n: int, delta: float, knotS: float = 10.0) -> sparse.csc_matrix:
 
 
 class Phasic:
-    """Apply K p = M A^-1 p and its transpose by recursive filtering."""
 
     def __init__(self, ar: np.ndarray):
         self.ar = ar
@@ -94,7 +78,7 @@ class Phasic:
     def __call__(self, p: np.ndarray) -> np.ndarray:
         return lfilter(self.ma, [1.0], self.q(p))
 
-    def T(self, r: np.ndarray) -> np.ndarray:  # noqa: N802 - the name stands for the transposed operator
+    def T(self, r: np.ndarray) -> np.ndarray:  # noqa: N802
         z = lfilter(self.ma, [1.0], r[::-1])
         return lfilter([1.0], self.ar, z)[::-1]
 
@@ -110,10 +94,9 @@ def numpySolve(y, delta, tau0, tau1, alpha, gamma, knotS, maxIter, tol, p0=None)
     G[np.arange(nB), np.arange(nB)] += gamma
     chol = cho_factor(G)
 
-    def tonic(res):  # the exact best (l, d) for the remainder y - K p
+    def tonic(res):
         return cho_solve(chol, W.T @ res)
 
-    # The Lipschitz constant of p -> K^T K p is found by power iteration.
     v = np.random.default_rng(0).standard_normal(n)
     for iteration in range(50):
         v = K.T(K(v))
@@ -133,8 +116,6 @@ def numpySolve(y, delta, tau0, tau1, alpha, gamma, knotS, maxIter, tol, p0=None)
         z = tonic(res)
         grad = -K.T(res - W @ z)
         x = np.maximum(yPt - (grad + alpha) / L, 0.0)
-        # The acceleration is restarted when the gradient points back (O'Donoghue &
-        # Candes, 2015).
         if np.dot(yPt - x, x - xPrev) > 0:
             tK = 1.0
         tNext = 0.5 * (1 + np.sqrt(1 + 4 * tK**2))
@@ -149,19 +130,14 @@ def numpySolve(y, delta, tau0, tau1, alpha, gamma, knotS, maxIter, tol, p0=None)
     f, z = obj(p)
     r = K(p)
     t = W @ z
-    # Optimality for p >= 0: the gradient is about 0 where p > 0 and not negative where
-    # p = 0.
     g = -K.T(y - r - t) + alpha
     kkt = float(np.max(np.abs(np.where(p > 0, g, np.minimum(g, 0.0)))))
     return {"r": r, "p": p, "t": t, "e": y - r - t, "obj": f, "iterations": it + 1, "kkt": kkt}
 
 
 def referenceModule():
-    """Return the authors' cvxEDA code if the user has put it on the Python path, and None
-    otherwise.
-    """
     try:
-        import cvxEDA as mod  # type: ignore  # noqa: N813 - this is the name of the authors' file
+        import cvxEDA as mod  # type: ignore  # noqa: N813
 
         return mod
     except ImportError:
@@ -183,9 +159,6 @@ def decompose(
     tol: float = 1e-10,
     p0: np.ndarray | None = None,
 ) -> dict:
-    """Decompose a signal that is already scaled to mean 0 and standard deviation 1, and
-    return r, p, t, e, the value of the objective and the solver used.
-    """
     y = np.asarray(y, dtype=float)
     if backend in ("auto", "cvxeda"):
         try:

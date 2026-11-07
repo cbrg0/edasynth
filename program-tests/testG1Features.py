@@ -48,9 +48,6 @@ def testFa4IsFirstFourOfFa():
 
 
 def testFbIsCausal():
-    """Changing samples after the end of window w leaves the features of window w
-    unchanged.
-    """
     rng = np.random.default_rng(3)
     n = 8 * 300
     y = 2 + np.cumsum(rng.standard_normal(n)) * 0.001
@@ -76,22 +73,18 @@ def testB1FindsPlantedLag():
     n = 8 * 120
     acc = np.tile([0, 0, 1.0], (n, 1)) + 0.001 * rng.standard_normal((n, 3))
     y = np.full(n, 2.0) + 0.0001 * rng.standard_normal(n)
-    # The movements are irregular, because a regular train would make several delays look equally good.
     spikes = [330, 341, 349, 362, 371]
     for s in spikes:
         acc[s] += [0.5, 0, 0]
-        y[s + 16 :] += 0.05  # a step two seconds after each movement
+        y[s + 16 :] += 0.05
     out = fb(y, acc, 8.0, 1e-4, 1e-3)
-    w = 9  # the window that contains samples 360 to 399
+    w = 9
     assert out[w, 0] > 0.5
     assert out[w, 1] == pytest.approx(2.0, abs=0.25)
 
 
 @needsZhang
 def testAmplitudeAndSecondDerivativeReproducePublishedAwwFeatures():
-    """Compare the recomputed AWW walking features with the published table, both scaled
-    within each recording.
-    """
     from edasynth.data import loadAww
 
     recs = loadAww(ZHANG)[:5]

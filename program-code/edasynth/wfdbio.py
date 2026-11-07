@@ -27,7 +27,6 @@ sigPattern = re.compile(
 
 @dataclass
 class SignalSpec:
-    """One signal line of a WFDB header."""
 
     file: str
     fmt: int
@@ -43,7 +42,6 @@ class SignalSpec:
 
 @dataclass
 class Header:
-    """A WFDB header after parsing."""
 
     record: str
     nSig: int
@@ -62,7 +60,6 @@ class Header:
 
 
 def readHeader(path: str | Path) -> Header:
-    """Parse a .hea file."""
     path = Path(path)
     lines = path.read_text(encoding="utf-8").splitlines()
     comments = [ln[1:].strip() for ln in lines if ln.startswith("#")]
@@ -80,7 +77,7 @@ def readHeader(path: str | Path) -> Header:
             SignalSpec(
                 file=m["file"],
                 fmt=int(m["fmt"]),
-                gain=gain if gain != 0 else 200.0,  # the default gain of WFDB
+                gain=gain if gain != 0 else 200.0,
                 baseline=baseline,
                 units=m["units"] or "mV",
                 adcRes=int(m["res"]),
@@ -94,30 +91,15 @@ def readHeader(path: str | Path) -> Header:
 
 
 def checksum16(digital: np.ndarray) -> int:
-    """Return the 16-bit checksum of one signal as a signed value between -32768 and 32767."""
     cs = int(np.sum(digital.astype(np.int64)) % 65536)
     return cs - 65536 if cs > 32767 else cs
 
 
 def checksumsMatch(computed: int, stored: int) -> bool:
-    """Compare two checksums modulo 2^16.
-
-    Programs that write headers store the same 16-bit checksum either with a sign, such
-    as -7557, or without, such as 57979. The PhysioNet noneeg headers use the form
-    without a sign.
-    """
     return (computed - stored) % 65536 == 0
 
 
 def readRecord(recordPath: str | Path, verify: bool = True) -> tuple[np.ndarray, Header]:
-    """Read a record in format 16.
-
-    The argument recordPath is the path without its ending, for example
-    downloaded-data/raw/noneeg/Subject1_AccTempEDA. The argument verify checks the first
-    values and the checksums against the header. The function returns the signals, with
-    one row per sample and one column per signal in physical units, together with the
-    header.
-    """
     recordPath = Path(recordPath)
     hdr = readHeader(recordPath.with_suffix(".hea"))
     files = {s.file for s in hdr.signals}
@@ -143,7 +125,6 @@ def readRecord(recordPath: str | Path, verify: bool = True) -> tuple[np.ndarray,
 
 @dataclass
 class Annotation:
-    """One annotation in MIT format."""
 
     sample: int
     code: int
@@ -154,15 +135,6 @@ class Annotation:
 
 
 def readAnnotations(path: str | Path) -> list[Annotation]:
-    """Read an annotation file in MIT format, such as a .atr file.
-
-    The file is a stream of 16-bit words with the least significant byte first. The top
-    6 bits of a word hold the code A and the low 10 bits hold the number I. A = 59
-    (SKIP) is followed by a 32-bit time increment stored as two words, the high word
-    first. A = 60, 61 and 62 set NUM, SUB and CHAN. A = 63 (AUX) is followed by I bytes
-    of text, padded to an even length. A = 0 with I = 0 ends the file. Any other A is an
-    annotation type with the time increment I.
-    """
     buf = np.fromfile(Path(path), dtype="<u2")
     out: list[Annotation] = []
     t = 0
@@ -174,7 +146,7 @@ def readAnnotations(path: str | Path) -> list[Annotation]:
         i += 1
         if a == 0 and val == 0:
             break
-        if a == 59:  # SKIP
+        if a == 59:
             hi, lo = int(buf[i]), int(buf[i + 1])
             i += 2
             inc = (hi << 16) | lo
@@ -187,7 +159,7 @@ def readAnnotations(path: str | Path) -> list[Annotation]:
             sub = val
         elif a == 62:
             chan = val
-        elif a == 63:  # a text attached to the previous annotation
+        elif a == 63:
             nbytes = val
             nwords = (nbytes + 1) // 2
             raw = buf[i : i + nwords].astype("<u2").tobytes()[:nbytes]

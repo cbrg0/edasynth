@@ -43,10 +43,8 @@ def resultsDir(cfg) -> Path:
 
 
 def cmdCheckData(cfg, args):
-    """Check the SHA-256 checksums of the downloaded files."""
     bad = 0
     lists = (
-        # The first list of checksums is the official one that comes with the data.
         ("noneeg", resolve(cfg, "noneeg") / "SHA256SUMS.txt"),
         ("zhang", Path(cfg["repoRoot"]) / "downloaded-data/checksums/zhang-eda-artifact-detection-7c4bd46.sha256"),
     )
@@ -89,9 +87,6 @@ def utd(cfg, withLabels=True):
 
 
 def utdAligned(cfg):
-    """Return the UTD recordings that the command align accepted, with the shift it found
-    already applied.
-    """
     path = resultsDir(cfg) / "alignment.csv"
     if not path.exists():
         raise SystemExit("result-tables/alignment.csv not found: run `python -m edasynth align` first")
@@ -102,9 +97,6 @@ def utdAligned(cfg):
 
 
 def cmdAlign(cfg, args):
-    """Check that the expert labels line up with the raw signals, as section 2 of
-    study-description/METHOD.md describes.
-    """
     from .alignment import checkParticipant
     from .data import loadUtdLabels, loadUtdStoredFeatures
 
@@ -156,9 +148,6 @@ def cmdAlign(cfg, args):
 
 
 def cmdRealdata(cfg, args):
-    """Compare the detectors on the real UTD data, with the published features and, when
-    requested, with the features recomputed from the raw signals, which is check G7.
-    """
     from .data import loadUtdLabels, loadUtdStoredFeatures
     from .features import f0, fa4
     from .realdata import compare, shuffledControl, singleFeatureAuprc
@@ -183,8 +172,6 @@ def cmdRealdata(cfg, args):
         accRows, edaRows, yy, gg = [], [], [], []
         for r in utdAligned(cfg):
             nw = r.labels3.shape[0]
-            # Each feature is scaled within each participant, as in the published
-            # feature tables.
             edaRows.append(np.nan_to_num(stats.zscore(f0(r.eda, cfg["features"]["derivative"])[:nw], axis=0)))
             accRows.append(np.nan_to_num(stats.zscore(fa4(r.acc)[:nw], axis=0)))
             yy.append(r.majority())
@@ -217,9 +204,6 @@ def realdataCfg(cfg):
 
 
 def cmdEstimate(cfg, args):
-    """Measure the parameters of the generator, as section 3 of study-description/METHOD.md
-    describes, and write the bank.
-    """
     from .bank import buildBank
 
     recs = utdAligned(cfg)
@@ -253,7 +237,7 @@ def cmdValidate(cfg, args):
     seed = cfg["seeds"]["validation"]
     out = resultsDir(cfg) / f"validation-{args.source}.json"
 
-    def save():  # The report is written after every check, so that a later crash does not lose the finished checks.
+    def save():
         writeJson(out, rep)
 
     if "G2" in args.gates:
@@ -313,10 +297,6 @@ def runJobs(cfg, bank, jobs, nJobs, outCsv, models, labelNoise=None):
                 row["version"] = __version__
                 rows.append(row)
         df = pd.DataFrame(rows)
-        # Rows of different cells can have different columns; for example, the columns
-        # for class C2
-        # exist only in mixture cells. The file is therefore rewritten with aligned
-        # columns instead of extended.
         if outCsv.exists():
             df = pd.concat([pd.read_csv(outCsv), df], ignore_index=True, sort=False)
         tmp = outCsv.with_suffix(".tmp")
@@ -343,17 +323,10 @@ def cmdPilot(cfg, args):
 
 
 def gridCells(cfg, variants: bool, labelNoise: bool):
-    """Return the cells that the command grid computes, with or without the options
-    --variants and --label-noise.
-    """
     from .experiment import gridToRun, variantConditions
 
     conds = variantConditions(cfg) if variants else gridToRun(cfg)
     if labelNoise:
-        # Only the mixture cells enter the analysis with noisy labels, so since version
-        # 1.3.1 the other
-        # compositions are not computed (see the changes after the tags in
-        # study-description/PREREGISTRATION.md).
         mix = tuple(cfg["grid"]["compositions"][-1])
         conds = [c for c in conds if tuple(c.classes) == mix]
     return conds
@@ -395,7 +368,7 @@ def cmdAnalyze(cfg, args):
     )
     comp.to_csv(res / f"compatibility-{args.source}.csv")
     ln = res / f"grid-labelnoise-metrics-{args.source}.csv"
-    if ln.exists():  # the agreement with the real data when the training labels are noisy
+    if ln.exists():
         dn = readGrid(ln, cfg)
         compN = compatibility(
             dn[dn.classes == "+".join(cfg["grid"]["compositions"][-1])],
@@ -458,9 +431,6 @@ def cmdPower(cfg, args):
 
 
 def readGrid(path: Path, cfg: dict) -> pd.DataFrame:
-    """Read the rows of the logistic regression from a grid file and fill in the cells that
-    are equivalent to computed ones.
-    """
     from .experiment import expandGrid
 
     df = pd.read_csv(path)
@@ -468,14 +438,6 @@ def readGrid(path: Path, cfg: dict) -> pd.DataFrame:
 
 
 def selectPowerConditions(comp: pd.DataFrame, k: int) -> pd.DataFrame:
-    """Choose k cells that agree with the real data and are spread evenly over their mean
-    gain dB, as section 8 of study-description/METHOD.md describes.
-
-    The cells are sorted by their mean dB, and the cells at the quantiles 1/(k+1) to
-    k/(k+1) are taken. The power is thus computed for a small, a middle and a large gain
-    that agree with the real data, instead of for the first cells in the order of the
-    grid. This rule is a decision of the study.
-    """
     comp = comp.sort_values("dB").reset_index(drop=True)
     if len(comp) <= k:
         return comp
@@ -498,7 +460,6 @@ def cmdFigures(cfg, args):
     reals = utdAligned(cfg)
     real = next(r for r in reals if r.pid == syn.meta["physiologyDonor"])
     F.f1RealVsSynthetic(real, syn, figdir)
-    # Figure F2 adds each class of artifacts to the same clean segment.
     gen = Generator(bank["library"], cfg)
     rng = np.random.default_rng(7)
     m = bank["motion"][0]
@@ -533,7 +494,7 @@ def cmdFigures(cfg, args):
     gm = res / f"grid-metrics-{args.source}.csv"
     if sj.exists():
         s = pd.read_csv(sj)
-        F.f4Map(s, figdir)  # One file is drawn for each composition, and the mixture is the main map.
+        F.f4Map(s, figdir)
         F.f0Summary(s, figdir, cfg["analysis"]["observedDelta"])
     if gm.exists():
         df = readGrid(gm, cfg)

@@ -142,4 +142,4 @@ def testRealismGeneratorNeverSeesTheComparedParticipant(toyBank, cfg):
     sub = withoutParticipants(bank, {"T0", "T3"}, cfg)
     assert [m["pid"] for m in sub["motion"]] == ["T1", "T2"]
     assert [p["pid"] for p in sub["phys"]] == ["T1", "T2"]
-    assert sub["library"]["C1"] == [] and len(sub["library"]["C2"]) == 1  # The episodes of T0 and T3 are gone.
+    assert sub["library"]["C1"] == [] and len(sub["library"]["C2"]) == 1

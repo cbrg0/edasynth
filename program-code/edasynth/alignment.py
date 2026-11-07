@@ -31,7 +31,6 @@ def amplitudeZ(eda: np.ndarray, offset: int = 0, nWindows: int | None = None) ->
 
 
 def checkParticipant(eda: np.ndarray, stored4: np.ndarray, threshold: float) -> dict:
-    """Return the numbers of windows, the best shift and the correlation of each feature."""
     nLab = stored4.shape[0]
     nRaw = eda.size // WIN
 

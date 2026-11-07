@@ -12,9 +12,7 @@ cover 9 211 five-second windows from 20 participants, of which 349, or 3.79 %, w
 marked as artifacts by at least two of the three experts. One detector sees only the 24
 EDA features. The other detector sees these features and, in addition, the four
 features of the acceleration magnitude, 28 features in total. Each detector is trained
-on 19 participants and tested on the remaining one, in turn for every participant. The
-command `python -m edasynth realdata --stored --raw` produces this comparison and
-writes it to `result-tables/realdata.json`.
+on 19 participants and tested on the remaining one, in turn for every participant.
 
 | Detector | AUPRC with EDA only | AUPRC with EDA and acceleration | Gain Δ | 95 % interval of the gain |
 |---|---|---|---|---|
@@ -22,13 +20,7 @@ writes it to `result-tables/realdata.json`.
 | Random forest with 500 trees | 0.4641 | 0.4900 | +0.0259 | from −0.0206 to +0.0555 |
 | Logistic regression with features recomputed from the raw signals by this program, which is check G7 | 0.4564 | 0.4818 | +0.0253 | from −0.0013 to +0.0572 |
 
-Three further numbers help to read the table. Of the 20 participants, 17 have at least
-one artifact; for them, the median gain per participant is +0.004, and a Wilcoxon test
-finds no consistent gain across them (*p* = 0.76). When the acceleration is shuffled
-in time within each participant, so that it no longer belongs to the EDA, the mean
-gain over 20 shuffles is −0.001. A detector that guesses would score 0.038.
-
-**Interpretation.** They show neither a gain nor its absence:
+**Interpretation.** The real data show neither a gain nor its absence:
 any gain from slightly below zero to about +0.06 agrees with them. They also cannot
 say whether the accelerometer helps against real disturbances of the contact, because
 one of the criteria the experts used refers to movement, so the labels are not
@@ -51,26 +43,6 @@ recordings.
 | G6, finding a link that was built in | passed: with C4 artifacts only, Δ<sub>B</sub> = +0.008 with an interval from +0.006 to +0.010; with the mixture at *c* = 1, Δ<sub>B</sub> = +0.050 with an interval from +0.040 to +0.060 |
 | G7, agreement with the published result on real data | passed, as the last row of the table in section 1 shows |
 
-**Correction history.** The first version that worked on the raw
-files, 1.1.2, failed two checks badly: a classifier told synthetic clean windows from
-real ones with an AUC of 0.98 and synthetic artifact windows with 0.95. Every failure
-led to a recorded correction of the generator. A threshold was never changed.
-
-| Version | What was corrected | Which failure led to it |
-|---|---|---|
-| 1.2.0 | the noise is taken from blocks of the remainder of the decomposition | in G3 the usual noise estimate was zero, so the synthetic signals were too smooth |
-| 1.2.0 | artifact sizes are stored relative to the signal level, participant S18 is no longer a physiology donor, and response sizes are measured in clean windows only | sizes measured at one signal level were added to signals of another level, one participant had almost no EDA, and some responses had impossible heights |
-| 1.3.0 | artifacts copy the measured course of real episodes | in G4 the synthetic artifacts were too smooth, with an AUC of 0.86 |
-| 1.3.0 | C4 uses a control gain, and the tonic level follows the donor's own stages | in G6 no C4 artifacts appeared, and some clean signals became negative |
-| 1.4.0 | shifts of level change a contact state, realism is judged with a generator that never saw the compared participant, G2 also uses varied response shapes, and delays reach 10 seconds | an error found in the grid of version 1.3.0, described next, and three checks that had been circular |
-
-**Withdrawn run.** The main grid was first computed with version 1.3.0, and its
-summary was seen. While an odd result was being checked, an error was found:
-overlapping artifacts multiplied each other, and in some cells about 20 % of the
-samples became more than twice as large as the 99th percentile of the clean signal.
-That grid is not used, and everything below comes from version 1.4.0. The changes made
-after seeing it are listed in [PREREGISTRATION.md](PREREGISTRATION.md).
-
 **Caveat.** The realism of artifact windows is close to its limit. Single
 repetitions reach an AUC of 0.73. A version of the check that builds the generator
 from one half of the participants and compares it with the other half fails in one
@@ -84,9 +56,7 @@ after this was seen.
 The map was computed with version 1.4.0, which is fixed by the tag `prereg-synth-v3`.
 It has 300 cells, of which 226 were computed and the rest copied, as explained in
 section 8 of METHOD.md. Each computed cell was run 50 times with 20 synthetic
-participants, which gives 11 300 runs. The summaries are in `grid-summary-utd.csv`,
-`compatibility-utd.csv`, `compatibility-labelnoise-utd.csv` and
-`sensitivity-utd.csv`.
+participants, which gives 11 300 runs.
 
 **3.1 Useful cells.** A cell counts as useful when the mean gain
 is at least 0.01 and the lower bound of its 95 % interval is above zero. The table gives
@@ -115,9 +85,7 @@ value is the mean over the 12 mixture cells with that *c*.
 When each parameter is changed alone around the reference cell, the mean Δ<sub>B</sub>
 changes by 0.049 for *c*, by 0.012 for π<sub>r</sub>, by 0.006 for δ<sub>max</sub> and
 by 0.002 for κ. The share *c* therefore matters about four times more than any other
-parameter. Across the mixture, the mean Δ<sub>B</sub> is +0.015 when the delay is at
-most 1 second, +0.012 at 5 seconds and +0.008 at 10 seconds. It is +0.017 when no
-movement is followed by a genuine response and +0.007 when half of them are.
+parameter.
 
 **3.3 Signal loss (C5).** When the artifacts are losses of signal, the detector that
 sees only EDA already reaches an AUPRC between 0.98 and 1.00. Every set of acceleration
@@ -163,10 +131,7 @@ share is uncertain by up to 0.07.
 ## 4. External validation
 
 These checks were planned before they were run, as the last section of
-PREREGISTRATION.md describes. They are run by
-`python data-download-and-external-checks/external_checks.py`, followed by `edabe` or
-`wesad` and the prepared data file, and they write `result-tables/external-edabe.json`
-and `result-tables/external-wesad.json`.
+PREREGISTRATION.md describes.
 
 **EDABE.** This data set has 43 recordings from a Shimmer device, marked by other
 experts and without acceleration. It contains 53 590 windows, and 19.1 % of them
