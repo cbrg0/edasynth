@@ -1,4 +1,4 @@
-"""Figures F1-F7, built only from files in ``results/`` (no manual editing)."""
+"""Figures F0-F6, built only from files in ``results/`` (no manual editing)."""
 
 from __future__ import annotations
 
@@ -164,14 +164,22 @@ def f6Cost(df: pd.DataFrame, out: Path):
     saveFigure(fig, out, "F6-cost")
 
 
-def f7Detectors(table: pd.DataFrame, out: Path):
-    fig, ax = plt.subplots(figsize=(6, 3))
-    im = ax.imshow(table.to_numpy(float), cmap="viridis", vmin=0, vmax=1, aspect="auto")
-    for (r, c), v in np.ndenumerate(table.to_numpy(float)):
-        ax.text(c, r, f"{v:.2f}", ha="center", va="center", color="w" if v < 0.6 else "k", fontsize=8)
-    ax.set_xticks(range(table.shape[1]))
-    ax.set_xticklabels(table.columns)
-    ax.set_yticks(range(table.shape[0]))
-    ax.set_yticklabels(table.index)
-    fig.colorbar(im, ax=ax, label="share of artifact windows flagged")
-    saveFigure(fig, out, "F7-detectors-by-class")
+def f0Summary(summary: pd.DataFrame, out: Path, observed: float):
+    """The main result at a glance: mean gain over the mixture cells against c."""
+    s = summary.reset_index()
+    mix = s[s.classes == max(s.classes.unique(), key=len)]  # the mixture has the longest composition name
+    m = mix.groupby("c")[[key("mean", d) for d in ("dA", "dA4", "dB")]].mean()
+    fig, ax = plt.subplots(figsize=(6.4, 4.0), layout="constrained")
+    names = {"dB": "4 coupling features (FB)", "dA4": "4 movement-strength features (FA4)", "dA": "96 features (FA)"}
+    for d, col, mk in (("dB", CB[0], "o"), ("dA4", CB[1], "s"), ("dA", "0.55", "^")):
+        ax.plot(m.index, m[key("mean", d)], marker=mk, color=col, lw=2, label=names[d])
+    ax.axhline(0, color="0.3", lw=0.8)
+    ax.axhline(0.01, color="0.5", lw=0.8, ls=":")
+    ax.axhline(observed, color="0.5", lw=0.8, ls="--")
+    ax.text(0.0, 0.0115, "usefulness threshold", fontsize=8, color="0.4")
+    ax.text(0.0, observed + 0.0015, f"real gain on UTD (+{observed:.3f})", fontsize=8, color="0.4")
+    ax.set_xlabel(r"$c$, share of artifacts caused by movement")
+    ax.set_ylabel("gain in AUPRC from adding acceleration")
+    ax.set_title("Mixture of artifact classes, mean over 12 cells per value of $c$", fontsize=10)
+    ax.legend(fontsize=7.5, loc="upper center", bbox_to_anchor=(0.5, -0.17), ncol=3, frameon=False)
+    saveFigure(fig, out, "F0-summary")

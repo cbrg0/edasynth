@@ -1,10 +1,9 @@
-"""End-to-end on the toy bank: data set, evaluation, controls, detectors."""
+"""End-to-end on the toy bank: data set, evaluation, controls."""
 
 import numpy as np
 import pytest
 
 from edasynth.config import merge
-from edasynth.detectors import chenSwt, kleckner, kocielnik, pnScore, slopeScore
 from edasynth.experiment import evaluate, makeDataset, requiredReps
 from edasynth.generator import Condition
 
@@ -38,34 +37,6 @@ def testAccShiftBreaksAlignment(toyBank, cfg):
 def testRequiredRepsFormula():
     assert requiredReps(0.01, 0.005, 50) == 16
     assert requiredReps(1.0, 0.005, 50) == 50
-
-
-def testDetectorsRunAndFlagADropout():
-    fs = 8.0
-    n = int(fs * 900)
-    y = 3 + 0.01 * np.sin(np.arange(n) / 50)
-    y[4000:4020] = 0.0
-
-    cfg = {
-        "detectors": {
-            "kleckner": {
-                "firSeconds": 64,
-                "cutoffHz": 0.35,
-                "levelMin": 0.05,
-                "levelMax": 60,
-                "slopeMax": 10,
-                "transitionS": 5,
-            },
-            "kocielnik": {"risePerS": 0.2, "fallPerS": 0.1},
-            "chen": {"levels": 8, "delta": 0.01, "windowS": 400},
-        }
-    }
-    w = 4000 // 40
-    assert kleckner(y, fs, cfg)[w] == 1
-    assert kocielnik(y, fs, cfg)[w] == 1
-    assert chenSwt(y, fs, cfg)[w] == 1
-    assert slopeScore(y, fs)[w] == slopeScore(y, fs).max()
-    assert pnScore(y, fs).shape == (n // 40,)
 
 
 def testResumableResultsKeepColumnsAligned(tmp_path, toyBank, cfg):

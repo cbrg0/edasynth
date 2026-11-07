@@ -17,7 +17,6 @@ seeds:
   grid: 20261022
   power: 7
   validation: 11
-  detectors: 13
 
 estimation:
   minResponseAmp: 0.05        # uS, accepted minimum response amplitude (Kleckner et al., 2018; Boucsein et al., 2012, via Posada-Quintero & Chon, 2020)
@@ -74,7 +73,7 @@ generator:
   rhoMax: 0.95                 # V2: maximum lost contact fraction
   saturationLevel: 60.0
   maxArtifactsPerParticipant: 400
-  allowFallbackTemplates: false   # true only in configs/smoke.yaml
+  allowFallbackTemplates: false   # true only for development runs without measured templates
   fallbackTemplates: {}
 
 features:
@@ -151,8 +150,3 @@ validation:
   g7Reference: {auprc0: 0.449, auprc1: 0.475, delta: 0.027}
   g7MaxAbsDiff: 0.10
 
-detectors:
-  classes: [C1, C2, C3, C4, C5]
-  kleckner: {firSeconds: 64, cutoffHz: 0.35, levelMin: 0.05, levelMax: 60.0, slopeMax: 10.0, transitionS: 5.0}
-  kocielnik: {risePerS: 0.20, fallPerS: 0.10}
-  chen: {levels: 8, delta: 0.01, windowS: 400}

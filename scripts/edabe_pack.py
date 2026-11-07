@@ -1,4 +1,4 @@
-"""Reduce the EDABE CSV files to 8 Hz (docs/EXTERNAL-CHECKS.md, preparation).
+"""Reduce the EDABE CSV files to 8 Hz (docs/PREREGISTRATION.md, last section, preparation).
 
 Run in the folder that holds the unpacked EDABE data set; writes edabe-8hz.npz and
 edabe-8hz-info.txt. A block of 16 samples (128 Hz -> 8 Hz) is averaged; it counts as

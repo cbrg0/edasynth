@@ -2,11 +2,33 @@
 data/raw/
 data/external/
 data/PROVENANCE.txt
-# generated
+# generated; the outputs reported in docs/RESULTS.md are committed
 results/*
 figures/*
 !results/README.md
+!results/alignment.csv
+!results/realdata.json
+!results/validation-utd.json
+!results/pilot-utd-R.json
+!results/grid-metrics-utd.csv
+!results/grid-labelnoise-metrics-utd.csv
+!results/variants-metrics-utd.csv
+!results/grid-summary-utd.csv
+!results/compatibility-utd.csv
+!results/compatibility-labelnoise-utd.csv
+!results/sensitivity-utd.csv
+!results/protocol-planning-utd.csv
+!results/external-edabe.json
+!results/external-wesad.json
+!results/external-wesad-replicates.csv
 !figures/README.md
+!figures/F0-summary.png
+!figures/F1-real-vs-synthetic.png
+!figures/F2-artifact-classes.png
+!figures/F3-realism.png
+!figures/F4-map-C1-C2-C3-C5.png
+!figures/F5-by-class.png
+!figures/F6-cost.png
 __pycache__/
 *.egg-info/
 .pytest_cache/

@@ -1,834 +1,253 @@
 # Method
 
-This document describes every step of the study, the formulas behind it and the
-origin of every number. Each step names the module in `src/edasynth/` and the
-command that runs it. Readers new to EDA may want to start with
-[BACKGROUND.md](BACKGROUND.md); terms are also collected in
-[GLOSSARY.md](GLOSSARY.md).
+Every step, formula and number of the study. Each number is labelled **[source]**
+(from the cited publication), **[measured]** (estimated from the recordings by this
+code) or **[decision]** (chosen here and fixed in `configs/default.yaml` before the
+main results; see [PREREGISTRATION.md](PREREGISTRATION.md)).
 
-Every number is labelled by its origin:
-
-- **[source]**: taken from the cited publication; the reference is given.
-- **[measured]**: estimated from real recordings by this code.
-- **[decision]**: chosen by this project. All decisions are fixed in
-  `configs/default.yaml` before the main experiment (see
-  [PREREGISTRATION.md](PREREGISTRATION.md)).
-
-Where a step departs from the source it builds on, the departure is stated.
-
-**Contents.**
-[1 Question and design](#1-question-and-design) ·
-[2 Data](#2-data) ·
-[3 Measuring parameters](#3-measuring-parameters-on-real-recordings) ·
-[4 Generator](#4-generating-semi-synthetic-participants) ·
-[5 Features](#5-features) ·
-[6 Models and measures](#6-models-and-performance-measures) ·
-[7 Validation](#7-validation-checks-g1g7) ·
-[8 Experiment](#8-experiment-and-analysis) ·
-[9 Reference detectors](#9-untrained-reference-detectors) ·
-[10 Assumptions](#10-assumptions-and-limitations-of-the-method) ·
-[11 Parameter table](#11-parameter-table)
-
----
-
-## 1. Question and design
+## 1. Design
 
 **Question.** Does a synchronous wrist accelerometer improve the detection of motion
 artifacts in wrist EDA compared with a detector that uses EDA alone?
 
-**Why a conditional answer.** The benefit depends on how movement is linked to
-contact disturbances, and no available data set measures that link
-([BACKGROUND.md §5](BACKGROUND.md#5-the-gap-this-project-addresses)). The study
-therefore treats the link as a set of parameters, generates data for many values of
-them and measures the benefit for each. Zhang et al. (2017) suggested two reasons
-for the small benefit they observed: unsuitable acceleration features and movements
-that do not affect the contact. These become the two axes of the design:
-
-- **Axis 1, kind of acceleration information.** Four feature sets are compared
-  (§5): EDA only (F0), EDA plus the 96 acceleration features of Zhang et al. (F0+FA),
-  EDA plus 4 acceleration-magnitude features (F0+FA4) and EDA plus 4 features that
-  describe whether EDA and movement change together (F0+FB).
-- **Axis 2, the movement–artifact link.** Five parameters (§4.4): the share of
-  artifacts caused by movement *c*, how strongly artifact size depends on movement
-  intensity *κ*, the longest delay between movement and artifact *δ*<sub>max</sub>,
-  the share of movements followed by a genuine response *π*<sub>r</sub>, and the
-  artifact class.
-
-The six goals listed in the [README](../README.md#what-the-project-does) follow from
-this design. Goal 1 (validation) must succeed before the others are interpreted.
+**Why a conditional answer.** The benefit depends on how often and how movement
+disturbs the electrode contact, and no data set measures that. The link is therefore
+treated as a set of parameters; data are generated for many values and the benefit is
+measured for each. Zhang et al. (2017) suggested two reasons for the small benefit they
+saw: unsuitable acceleration features, and movements that do not affect the contact.
+These are the two axes of the design: four feature sets (§5) and five link parameters
+(§4.4).
 
 ## 2. Data
 
-Module `edasynth.data`, readers in `edasynth.wfdbio`; download with `make data`.
+**UTD** (module `data`, reader `wfdbio`). PhysioNet *Non-EEG Dataset for Assessment of
+Neurological Status* v1.0.0 (Birjandtalab et al., 2016, 2017): 20 healthy participants,
+wrist acceleration (3 axes, g), skin temperature and EDA at 8 Hz [source]. Seven
+protocol stages: relaxation, physical stress (standing, treadmill), relaxation,
+cognitive stress, relaxation, emotional stress, relaxation. The header gives the EDA
+unit as "NU"; values are treated as µS (medians 0.03–7.8 per participant, plausible).
+Every channel is checked against the checksum in its header.
 
-### 2.1 UTD recordings
+**Labels.** Zhang et al. (2017) published labels for UTD (IdeasLabUT, commit
+`7c4bd46`): three experts labelled each non-overlapping 5-s window. A window is an
+artifact when at least two experts say so **[decision]**: 349 of 9 211 windows (3.79 %)
+[measured]; Fleiss' κ between experts 0.62 [measured]. One labelling criterion is
+"a sudden change correlated with motion", so the labels partly depend on movement.
 
-The PhysioNet *Non-EEG Dataset for Assessment of Neurological Status*, version 1.0.0
-(Birjandtalab et al., 2016, 2017), contains wrist recordings of 20 healthy
-participants. Each `SubjectN_AccTempEDA` record holds three acceleration axes (g),
-skin temperature (°C) and EDA, sampled at 8 Hz [source: record headers]. The
-protocol has seven stages: relaxation (5 min), physical stress (standing, then
-treadmill walking at 1 and 3 mph, about 5 min), relaxation, cognitive stress
-(preceded by about 40 s of instructions), relaxation, emotional stress and a final
-relaxation [source: PhysioNet data set page]. The annotation file marks the stage
-transitions; its codes are not documented, so the stage parser relies on the order
-of the annotations and stops with an error if their number is unexpected.
+**Linking labels to signals** (module `alignment`, command `align`). Window *i* is
+taken to cover samples 40*i* … 40*i*+39. This is checked per participant by
+correlating the window mean, SD, maximum and minimum recomputed from the raw signal
+with the published feature matrix; accepted when all four correlations are ≥ 0.999
+**[decision]**. All 20 participants were accepted with no offset [measured].
 
-The header gives the EDA unit as "NU" (no unit). Treating the values as µS is an
-assumption until `make inspect` has been run on the raw files
-([STATUS.md](STATUS.md)).
+**Independent data** (used only for the checks of RESULTS.md §5). EDABE
+(Llanes-Jurado et al., 2023): 43 Shimmer3 GSR+ recordings at 128 Hz with an artifact
+label per sample, no acceleration. WESAD (Schmidt et al., 2018): 15 participants,
+Empatica E4 on the wrist, EDA at 4 Hz and acceleration at 32 Hz, protocol stages, no
+artifact labels. Preparation: `scripts/edabe_pack.py`, `scripts/wesad_pack.py`.
 
-The reader in `wfdbio.py` decodes the WFDB format 16 and checks every channel
-against the initial value and checksum stored in the header, so a corrupted or
-misread file stops the pipeline.
+## 3. Parameters measured on the recordings
 
-### 2.2 Expert labels
+Module `estimation`, command `estimate`, output `results/bank-utd.json/.npz` (the
+"bank"). The generator later resamples measured values instead of assuming
+distributions.
 
-Zhang et al. (2017) published labels for UTD in their repository
-(IdeasLabUT, n.d.), used here at commit `7c4bd46`. Three experts labelled every
-non-overlapping 5-second window (40 samples) as clean or artifact. A window counts
-as an artifact here when at least two of the three experts said so; Zhang et al. do
-not state a combination rule, so the majority rule is a **[decision]**. The files
-contain 9 211 windows, 349 of them artifacts (3.79 %) [measured]. Agreement between
-the three experts is Fleiss' κ = 0.62 [measured from the label files].
+**Clean windows.** All three experts say clean, and so do both neighbouring windows
+(one-window margin after rule 4 of Kleckner et al., 2018) **[decision]**.
 
-### 2.3 AWW recordings
+**Noise.** The Haar-wavelet estimate σ = median|d₁|/0.6745 (Donoho & Johnstone, 1994)
+is 0 for all UTD participants because the noise is below the quantisation step
+(*q* ≈ 0.001 µS; 0.006 µS for S10) [measured]. The generator therefore uses the
+**decomposition residual** *e* = *x* − *t* − *r* (below), cut into 5-s blocks inside
+clean rest windows, centred, and resampled with replacement **[decision]**.
 
-*Alan Walks Wales* (AWW) consists of recordings of one person on 11 days, labelled
-in the same way by Zhang et al. (2017). Because all days come from one person, AWW
-is used only to develop and test the code (`make smoke`); its numbers are never
-reported as results.
-
-### 2.4 Linking labels to signals
-
-Module `edasynth.alignment`, command `align`.
-
-Labels and signals were published separately, and no document states which label
-belongs to which piece of signal. The working hypothesis is that label group *g*
-belongs to `Subject(g+1)` and that window *i* covers samples 40*i* … 40*i*+39, as in
-Zhang et al.'s feature script. It is checked per participant: the mean, SD, maximum
-and minimum of each window are recomputed from the raw signal, z-scored within the
-participant, and correlated with the first four columns of the published feature
-matrix. The participant is accepted when all four correlations are at least 0.999
-**[decision]** and enough raw windows exist. If the check fails, shifts of −10 to
-+10 windows and 0 to 39 samples are searched; the best shift is stored and all later
-steps drop that many samples from the start of the record. A participant that still
-fails is excluded, with the reason recorded in `results/alignment.csv`.
-
----
-
-## 3. Measuring parameters on real recordings
-
-Module `edasynth.estimation`, command `estimate`, output
-`results/bank-utd.json` and `.npz` (the "bank").
-
-The literature gives the shape of a skin-conductance response, but not the noise
-level, response rate, artifact shapes or movement statistics of this particular
-device and protocol. These are measured here on the real recordings, and the
-generator later resamples the measured values instead of assuming a distribution.
-
-### 3.1 Clean windows
-
-A window is treated as clean when all three experts called it clean and so did both
-neighbouring windows. The one-window margin corresponds to the 5-s zone around
-invalid data in rule 4 of Kleckner et al. (2018), because labelling errors tend to
-occur at the edges of artifacts **[decision]**. Noise, response rates and
-decomposition errors are measured only in clean windows.
-
-### 3.2 Noise and quantisation
-
-The white-noise level σ is estimated from the level-1 Haar wavelet details of the
-clean windows recorded at rest:
+**Tonic and phasic parts: cvxEDA** (Greco et al., 2016). A clean signal is modelled as
 
 $$
-d_k = \frac{x_{2k} - x_{2k+1}}{\sqrt{2}}, \qquad
-\hat\sigma = \frac{\operatorname{median}_k |d_k|}{0.6745}.
+y(t) = s(t) + \sum_k a_k\,h(t-t_k) + \varepsilon(t),\qquad
+h(t) = \left(e^{-t/\tau_0} - e^{-t/\tau_1}\right)[t\ge 0],
 $$
 
-For white Gaussian noise of standard deviation σ, the details *d<sub>k</sub>* also
-have standard deviation σ, and the median absolute value of a normal variable is
-0.6745 σ. Slow physiological changes hardly affect *d<sub>k</sub>* because
-neighbouring samples are subtracted (Donoho & Johnstone, 1994). A recording without
-clean rest windows (some AWW days) falls back to all clean windows; the bank records
-which source was used.
-
-The quantisation step *q* is the smallest non-zero absolute difference between
-neighbouring samples that occurs in at least 1 % of all non-zero differences
-**[decision]**; the 1 % rule ignores rare tiny differences caused by rounding. When
-σ is smaller than the quantisation step the estimate can be 0; in that case the
-noise floor σ<sub>eff</sub> = max(σ, *q*/√12) is used for classifying artifacts
-(§3.6), because rounding alone produces noise with standard deviation *q*/√12.
-
-On UTD the estimate is σ = 0 for all 20 participants: more than half of the
-neighbouring differences are exactly zero, because the noise is smaller than the
-quantisation step (*q* ≈ 0.001 µS). σ therefore cannot describe the noise of these
-recordings, and Gaussian noise with σ = 0 made the synthetic signal smoother than
-the real one (check G3, [RESULTS.md](RESULTS.md)). Since version 1.2.0 the generator
-uses the **decomposition residual** instead **[decision]**: the recorded signal minus
-the cvxEDA tonic and phasic parts (§3.3), *e* = *x* − *t* − *r*. It is cut into
-blocks of 5 s (one window, 40 samples) inside the clean rest windows, with the same
-fallback to all clean windows, and each block is shifted to mean zero so that joined
-blocks produce no steps. The blocks are stored per participant in the bank. This
-keeps the size, the distribution and the short-range correlation of the real
-residual within 5 s; it does not keep correlations longer than 5 s, and the residual
-also contains whatever part of the signal the decomposition did not explain.
-
-### 3.3 Separating tonic and phasic parts
-
-**Model of the clean signal.** A clean recording is modelled as
+with tonic level *s*, responses of size *a<sub>k</sub>* starting at *t<sub>k</sub>*
+and the Bateman shape *h*. The parts are found by the convex problem
 
 $$
-y(t) = s(t) + r(t) + \varepsilon(t), \qquad
-r(t) = \sum_k a_k\, h(t - t_k), \qquad
-h(t) = \left(e^{-t/\tau_0} - e^{-t/\tau_1}\right)\,[t \ge 0],
+\min_{p\ge 0,\ \ell,\ d}\ \tfrac12\lVert Kp + B\ell + Cd - y\rVert^2 + \alpha\sum_n p_n + \tfrac{\gamma}{2}\lVert\ell\rVert^2
 $$
 
-where *s* is the tonic level (µS), *r* the phasic part (µS), ε white noise, and each
-response *k* starts at time *t<sub>k</sub>* with size *a<sub>k</sub>*. The response
-shape *h* (the Bateman function) rises with time constant τ<sub>1</sub> and decays
-with the slower time constant τ<sub>0</sub>. It reaches its maximum
+(driver *p*, Bateman matrix *K*, cubic spline *Bℓ* with 10-s knots, offset and trend
+*Cd*). τ₁ = 0.7 s, τ₀ ∈ [2, 4] s, α = 8·10⁻⁴, γ = 10⁻² [source]. The signal is
+z-scored before solving and rescaled after **[decision]**. τ₀ is searched in steps of
+0.1 s and chosen by the **smallest objective**, departing from Greco et al. (residual
+norm), because on synthetic records only the objective recovered the true τ₀ (test
+`testTau0SelectionRecoversKnownValue`) **[decision]**. A built-in solver
+(`decompose.numpySolve`) is used when the authors' `cvxopt` code is unavailable.
 
-$$
-h_{\max} = h(t_{\text{peak}}), \qquad
-t_{\text{peak}} = \frac{\tau_0\tau_1}{\tau_0-\tau_1}\ln\frac{\tau_0}{\tau_1},
-$$
+**Responses.** Peaks of the phasic part with prominence ≥ 0.05 µS, the accepted
+minimum amplitude (Kleckner et al., 2018; Boucsein et al., 2012, via Posada-Quintero
+& Chon, 2020). Sizes only from responses whose onset and peak lie in clean windows
+**[decision]**. Rates λ = *K*/*T* separately for rest and load stages [measured].
 
-so a single isolated response has visible height *A<sub>k</sub>* = *a<sub>k</sub>*
-*h*<sub>max</sub>. τ<sub>1</sub> = 0.7 s and τ<sub>0</sub> ∈ [2, 4] s
-[source: Greco et al., 2016]. This is a model: it describes a typical response
-shape, it does not claim that every response has this shape.
+**Tonic level.** Each stage longer than 180 s is fitted by
+*s*(τ) = *s*₀ + *b*τ + *A<sub>s</sub>* sin(2πτ/*T<sub>t</sub>* + φ), *T<sub>t</sub>* =
+45…90 s, the synthetic tonic of Greco et al. (2016) [source]; using it to describe real
+stages is a **[decision]**. The fit is made to the signal minus the detected responses.
 
-**cvxEDA.** Greco et al. (2016) estimate the parts by solving a convex optimisation
-problem. With the signal z-scored (mean 0, SD 1) and sampled every δ = 1/8 s:
+**Artifact episodes.** An episode is a run of consecutive artifact windows. Relative
+to a straight baseline between the medians of the 2 s before and after, its amplitude,
+edge times, level shift, high-frequency power share P<sub>n</sub> (> 0.4 Hz; Hossain et
+al., 2022) and its **course** sample by sample are stored. Sizes are stored relative
+to the level before the episode, max(level, 0.05 µS) **[decision]**. Classes, by fixed
+rules applied in order **[decision]**:
 
-$$
-\min_{p \ge 0,\ \ell,\ d}\ \ \tfrac12\,\lVert K p + B\ell + C d - y \rVert^2
-+ \alpha \sum_n p_n + \tfrac{\gamma}{2}\lVert \ell \rVert^2 .
-$$
+1. **C5 dropout/saturation**: a value ≤ 0.01 µS or ≥ 60 µS (60 µS: Kleckner et al.,
+   2018), or a flat run ≥ 1 s near zero;
+2. unclassified if |amplitude| < 0.05 µS;
+3. **C3 level shift**: |shift| > 3 σ<sub>eff</sub> and ≥ 0.05 µS;
+4. **C4 walking oscillation**: P<sub>n</sub> ≥ 0.5 during walking;
+5. **C2 drop** if the amplitude is negative, otherwise **C1 peak**.
 
-Here *p* ≥ 0 is the sudomotor driver (one value per sample, mostly zero), *K* turns
-the driver into the phasic part using a discrete form of the Bateman function,
-*B*ℓ is a cubic spline with knots every 10 s that represents the tonic level, *Cd*
-adds an offset and a linear trend, α penalises the total driver (favouring few
-responses) and γ penalises large spline coefficients (favouring a smooth tonic level).
-After solving, the parts are multiplied by the SD of the recording and the mean is
-added back to the tonic part, so all parts are again in µS. α = 8·10⁻⁴, γ = 10⁻², 10-s knots
-[source: Greco et al., 2016]. Greco et al. do not state that the input is z-scored;
-z-scoring is a **[decision]** of this project, made so that the same α and γ work
-for recordings with different levels.
+UTD: 208 episodes, C3 147, C2 43, C1 14, C5 2, C4 2 [measured].
 
-The authors' reference implementation (lciti, n.d.) needs the `cvxopt` package. The
-package also contains an independent solver (`decompose.numpySolve`, accelerated
-projected gradient with exact elimination of the tonic variables) that solves the
-same problem without extra dependencies and reports how well the optimality
-(KKT) conditions are met. Its agreement with the reference implementation has not
-been tested yet ([STATUS.md](STATUS.md)).
+**Movement events.** Jerk *j*[*n*] = *f<sub>s</sub>*‖**a**[*n*] − **a**[*n*−1]‖ (g/s).
+An event is a run ≥ 0.5 s with *j* above the participant's 99th percentile at rest;
+runs < 1 s apart are merged; intensity = the largest jerk **[decision]**.
 
-**Choosing τ<sub>0</sub>.** The decomposition is repeated for τ<sub>0</sub> = 2.0,
-2.1, …, 4.0 s (step 0.1 s **[decision]**). Greco et al. (2016) chose the
-τ<sub>0</sub> that minimised the ℓ<sub>2</sub> norm of the residual. **This project
-departs from that rule** and chooses the τ<sub>0</sub> with the smallest value of the
-whole objective above **[decision]**. On synthetic records with known τ<sub>0</sub>
-the residual norm was almost the same for all τ<sub>0</sub> and pointed to the wrong
-end of the range, while the objective recovered the true value within 0.5 s (test
-`testTau0SelectionRecoversKnownValue`). The residual norm is still stored.
+**Walking gain for C4.** The measured gain of fast EDA on fast acceleration is
+−0.0009 µS/g on UTD, too small to produce artifacts. The C4 class therefore uses a
+**control gain** that gives a median artifact of 0.1 µS **[decision]**; C4 is a
+positive control, not a claim about real walking artifacts.
 
-### 3.4 Responses and response rates
+## 4. Generator
 
-Responses are taken from the phasic part *r* found by the decomposition: every peak
-of *r* whose height above the surrounding trough (its prominence) is at least
-0.05 µS counts as a response. 0.05 µS is an accepted minimum response amplitude
-[source: Kleckner et al., 2018; Posada-Quintero & Chon, 2020, citing Boucsein et al., 2012].
-The onset is the latest lowest point of *r* in the 5 s before the peak, and the size
-used by the generator is *a* = *A*/*h*<sub>max</sub>, so that an isolated synthetic
-response has the measured height *A* **[decision]**.
+Module `generator`.
 
-Since version 1.2.0 only responses whose onset and peak both lie in clean windows
-supply sizes **[decision]**. Before, sizes were taken from every detected response.
-On UTD (version 1.1.2) 25 of 1 092 detected heights were larger than the whole range
-of the participant's recording, up to 31.7 µS in a recording that spans 7.7 µS.
-Such heights cannot be responses; the likely source is artifacts inside the
-artifact windows that the phasic part absorbed (hypothesis). A height larger than
-the range of the recording now triggers a warning in the log. If a participant has
-no response with both ends clean, the responses with a clean onset are used.
+**4.1 Donors.** A synthetic participant combines the real acceleration and stages of a
+**movement donor** with the measured physiology of a **different** physiology donor.
+Any link between movement and EDA in the synthetic data is therefore put there by the
+generator, at a known strength. A recording with more than half of its EDA below
+0.05 µS is not a physiology donor (S18 on UTD) **[decision]**; 0.05 µS is rule 1 of
+Kleckner et al. (2018). One replicate has 20 synthetic participants.
 
-An earlier version counted each run of non-zero driver as one response. That rule
-was rejected because the optimal driver is dense on noisy, quantised signals and the
-runs split into many spurious responses (14–95 per minute on AWW, with the solver
-verified to be at its optimum).
+**4.2 Clean signal**, built at 64 Hz and averaged to 8 Hz **[decision]**:
 
-The response rate is estimated separately for rest stages (the four relaxation
-stages) and load stages (all others) as the maximum-likelihood rate of a Poisson
-process, λ = *K*/*T*: *K* responses with onset in clean windows of that stage type
-divided by the clean time *T* in seconds [measured]. A rate above 10 per minute
-triggers a warning in the log. This threshold is a **[decision]** used only as a
-plausibility flag; a published reference range for spontaneous response rates has
-not been verified for this project.
+- tonic: the physiology donor's own stage fits joined without jumps, kept ≥ 0.05 µS;
+- spontaneous responses: Poisson counts with the donor's rates, sizes drawn from the
+  donor's measured sizes;
+- movement-evoked responses: after a movement event with probability π<sub>r</sub>,
+  latency 1–5 s (the usual stimulus latency, Boucsein et al., 2012, via Posada-Quintero
+  & Chon, 2020; applying it to movement is an assumption);
+- noise: the donor's residual blocks; rounding to the donor's step *q*.
 
-### 3.5 Tonic level
+**4.3 Artifacts.** C1–C3 add the measured course of a real episode of that class,
+scaled by the local level of the clean synthetic signal (median of the 5 s before,
+floor 0.05 µS) **[decision]**. A level shift (C3) sets a contact state: the next shift
+replaces the previous offset instead of adding to it. Downward changes are limited to
+95 % of the signal, and the result is kept between 5 % of the clean signal and 60 µS.
+C4 = control gain × (|**a**| minus its 2-s moving mean) inside a movement event. C5
+replaces values with 0 µS or the upper limit.
 
-The tonic level of each protocol stage is described by a straight line plus one slow
-oscillation,
+**4.4 The movement–artifact link** (the grid axes):
 
-$$
-s(\tau) = s_0 + b\,\tau + A_s \sin\!\left(\frac{2\pi\tau}{T_t} + \varphi\right),
-$$
-
-with τ the time since the start of the stage. The parameters are fitted by least
-squares for every period *T<sub>t</sub>* = 45, 46, …, 90 s, and the best period is
-kept. This form and the period range are those of the synthetic tonic signal used by
-Greco et al. (2016) to test cvxEDA [source]; applying it to describe real stages is a
-**[decision]**. Stages shorter than 180 s (twice the longest period) are skipped.
-
-The fit is made to *s* + *r* − *r*<sub>events</sub>, the signal without the detected
-responses, where *r*<sub>events</sub> = Σ *a<sub>k</sub>h*(*t* − *t<sub>k</sub>*)
-is rebuilt from the responses of §3.4 **[decision]**. The cvxEDA tonic alone sits too
-low, because the phasic part also contains small activity below the 0.05 µS
-threshold; with it, synthetic AWW records were several µS below the real ones.
-
-### 3.6 Artifact episodes and their classes
-
-An **episode** is a run of consecutive artifact windows (majority label). For each
-episode a local baseline is drawn as a straight line between the median of the 2 s
-before and the median of the 2 s after it, and the deviation from that baseline is
-measured:
-
-| Quantity | Definition |
-|---|---|
-| amplitude *A* | the deviation with the largest absolute value (signed) |
-| rise time, return time | time from 10 % to 90 % of \|*A*\| at the start, and from 90 % back to 10 % at the end |
-| P<sub>n</sub> | share of the episode's spectral power above 0.4 Hz (Hossain et al., 2022) |
-| level shift | median after minus median before |
-| level | median of the 2 s before the episode |
-| course | the episode sample by sample, relative to the level: deviation from the baseline line (C1, C2) or change from the level before (C3); used as the artifact shape since 1.3.0 (§4.3) |
-| duration | number of windows × 5 s |
-
-Each episode is assigned to one class by fixed rules, applied in this order
-**[decision]**:
-
-1. **C5, dropout or saturation**: a value ≤ 0.01 µS or ≥ 60 µS (60 µS is the upper
-   range limit of Kleckner et al., 2018; 0.01 µS is a decision), or a flat run of at
-   least 1 s near zero;
-2. unclassified if \|*A*\| < 0.05 µS;
-3. **C3, level shift**: \|shift\| > 3 σ<sub>eff</sub> and ≥ 0.05 µS;
-4. **C4, walking oscillation**: P<sub>n</sub> ≥ 0.5 during a walking stage;
-5. **C2, drop** if *A* < 0, otherwise **C1, peak**.
-
-The measured rise, return, amplitude, shift and duration become the parameters of
-the artifact templates of §4.3. For linear edges the 10–90 % time is 0.8 of the full
-edge time, so edge times are rise time / 0.8.
-
-Since version 1.2.0 the sizes (\|*A*\| for C1 and C2, the signed shift for C3) are
-stored **relative to the level** before the episode, divided by max(level,
-0.05 µS) **[decision]**. The floor keeps the ratio finite when the level is close
-to zero; 0.05 µS is the lower range limit of Kleckner et al. (2018, rule 1). Sizes
-in µS had been measured on one level and added to signals at another level: on the
-development data, a shift measured at 5–6 µS pushed a synthetic signal at about
-1 µS down to 0.2 µS, and on UTD the same mismatch is possible because the
-participants' levels differ. A relative size assumes that an artifact scales with
-the signal, as the multiplicative variant V2 already does (§4.5); this is an
-assumption. Episodes whose level before the episode is below 0.05 µS are left out
-of the templates and the class shares **[decision]**: below that level the data are
-invalid by the same rule, and dividing by the floor would turn a small change into
-a size of 100 % or more of the level.
-
-These rules were written before looking at the UTD episodes. On the AWW development
-data they put 68 % of episodes into C3, while the AWW traces mostly show short drops,
-so the rules must be inspected on UTD before their class shares are used
-([STATUS.md](STATUS.md)).
-
-### 3.7 Movement events
-
-Sudden wrist movements are found from the jerk, the rate of change of acceleration:
-
-$$
-j[n] = f_s\,\lVert \mathbf a[n] - \mathbf a[n-1] \rVert \quad (\text{g/s}),
-$$
-
-with *f<sub>s</sub>* = 8 Hz. A **movement event** is a run of at least 4 samples
-(0.5 s) with *j* above θ, the participant's 99th percentile of *j* during rest
-stages; runs less than 1 s apart are merged. The event's **intensity** *I* is its
-largest jerk. All thresholds are **[decision]**. Using each participant's own
-percentile makes the definition independent of how much a person moves at rest.
-
-### 3.8 Walking gain for class C4
-
-For the walking-oscillation class, the fast part of the EDA (signal minus its 2-s
-moving average) is regressed on the fast part of the acceleration magnitude, through
-the origin, over all samples of the walking stages. The slope *G* (µS per g) is
-pooled across participants by the median **[measured]**. On AWW, *G* ≈ 0.0003 µS/g,
-and on UTD *G* = −0.0009 µS/g: too small to produce visible artifacts.
-
-Because of this, the generator uses a **control gain** for C4 since version 1.3.0
-**[decision]**: for every movement event of every movement donor the median absolute
-fast acceleration inside the event is taken, and *G*<sub>control</sub> is 0.1 µS
-divided by the median of these values. A movement event of median vigour then gives
-a C4 artifact whose median size is 0.1 µS, twice the label threshold. The value was
-chosen after G6 had been seen on UTD with the measured *G* (no artifacts at all); it
-is a size assumed for a positive control and for the C4 variant, and it says nothing
-about how large walking artifacts are on the wrist. `generator.c4.gain: measured`
-restores the measured *G*.
-
-### 3.9 How the expert labels relate to movement
-
-Two descriptive numbers are stored: the share of artifact episodes that start between
-1 s before and 5 s after a movement onset, and the share of movement events followed
-by an episode in that window **[decision on the window]**. They describe the expert
-labels, which partly depend on movement; they are not estimates of how often
-movement really disturbs the electrode.
-
----
-
-## 4. Generating semi-synthetic participants
-
-Module `edasynth.generator`.
-
-### 4.1 Donors
-
-Synthetic participant *j* combines the real acceleration record, protocol stages and
-movement events of a **movement donor** *u*(*j*) with the measured physiology
-(τ<sub>0</sub>, response rates and sizes, tonic fits, noise residual, *q*) of a
-different **physiology donor** *d*(*j*) ≠ *u*(*j*). Because the two donors are different people, any
-relation between movement and EDA in the synthetic data was put there by the
-generator, and the model cannot recognise a person from two matching signals. One
-**replicate** contains as many synthetic participants as there are movement donors
-(20 for UTD), each movement record used once.
-
-**Who can be a physiology donor.** A participant whose EDA lies below 0.05 µS in
-more than half of the samples is not used as a physiology donor **[decision]**.
-Kleckner et al. (2018, rule 1) treat EDA below 0.05 µS as invalid; the 50 % limit
-is our choice. Such a recording yields no usable tonic level, response sizes or
-relative artifact sizes. It stays a movement donor, because its acceleration record
-is unaffected. On UTD this rule excludes one participant (S18, whose EDA stays below
-0.08 µS throughout; [RESULTS.md](RESULTS.md)).
-
-**Pairing.** When every participant is a valid physiology donor, the pairing is a
-random derangement, a permutation without fixed points, so every physiology donor is
-used once. When some are excluded, the valid donors are dealt out in random order so
-that each is used either ⌊*n*/*n*<sub>valid</sub>⌋ or ⌈*n*/*n*<sub>valid</sub>⌉
-times, and the draw is repeated until nobody is paired with themself. With 19 valid
-donors for 20 movement donors, one physiology donor appears twice per replicate.
-
-### 4.2 Clean signal
-
-The clean signal *y*<sub>0</sub> is built on a 64 Hz grid and then averaged in blocks
-of 8 samples to 8 Hz **[decision]**. The finer grid lets response onsets and artifact
-edges fall between the 8 Hz samples instead of only on them.
-
-- **Tonic level** (changed in 1.3.0). For each protocol stage of the movement donor
-  the physiology donor's fit of the same stage (§3.5) is used; if the donor has none
-  (stages shorter than 180 s, or AWW days), a fit of the same stage type is drawn.
-  The fit gives the level reached at the end of the stage, *s*<sub>0</sub> +
-  *b T*<sub>stage</sub>, and the oscillation, which gets a random phase φ. The trend
-  runs in a straight line from the level at the start of the stage to that end level
-  over the length of the movement donor's stage; the first stage starts at
-  *s*<sub>0</sub>. Stages are joined without jumps **[decision]**.
-  Before 1.3.0 each stage took the slope *b* of a randomly drawn stage of the same
-  type and started where the previous one ended. Slopes of unrelated stages then
-  added up: in a check of 20 synthetic participants built from the UTD bank of 1.2.0,
-  the clean signal fell below 0 in 11 of them, down to −6.3 µS. With the new rule the
-  level follows the donor's own course from stage to stage. A line plus a sinusoid
-  can still dip below zero where a donor's level is low; in 100 synthetic
-  participants (5 seeds) 0.5 % of the clean samples were negative and 2.5 % below
-  0.05 µS. The tonic is therefore kept at or above 0.05 µS, the lower valid level of
-  Kleckner et al. (2018, rule 1) **[decision]**.
-- **Spontaneous responses.** In each stage, the number of responses is drawn from a
-  Poisson distribution with the donor's rate for that stage type, onset times are
-  uniform within the stage, and sizes are drawn from the donor's measured sizes.
-- **Movement-evoked responses.** Each movement event is followed by a genuine
-  response with probability π<sub>r</sub>, after a latency drawn uniformly from 1 to
-  5 s. The latency range is the usual one for stimulus-evoked responses
-  [source: Boucsein et al., 2012, as cited in Posada-Quintero & Chon, 2020]; applying it to
-  movement is an assumption.
-- **Noise and quantisation.** Blocks of the donor's residual (§3.2) are drawn at
-  random with replacement and joined to the length of the record; after the
-  artifacts the signal is rounded to the donor's step *q*. The residual of a
-  recorded signal already contains rounding error, so the synthetic signal is in
-  effect rounded twice; the realism check G3 shows whether this matters. The
-  earlier model, Gaussian noise with the donor's σ, remains available as
-  `generator.noise: gaussian`.
-
-### 4.3 Artifact classes
-
-**Since version 1.3.0, classes C1, C2 and C3 use the measured course of a real
-episode** **[decision]**. Each episode of §3.6 stores its course relative to the
-level before it: for C1 and C2 the deviation from the baseline line divided by the
-level, for C3 the change from the level before, divided by the level. The generator
-draws an episode of the class, multiplies its course by the movement scaling of
-§4.4 and by the **local level** of the synthetic signal, and adds it sample by
-sample. The local level is the median of the **clean** synthetic signal over the 5 s
-before the artifact, with a floor of 0.05 µS, so artifacts add to each other instead
-of compounding. A change downwards is limited to 95 % of the signal (the same limit
-as in V2), so that a strongly scaled artifact cannot make the signal negative.
-
-**Level shifts (C3) set a contact state** (since 1.4.0) **[decision]**. After a shift
-the signal stays at its measured relative offset, and the next shift *replaces* that
-offset instead of adding to it. During a shift the signal moves from the previous
-offset to the measured course of the episode (the previous offset fades linearly
-over the episode). Only that change is labelled; the lasting offset afterwards is
-not. Finally the signal is kept between 5 % of the clean signal and 60 µS, the upper
-range limit of Kleckner et al. (2018, rule 1).
-
-*Why this changed.* In version 1.3.0 the level before an artifact was taken from the
-signal including earlier artifacts, and every C3 offset added to the previous ones.
-Offsets then multiplied each other. A check after the main grid of 1.3.0 had been run
-(before its results were used) found that in the C3 and mixture cells about 20 % of
-the samples were more than twice the 99th percentile of the clean signal, up to 125
-times; in the 15 % prevalence variant with *c* = 1 the synthetic signal reached a
-median maximum of 281 µS and 28 % of the samples were at or above 60 µS. With the
-contact state and the clean reference level these shares fell to 1–2 %, and the
-15 % variant stays below 60 µS. The main grid of 1.3.0 is not used.
-
-The reason is check G4 on UTD. With the simple shapes below, synthetic artifact
-windows had much smoother courses than the labelled ones: the median SD of the
-first difference was 0.005 µS per sample against 0.033 in the real artifact windows,
-and the AUC of G4 was 0.86. Real episodes contain several fast ups and downs, which
-a triangle, a trapezoid or a ramp do not have. The course of a real episode also
-contains whatever the body did during it; this is accepted, because the expert
-labels of those windows contain it as well.
-
-The simple shapes remain in the code. They are used for templates that carry no
-measured course (the placeholder templates of the development run, and banks written
-before 1.3.0):
-
-| Class | Shape | Origin of the idea |
+| Parameter | Meaning | Grid |
 |---|---|---|
-| C1 peak | linear rise, linear fall (triangle) | peaks without exponential decay (Taylor et al., 2015; Zhang et al., 2017) |
-| C2 drop | downward trapezoid (linear fall, plateau, linear return) | sudden decrease (Zhang et al., 2017) |
-| C3 level shift | linear ramp to a lasting offset | persistent contact change (assumption) |
-| C4 walking oscillation | *G*<sub>control</sub> (§3.8) × (\|**a**\| − its 2-s moving mean) inside a movement event | walking artifacts (Hossain et al., 2022, foot EDA) |
-| C5 dropout / saturation | values replaced by 0 µS or the upper limit | range rules of Kleckner et al. (2018) |
+| *c* | probability that an artifact is caused by movement | 0, 0.25, 0.5, 0.75, 1 |
+| κ | size scales as (*I*/median *I*)<sup>κ</sup> with movement intensity *I* | 0, 1 |
+| δ<sub>max</sub> | a caused artifact starts *U*(0, δ<sub>max</sub>) after the movement | 1, 5, 10 s |
+| π<sub>r</sub> | share of movements followed by a genuine response | 0, 0.5 |
+| composition | C1, C2, C3, C5, or their mixture in the measured shares | 5 options |
 
-C4 is built directly from the acceleration, so the accelerometer must help with it.
-It serves as a positive control (§7).
+Artifacts not caused by movement start at random times. **4.5 Prevalence and labels.**
+Artifacts are added until 3.8 % of windows are positive (the UTD share; Zhang et al.,
+2017) [source]. A sample is corrupted when the artifact moves it by ≥ 0.05 µS; for C3
+only the change itself, not the lasting offset **[decision]**. A window is positive
+when any sample is corrupted (variant: more than half).
 
-### 4.4 The movement–artifact link
-
-Every artifact of classes C1, C2, C3 and C5 is **caused by movement** with
-probability *c*. A caused artifact is attached to a random movement event *e* of
-the movement donor: it starts at *t<sub>e</sub>* + *U*(0, δ<sub>max</sub>) and its
-size is multiplied by
-
-$$
-\left(\frac{I_e}{\operatorname{median}(I)}\right)^{\kappa},
-$$
-
-so with κ = 0 the size does not depend on how vigorous the movement was, and with
-κ = 1 it is proportional to its intensity. An artifact that is not caused by movement
-starts at a uniformly random time with its measured relative size. C4 artifacts are always
-attached to a movement event and scaled in the same way.
-
-In a single-class cell every artifact has that class. In the mixture the class of each
-new artifact is drawn with the class shares measured on the real episodes (§3.6),
-C4 excluded.
-
-### 4.5 How artifacts change the signal
-
-- **V1, additive (main variant).** *y* = *y*<sub>0</sub> + Σ<sub>m</sub>
-  *A<sub>m</sub>*(*t*): each artifact is added to the clean signal. C5 replaces
-  values instead of adding to them.
-- **V2, multiplicative (C2 and C3 only).** *y* = *y*<sub>0</sub>(1 − ρ *g*(*t*)),
-  where *g* is the template shape scaled to 0…1 and ρ, the lost share of contact,
-  is the measured relative size (times the movement scaling of §4.4), capped at
-  0.95. Since sizes are relative in both variants, V1 and V2 now differ only in
-  whether the artifact follows the changes of *y*<sub>0</sub> during the artifact.
-  With measured courses (1.3.0) V2 multiplies the signal by (1 + course), so it
-  keeps the measured direction of the change; the old rule, which always lowered
-  the signal, applies only to the simple shapes. The signal is always lowered, also for level shifts that were
-  measured as upward. This variant represents the idea that losing contact removes a
-  fraction of the signal; it is an assumption to be tested in the laboratory.
-
-### 4.6 Prevalence and true labels
-
-Artifacts are added one by one until 3.8 % of windows are positive, the UTD
-proportion (Zhang et al., 2017) **[source]**, with at most 400 artifacts per
-participant. A variant uses 15 %, the share in the AWW resting data.
-
-A sample is **corrupted** when the artifact moves it by at least 0.05 µS, the minimum
-visible response **[decision]**. For level shifts (C3) only the ramp and the first
-sample at the new level count; the lasting offset afterwards is not labelled
-**[decision]**. After the change the signal looks clean again at its new level, and
-the published labelling criteria describe sudden changes, not shifted levels. A window is
-**positive** when any of its samples is corrupted (main rule) or, as a variant, when
-more than half are.
-
----
+**Variants:** V2 multiplicative contact loss, *y* = *y*₀(1 + course) (C2, C3); 15 %
+prevalence; majority labelling rule; C4 only.
 
 ## 5. Features
 
-Module `edasynth.features`. All features are computed for non-overlapping 5-second
-windows (40 samples), the unit used by Taylor et al. (2015) and Zhang et al. (2017).
-The same code is applied to real and synthetic recordings.
+Module `features`; non-overlapping 5-s windows (40 samples), identical code for real
+and synthetic data.
 
-**F0, 24 EDA features** (Zhang et al., 2017). For six signals of each window, the
-mean, standard deviation, maximum and minimum are computed. The six signals are the
-EDA itself, its first difference, its second difference and its Haar wavelet detail
-coefficients at levels 3, 2 and 1 (which Zhang et al. describe as 1, 2 and 4 Hz).
-The first difference is the central difference (*x*<sub>n+1</sub> −
-*x*<sub>n−1</sub>)/2, as in the published script. The stored UTD feature matrices
-were found to use the forward difference instead (reconstruction from the raw
-files); `features.derivative: forward` reproduces them.
-
-**FA, 96 acceleration features** (Zhang et al., 2017): the same 24 statistics for
-the acceleration magnitude and for each of the three axes. **FA4** is its first four
-columns: mean, SD, maximum and minimum of the acceleration magnitude.
-
-**FB, 4 coupling features** **[decision]**. These describe whether the EDA and the
-movement change together, which FA and FA4 do not. With *v*[*n*] =
-*f<sub>s</sub>*\|*y*[*n*] − *y*[*n*−1]\| the speed of EDA change (µS/s) and *j* the
-jerk (§3.7):
-
-| Feature | Definition | Meaning |
+| Set | Features | Source |
 |---|---|---|
-| B1 | max over lags ℓ = 0 … 5 s of corr(*j*[*n* − ℓ], *v*[*n*]) within the window | how closely EDA changes follow jerks |
-| B2 | the lag ℓ of B1, in seconds | how long after the movement the EDA changes |
-| B3 | [max *v* / (median₆₀ *v* + *qf<sub>s</sub>*)] × [max *j* / (median₆₀ *j* + *q*<sub>acc</sub>*f<sub>s</sub>*)] | unusually fast EDA change in the window together with an unusually strong jerk in the window or the 5 s before; medians over the preceding 60 s |
-| B4 | mean magnitude-squared coherence of \|**a**\| and *y* in 0.5–3 Hz | shared rhythmic content, e.g. during walking |
+| F0 | 24 EDA features: mean, SD, max, min of the EDA, its 1st and 2nd differences and its Haar details at three levels | Zhang et al. (2017) |
+| FA | the same 24 statistics for the acceleration magnitude and each axis (96) | Zhang et al. (2017) |
+| FA4 | mean, SD, max, min of the acceleration magnitude | first 4 of FA |
+| FB | 4 coupling features (below) | **[decision]** |
 
-All four use only the window and the 5 s before it, so they could run in real time.
-The terms *qf<sub>s</sub>* keep the ratios finite on flat, quantised signals; B4 is 0
-when either signal is constant.
+With *v* = *f<sub>s</sub>*|Δ*y*| the speed of EDA change and *j* the jerk:
+**B1** = max over lags 0–5 s of corr(*j*[*n*−ℓ], *v*[*n*]); **B2** = that lag;
+**B3** = unusually fast EDA change times unusually strong jerk (each relative to its
+median over the preceding 60 s); **B4** = mean coherence of |**a**| and *y* in
+0.5–3 Hz. All use only the window and the 5 s before it, so they could run in real time.
 
----
+## 6. Models and measures
 
-## 6. Models and performance measures
+Modules `models`, `experiment`.
 
-Module `edasynth.models` and `edasynth.experiment`.
+- **Model:** L2 logistic regression, standardised features, balanced class weights,
+  *C* = 1 (as in the real-data comparison) **[decision]**; random forest (500 trees)
+  as a robustness check on real data.
+- **Leave one participant out:** train on all but one, test on that one, pool the
+  predictions.
+- **AUPRC** (average precision), the main measure: guessing scores the artifact share
+  (0.038), a perfect detector 1. Preferred to AUROC because artifacts are rare.
+- **Gain** Δ<sub>X</sub> = AUPRC(F0 + F<sub>X</sub>) − AUPRC(F0), X = A, A4, B.
+- **Cost:** at 95 % specificity, the share of genuine responses whose peak lies in a
+  flagged window (this also counts windows that contain a real artifact).
+- **Uncertainty:** participant bootstrap (1 000 resamples) on real data; 95 %
+  *t*-interval over replicates on synthetic data.
 
-### 6.1 Models
+## 7. Validation checks
 
-The primary model is **logistic regression**: it estimates the probability that a
-window is an artifact as a logistic function of a weighted sum of its features. The
-settings are L2 regularisation, standardised features, class weights inversely
-proportional to class frequencies (so the rare artifacts are not ignored) and the
-`newton-cholesky` solver. The regularisation strength is fixed at *C* = 1, the
-setting of the real-data comparison (§1 of [RESULTS.md](RESULTS.md)) **[decision,
-1.4.0]**. Until 1.3.2 *C* ∈ {0.01, 0.1, 1, 10} was chosen inside each training set by
-grouped 5-fold cross-validation; this made each replicate about 20 times more
-expensive and used a different model than the real comparison it is compared with in
-goal 5. A **random
-forest** of 500 trees is used as a robustness check.
+Module `validation`, command `validate`. Thresholds may not be changed to make a check
+pass.
 
-**Leave-one-participant-out (LOSO).** The model is trained on all participants but
-one and tested on the one left out; this is repeated for every participant. The test
-participant never contributes to standardisation, the choice of *C* or the fit. The
-predictions of all folds are pooled before the measures below are computed.
-
-### 6.2 Measures
-
-- **AUPRC, the main measure** (area under the precision–recall curve, computed as
-  average precision). For every threshold on the predicted probability, *precision*
-  is the share of flagged windows that are real artifacts and *recall* is the share
-  of real artifacts that are flagged. AUPRC summarises this trade-off from 0 to 1.
-  A detector that guesses scores about the artifact share (0.038 here), and a perfect
-  detector scores 1. It is preferred over the ROC area when the positive class is
-  rare, because it is sensitive to false alarms among the many clean windows.
-- **Gain Δ.** Δ<sub>X</sub> = AUPRC(F0 + F<sub>X</sub>) − AUPRC(F0) for X = A, A4,
-  B. A positive Δ means that adding the acceleration features improved detection.
-  Δ<sub>B</sub> − Δ<sub>A4</sub> compares the kind of feature at equal count.
-- **AUROC** (area under the ROC curve): the probability that a random artifact
-  window gets a higher score than a random clean window. Reported for comparison
-  with Zhang et al. (2017).
-- **Sensitivity at 95 % specificity**: the share of artifact windows flagged when
-  the threshold is set so that 95 % of clean windows are not flagged.
-- **Lost responses (cost)**: at the same threshold, the share of genuine responses
-  (height ≥ 0.05 µS) whose peak falls in a flagged window, separately for
-  spontaneous and movement-evoked responses. It measures how much physiology a
-  detector would discard.
-- **Detection by class**: at the same threshold, the share of windows of each
-  artifact class that are flagged.
-
-### 6.3 Uncertainty
-
-- **Participant bootstrap** (real data and power analysis): participants are drawn
-  with replacement 1 000 times, Δ is recomputed on each sample, and the 2.5th and
-  97.5th percentiles form the 95 % confidence interval. Resampling whole participants
-  respects the fact that windows of one person are not independent.
-- **Per-participant test** (real data): Δ is computed for each participant with at
-  least one artifact, and a Wilcoxon signed-rank test asks whether the median is
-  different from zero.
-- **Across replicates** (synthetic data): each replicate is a new synthetic data
-  set; the mean Δ over *R* replicates gets a 95 % *t*-interval.
-
----
-
-## 7. Validation checks (G1–G7)
-
-Module `edasynth.validation`, command `validate`. Thresholds are in
-`configs/default.yaml` (section `validation`) and may not be changed to make a check
-pass ([PREREGISTRATION.md](PREREGISTRATION.md)).
-
-| Check | What it tests | Pass condition |
+| Check | Tests | Pass condition |
 |---|---|---|
-| G1 | the code: unit tests of readers, features, generator, models, estimation | all tests pass |
-| G2 | parameter recovery: 20 artifact-free synthetic participants with known physiology are re-estimated with §3; since 1.4.0 a second time with responses whose time constants vary (τ<sub>0</sub> ± 25 %, τ<sub>1</sub> 0.35–1.05 s), so that the data do not have the shape the decomposition assumes; both runs must pass | median \|τ<sub>0</sub> error\| ≤ 0.3 s; median \|relative rate error\| ≤ 0.2; two-sample Kolmogorov–Smirnov test of response sizes *p* > 0.05 |
-| G3 | realism of clean windows: can a classifier tell real from synthetic? Since 1.4.0 the generator never sees the participant it is compared with: for each real participant one synthetic participant is built from the other 19 (donors and artifact episodes), and all windows are pooled in one test (leave one participant out). A split-half version (generator from one half, real windows of the other) is reported as well | logistic regression on F0, grouped 5-fold cross-validation, median AUC over 10 repetitions ≤ 0.70 (leave-one-participant-out scheme; one repetition varied from 0.49 to 0.73 between seeds) |
-| G4 | realism of artifact windows, same test and scheme; until 1.3.2 the synthetic artifacts were compared with the very episodes they were built from | median AUC over 10 repetitions ≤ 0.70, leave-one-participant-out (the real labels partly depend on movement, which limits this check) |
-| G5 | negative controls: no movement–artifact link (*c* = 0), and a full link (*c* = 1) with the acceleration shifted in time by at least 60 s after generation | for Δ<sub>A</sub>, Δ<sub>A4</sub> and Δ<sub>B</sub> over 10 replicates: the 95 % interval contains 0 and \|mean\| < 0.01 |
-| G6 | positive controls: C4 only (with the control gain of §3.8), and the mixture with *c* = 1, κ = 1, δ<sub>max</sub> = 1 s | in each control, Δ<sub>A</sub> or Δ<sub>B</sub> has mean > 0 and lower 95 % bound > 0 |
-| G7 | our features on real UTD reproduce the published-feature baseline | same sign of Δ, both AUPRC values within 0.10 of 0.449 and 0.475 |
+| G1 | unit tests | all pass |
+| G2 | 20 artifact-free synthetic participants with known physiology re-estimated; also with varied response shapes (τ₀ ± 25 %, τ₁ 0.35–1.05 s) | median \|τ₀ error\| ≤ 0.3 s, median \|rate error\| ≤ 0.2, KS test of sizes *p* > 0.05 |
+| G3 | can a classifier tell real from synthetic **clean** windows? The generator never sees the compared participant (built from the other 19) | logistic regression on F0, grouped 5-fold CV, median AUC over 10 repetitions ≤ 0.70 |
+| G4 | the same for **artifact** windows | as G3 |
+| G5 | no link (*c* = 0), and full link with the acceleration shifted by ≥ 60 s | 95 % interval contains 0 and \|mean\| < 0.01 |
+| G6 | C4 only; mixture with *c* = 1 | Δ<sub>A</sub> or Δ<sub>B</sub> with lower bound > 0 |
+| G7 | our features on raw UTD reproduce the published-feature baseline | same sign of Δ, AUPRC within 0.10 |
 
-A classifier two-sample test (G3, G4) is a direct check of realism: if a simple
-classifier cannot separate real from synthetic windows better than AUC 0.70, the
-synthetic windows resemble the real ones in the features the detectors use. The
-threshold 0.70 is a **[decision]**. A linear classifier is a lenient test; passing
-it does not prove that the data are realistic in every respect.
-
-The negative controls test whether the pipeline invents a gain: when movement and
-artifacts are unrelated, adding movement features must not help. The positive
-controls test whether it can detect a gain that exists.
-
-**A significant loss also fails G5.** The rule asks for an interval that contains
-0, so it fails both for a spurious gain and for a significant loss. The rule was
-kept unchanged after the first run on UTD **[decision, 25 October 2026]**. In that run (version 1.1.2),
-FA (96 features) and FA4 fail it with losses (Δ<sub>A</sub> about −0.05,
-Δ<sub>A4</sub> about −0.005), while FB passes. A loss without any link means that
-the extra features add noise that the model does not fully ignore with 20
-participants. Consequences for reading the map (§8): a gain of FA or FA4 in a cell
-has to be compared with their loss in the no-link control, not with zero, and a
-cell is not read as "acceleration helps" through FA or FA4 unless Δ exceeds that
-loss. FB, which passes, is read against zero. With 1.3.0 FB also shows a small
-loss without a link (−0.002, interval reaching −0.0002), and the same reading applies
-to it ([PREREGISTRATION.md](PREREGISTRATION.md)).
-
----
+G5 also fails on a significant **loss**. Feature sets lose slightly without a link
+(accepted exception, PREREGISTRATION.md), so their gains in the map are also read
+against that loss.
 
 ## 8. Experiment and analysis
 
-Module `edasynth.experiment`, commands `pilot`, `grid`, `analyze`, `power`.
+Commands `pilot`, `grid`, `analyze`, `power`.
 
-**Grid.** *c* ∈ {0, 0.25, 0.5, 0.75, 1} × κ ∈ {0, 1} × δ<sub>max</sub> ∈ {1, 5, 10} s ×
-π<sub>r</sub> ∈ {0, 0.5} × artifact composition ∈ {C1, C2, C3, C5, mixture in the
-measured shares} = 300 cells **[decision]**. δ<sub>max</sub> = 10 s was added in 1.4.0:
-the coupling features FB look for joint changes of EDA and movement up to 5 s apart
-(§5), and with delays of at most 5 s the generator only produced links inside that
-window. The 10-s cells show what happens when the real delay is longer than the
-features look. Variants on part of the grid: V2 for C2
-and C3, 15 % prevalence, the majority labelling rule and C4 alone.
+- **Grid:** 5 × 2 × 3 × 2 × 5 = 300 cells. Cells where a parameter cannot act (κ and
+  δ<sub>max</sub> at *c* = 0; κ for C5) are computed once and copied: 226 computed.
+- **Replicates:** a pilot gives the largest SD *s* of Δ;
+  *R* = ⌈(1.96 *s* / 0.005)²⌉, capped at 50 **[decision]**. *R* = 50.
+- **Decision rule:** a cell is *useful* when the mean Δ ≥ 0.01 and its lower 95 %
+  bound > 0 **[decision]**. All cells are reported.
+- **Compatibility with the real data:** a mixture cell is compatible when the real
+  Δ = 0.027 lies within the central 95 % of its replicate values of Δ<sub>A4</sub>.
+  Repeated with training labels flipped at random to Cohen's κ ≈ 0.62 (the expert
+  agreement; using it as a target is an assumption).
+- **Sensitivity:** from the reference cell (*c* = 0.5, κ = 1, δ<sub>max</sub> = 1 s,
+  π<sub>r</sub> = 0, mixture) each parameter is varied alone.
+- **Power:** for three compatible mixture cells at the quartiles of their mean
+  Δ<sub>B</sub>, the share of 50 simulated studies with 5, 10, 15 or 20 participants
+  whose participant-bootstrap interval of Δ lies above zero.
 
-**Equivalent cells are generated once** (since version 1.3.0). With *c* = 0 no
-artifact is attached to movement, so κ and δ<sub>max</sub> do not enter the
-generator; in the C5-only cells artifacts replace values, so κ, which scales a size,
-does not enter either. These cells produce the same distribution of data whatever
-the unused parameter, so each group is run once, under the first grid value of the
-unused parameters, and its replicates are copied to the other cells of the group
-(column `sharedWith`). This leaves 226 of the 300 cells to compute and does not
-change the map. Copied cells are not independent evidence; they are counted once
-wherever cells are counted as separate results.
+## 9. Limitations of the method
 
-**Number of replicates.** A pilot runs 10 replicates in four cells (*c* ∈ {0, 1} ×
-κ ∈ {0, 1}, mixture). With *s* the largest standard deviation of Δ<sub>A4</sub> or
-Δ<sub>B</sub> among them, the number of replicates needed for a 95 % interval of
-half-width *h* = 0.005 is
-
-$$
-R = \left\lceil \left(\frac{1.96\, s}{h}\right)^2 \right\rceil ,
-$$
-
-limited to 2 ≤ *R* ≤ 50 **[decision]**. Each replicate uses its own seed derived from
-the cell and the replicate number, so every run is reproducible.
-
-**Decision rule.** In a cell, the accelerometer counts as *useful* when the mean Δ
-is at least 0.01 and the lower 95 % bound is above 0 **[decision]**. The whole map is
-reported; no cell is singled out after the fact.
-
-**Goal 5, compatibility with the real data.** A cell is *compatible* with UTD when
-the real gain (Δ = 0.027, §1 of [RESULTS.md](RESULTS.md)) lies within the central
-95 % of the cell's replicate values of Δ<sub>A4</sub>. A variant flips synthetic
-labels at random until Cohen's κ between true and noisy labels is about 0.62, the
-agreement among the UTD experts, and trains on the noisy labels; using the expert
-agreement for this purpose is an **assumption**.
-
-**Goal 6, what to measure first.** Starting from the reference cell (*c* = 0.5,
-κ = 1, δ<sub>max</sub> = 1 s, π<sub>r</sub> = 0, mixture), each parameter is varied
-alone over its grid values, and the range of the mean Δ shows which parameter
-matters most. Power is computed for three compatible mixture cells chosen by their
-mean Δ<sub>B</sub>: sorted by it, the cells at the quartiles (1/4, 1/2, 3/4) are taken
-**[decision, 1.3.0]**, so that small, middle and large gains that agree with the real
-data are covered. Before 1.3.0 the first three cells in grid order were taken, which
-favoured small *c*. For each, the power for 5, 10, 15 and 20 participants is the
-share of 50 replicates whose participant-bootstrap interval of Δ lies above zero.
-
-The label-noise grid is computed for the mixture cells only (since 1.3.1), the
-cells its analysis uses. With it present, `analyze` also writes the compatibility with
-noisy training labels (`compatibility-labelnoise-<source>.csv`); before 1.3.0 this
-part of goal 5 was computed by the grid but not analysed.
-
----
-
-## 9. Untrained reference detectors
-
-Module `edasynth.detectors`, command `detectors`. These detectors use EDA only and
-are not trained. They show which artifact classes are caught without movement
-information (goal 2); they are not part of the map.
-
-| Detector | Rule | Source |
-|---|---|---|
-| slope | largest \|d*y*/d*t*\| in the window (score) | common baseline |
-| Kleckner | rules 1, 2 and 4 on a low-pass filtered signal (FIR, 0.35 Hz cut-off, 64 s long); rule 3 needs temperature and is omitted | Kleckner et al. (2018) |
-| Kocielnik | relative change faster than +20 % or −10 % per second | Kocielnik et al., as cited in Taylor et al. (2015) |
-| P<sub>n</sub> | share of power above 0.4 Hz (score) | Hossain et al. (2022) |
-| SWT | stationary Haar wavelet transform, 8 levels, Gaussian-mixture thresholds per 400-s segment; a window is flagged if any coefficient in it exceeds the thresholds | after Chen et al. (2015); the window rule is a **[decision]** |
-
-The SWT detector follows the description of Chen et al. (2015) as implemented
-here; it has not been compared with the authors' own code.
-
----
-
-## 10. Assumptions and limitations of the method
-
-- **Conditional results.** Every synthetic result holds only under the assumed
-  movement–artifact link and the assumed artifact shapes. It does not tell how often
-  movement disturbs the electrode in people.
-- **One device, one protocol.** All parameters come from 20 participants recorded
-  with one wristband in one laboratory protocol.
-- **Labels depend on movement.** The real labels used for estimation, realism checks
-  and the real-data comparison were made with a criterion that refers to movement.
-- **Model of the clean signal.** The tonic and response models are simplifications.
-  Different decomposition methods give different tonic and phasic parts
-  (Posada-Quintero & Chon, 2020); parameters measured with cvxEDA inherit its view.
-- **Artifact shapes and classes** are the simplest shapes consistent with published
-  descriptions, and the class rules have not yet been checked on UTD episodes.
-- **Relative artifact sizes** assume that an artifact grows with the signal level.
-  The laboratory study is meant to test this.
-- **Noise model.** Residual blocks keep correlations up to 5 s only, and the
-  residual depends on the decomposition (§3.3).
-- **Feature scaling differs between real and synthetic data.** The published UTD
-  features are z-scored within each participant; the synthetic pipeline standardises
-  over the training set only. This matters for the comparison in goal 5.
-- **Label noise model.** Symmetric random flips are the simplest model of expert
-  disagreement; real disagreements concentrate at artifact edges.
-
-## 11. Parameter table
-
-| Parameter | Value | Origin |
-|---|---|---|
-| window length | 5 s = 40 samples | Taylor et al. (2015); Zhang et al. (2017) |
-| artifact window (real data) | ≥ 2 of 3 experts | decision |
-| alignment correlation | ≥ 0.999 | decision |
-| clean window | unanimously clean, neighbours too | decision, after Kleckner et al. (2018) rule 4 |
-| noise σ (episode classes; `gaussian` noise model) | median\|*d*<sub>1</sub>\|/0.6745 | method: Donoho & Johnstone (1994); value measured |
-| generator noise | 5-s blocks of the decomposition residual, centred, drawn with replacement | decision |
-| artifact sizes | relative to max(level, 0.05 µS); level = median of the 2 s (real) or 5 s (synthetic) before | decision; floor = Kleckner et al. (2018) rule 1 |
-| physiology donor | at most 50 % of samples below 0.05 µS | decision; 0.05 µS: Kleckner et al. (2018) rule 1 |
-| τ<sub>1</sub>, τ<sub>0</sub> range | 0.7 s; 2–4 s | Greco et al. (2016) |
-| τ<sub>0</sub> step and selection | 0.1 s; smallest objective | decision (departs from Greco et al.) |
-| α, γ, knot spacing | 8·10⁻⁴, 10⁻², 10 s | Greco et al. (2016) |
-| z-scoring before cvxEDA | yes | decision |
-| minimum response | 0.05 µS | Kleckner et al. (2018); Boucsein et al. (2012) via Posada-Quintero & Chon (2020) |
-| tonic form, period range | line + sinusoid, 45–90 s | Greco et al. (2016), synthetic tonic |
-| range limits for C5 | 0.01 µS (dropout), 60 µS | 60 µS: Kleckner et al. (2018); 0.01 µS: decision |
-| P<sub>n</sub> band | > 0.4 Hz | Hossain et al. (2022) |
-| movement event | jerk > 99th rest percentile, ≥ 0.5 s, merge < 1 s | decision |
-| evoked-response latency | 1–5 s | Boucsein et al. (2012) via Posada-Quintero & Chon (2020); use for movement: assumption |
-| generator grid | 64 Hz | decision |
-| label threshold | 0.05 µS | decision |
-| prevalence | 3.8 % (15 % variant) | Zhang et al. (2017) |
-| V2 maximum lost contact | 0.95 | decision |
-| FB lags, context, medians, band | 0–5 s, 5 s, 60 s, 0.5–3 Hz | decision |
-| logistic regression *C* grid | 0.01, 0.1, 1, 10 | decision |
-| bootstrap samples | 1 000 | decision |
-| decision rule | mean Δ ≥ 0.01 and lower bound > 0 | decision |
-| realism threshold | AUC ≤ 0.70 | decision |
-| replicate half-width | 0.005, *R* ≤ 50 | decision |
-| label-noise target | Cohen κ ≈ 0.62 | measured Fleiss κ of UTD experts; use as target: assumption |
+- Synthetic results are conditional on the assumed link and artifact shapes; they do
+  not say how often movement disturbs the electrode in people.
+- The generator is built from one device, one protocol and 20 people; checks on two
+  other data sets (RESULTS.md §5) support, but do not prove, transfer.
+- Expert labels partly depend on movement and are not an independent ground truth.
+- Relative artifact sizes assume that artifacts scale with the signal level.
+- Residual-block noise keeps correlations only up to 5 s.
+- Published UTD features are z-scored within participants; the synthetic pipeline
+  standardises over the training set. This matters for the compatibility comparison.

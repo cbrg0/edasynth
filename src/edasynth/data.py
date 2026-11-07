@@ -6,9 +6,8 @@ UTD (PhysioNet ``noneeg`` 1.0.0, Birjandtalab et al., 2016/2017)
     repository of Zhang et al. (2017), one label per non-overlapping 5-s window.
 
 AWW (Alan Walks Wales, distributed with Zhang et al., 2017)
-    One person, everyday recordings with the same device. Used only for checking
-    the feature code against the published feature matrices and as a development
-    source when UTD raw data are not available (``smoke`` runs).
+    One person, everyday recordings with the same device. Used only to check the
+    feature code against the published feature matrices (test G1).
 """
 
 from __future__ import annotations

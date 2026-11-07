@@ -1,4 +1,4 @@
-"""Checks on independent data, as planned in docs/EXTERNAL-CHECKS.md.
+"""Checks on independent data, as planned in docs/PREREGISTRATION.md, last section.
 
 Usage:
     python scripts/external_checks.py edabe <edabe-8hz.npz>  [--reps 10]
@@ -135,7 +135,7 @@ def cmdEdabe(args):
 
 # ------------------------------------------------------------------ WESAD
 def wesadMotion(path: str, cfg: dict) -> list[dict]:
-    """WESAD wrist recordings as movement donors (docs/EXTERNAL-CHECKS.md, W1)."""
+    """WESAD wrist recordings as movement donors (docs/PREREGISTRATION.md, last section, W1)."""
     z = np.load(path)
     subjects = sorted({k.split("__")[0] for k in z.files}, key=lambda s: int(s.lstrip("S")))
     motion = []

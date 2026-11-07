@@ -20,7 +20,7 @@ def loadConfig(path: str | Path | None = None, overrides: dict | None = None) ->
 
     Args:
         path: config file; defaults to ``configs/default.yaml`` in the repository.
-        overrides: nested dict merged on top of the file (used by tests and smoke runs).
+        overrides: nested dict merged on top of the file (used by tests).
 
     Returns:
         Plain nested dict.

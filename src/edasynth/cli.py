@@ -96,51 +96,6 @@ def utdAligned(cfg):
     return [r.cropped(int(off[r.pid])) for r in utd(cfg) if r.pid in off]
 
 
-def cmdInspect(cfg, args):
-    """Units, ranges, annotation codes and stage parsing for every UTD record."""
-    from .data import stageType
-
-    rows = []
-    for r in utd(cfg):
-        mag = np.sqrt((r.acc**2).sum(1))
-        rest = np.array([stageType(str(s)) == "rest" for s in r.stage]) if r.stage is not None else np.ones(r.n, bool)
-        rows.append(
-            {
-                "pid": r.pid,
-                "nSamples": r.n,
-                "nWindows": r.nWindows,
-                "fs": r.fs,
-                "units": r.units,
-                "edaMin": float(r.eda.min()),
-                "edaMedian": float(np.median(r.eda)),
-                "edaMax": float(r.eda.max()),
-                "accMagMedianRest": float(np.median(mag[rest])),
-                "nAnnotations": len(r.meta.get("annotations", [])),
-                "annotationCodes": sorted({a[1] for a in r.meta.get("annotations", [])}),
-                "annotationAux": sorted({a[2] for a in r.meta.get("annotations", [])}),
-                "stageError": r.meta.get("stageError", ""),
-            }
-        )
-    out = resultsDir(cfg) / "inspect-utd.json"
-    writeJson(out, rows)
-    df = pd.DataFrame(rows)
-    print(
-        df[
-            [
-                "pid",
-                "nSamples",
-                "edaMin",
-                "edaMedian",
-                "edaMax",
-                "accMagMedianRest",
-                "nAnnotations",
-                "stageError",
-            ]
-        ].to_string()
-    )
-    log(f"written {out}")
-
-
 def cmdAlign(cfg, args):
     """Check that the expert labels line up with the raw signals (docs/METHOD.md section 2.4)."""
     from .alignment import checkParticipant
@@ -257,16 +212,10 @@ def cmdEstimate(cfg, args):
     """Estimate generator parameters (docs/METHOD.md section 3) and write the bank."""
     from .bank import buildBank
 
-    if args.source == "utd":
-        recs = utdAligned(cfg)
-        bad = [r.pid for r in recs if r.stage is None]
-        if bad:
-            raise SystemExit(f"stages could not be parsed for {bad}; run `inspect` first")
-    else:
-        from .data import loadAww
-
-        recs = loadAww(resolve(cfg, "zhang"))
-        log("AWW is ONE person: donors are different recording days, not different people (development only)")
+    recs = utdAligned(cfg)
+    bad = [r.pid for r in recs if r.stage is None]
+    if bad:
+        raise SystemExit(f"stages could not be parsed for {bad}")
     out = resultsDir(cfg) / f"bank-{args.source}"
     meta = buildBank(recs, cfg, args.source, out, log, nJobs=args.jobs)
     lib = meta["library"]
@@ -281,75 +230,6 @@ def loadSourceBank(cfg, args):
     from .experiment import loadBank
 
     return loadBank(resultsDir(cfg) / f"bank-{args.source}", cfg)
-
-
-# ------------------------------------------------------------------ detectors (goal 2)
-def cmdDetectors(cfg, args):
-    from .detectors import runAll
-    from .experiment import makeDataset
-    from .generator import Condition
-    from .models import auprc
-
-    bank = loadSourceBank(cfg, args)
-    rows = []
-    for ci, cls in enumerate(cfg["detectors"]["classes"]):
-        for rep in range(args.reps):
-            cond = Condition(c=0.5, classes=(cls,), prevalence=cfg["grid"]["prevalence"])
-            ds = makeDataset(bank, cond, cfg, cfg["seeds"]["detectors"] + rep * 31 + ci * 1000)
-            flags = {}
-            for r in ds["records"]:
-                for name, (kind, val) in runAll(r.y, r.fs, cfg).items():
-                    flags.setdefault(name, (kind, []))[1].append(val[: r.labels.size])
-            y = ds["y"]
-            if y.sum() == 0:
-                log(f"{cls}: no positive windows generated (e.g. C4 gain ~0); sensitivity not defined")
-                rows += [
-                    {
-                        "class": cls,
-                        "rep": rep,
-                        "detector": name,
-                        "sensitivity": float("nan"),
-                        "specificity": float("nan"),
-                        "auprc": float("nan"),
-                        "nPositive": 0,
-                    }
-                    for name in flags
-                ]
-                continue
-            for name, (kind, parts) in flags.items():
-                s = np.concatenate(parts).astype(float)
-                if kind == "flag":
-                    rows.append(
-                        {
-                            "class": cls,
-                            "rep": rep,
-                            "detector": name,
-                            "sensitivity": float(s[y == 1].mean()),
-                            "specificity": float(1 - s[y == 0].mean()),
-                            "auprc": float("nan"),
-                            "nPositive": int(y.sum()),
-                        }
-                    )
-                else:
-                    from .models import sensitivityAtSpecificity
-
-                    rows.append(
-                        {
-                            "class": cls,
-                            "rep": rep,
-                            "detector": name,
-                            "sensitivity": sensitivityAtSpecificity(y, s, 0.95),
-                            "specificity": 0.95,
-                            "auprc": auprc(y, s),
-                            "nPositive": int(y.sum()),
-                        }
-                    )
-        log(f"detectors done for {cls}")
-    df = pd.DataFrame(rows)
-    out = resultsDir(cfg) / "detectors-by-class.csv"
-    df.to_csv(out, index=False)
-    print(df.groupby(["detector", "class"]).sensitivity.mean().unstack().round(3).to_string())
-    log(f"written {out}")
 
 
 # ------------------------------------------------------------------ validation
@@ -372,14 +252,8 @@ def cmdValidate(cfg, args):
         rep["G2"] = V.g2ParameterRecovery(bank, cfg, cfg["validation"]["g2Participants"], seed)
         save()
     if "G3" in args.gates or "G4" in args.gates:
-        if args.source == "utd":
-            log("G3/G4 realism")
-            rep.update(V.g3G4Realism(utdAligned(cfg), bank, cfg, seed))
-        else:
-            from .data import loadAww
-
-            log("G3/G4 realism against AWW (development only)")
-            rep.update(V.g3G4Realism(loadAww(resolve(cfg, "zhang")), bank, cfg, seed))
+        log("G3/G4 realism")
+        rep.update(V.g3G4Realism(utdAligned(cfg), bank, cfg, seed))
         save()
     if "G5" in args.gates:
         log("G5 negative controls")
@@ -603,12 +477,7 @@ def cmdFigures(cfg, args):
     mix = tuple(cfg["grid"]["compositions"][-1])
     ds = makeDataset(bank, Condition(c=0.5, classes=mix), cfg, 12345)
     syn = ds["records"][0]
-    if args.source == "utd":
-        reals = utdAligned(cfg)
-    else:
-        from .data import loadAww
-
-        reals = loadAww(resolve(cfg, "zhang"))
+    reals = utdAligned(cfg)
     real = next(r for r in reals if r.pid == syn.meta["physiologyDonor"])
     F.f1RealVsSynthetic(real, syn, figdir)
     # F2: each class on the same clean segment
@@ -647,14 +516,11 @@ def cmdFigures(cfg, args):
     if sj.exists():
         s = pd.read_csv(sj)
         F.f4Map(s, figdir)  # one file per composition; the mixture is the main map
+        F.f0Summary(s, figdir, cfg["analysis"]["observedDelta"])
     if gm.exists():
         df = readGrid(gm, cfg)
         F.f5ByClass(df, figdir)
         F.f6Cost(df, figdir)
-    dj = res / "detectors-by-class.csv"
-    if dj.exists():
-        d = pd.read_csv(dj)
-        F.f7Detectors(d.groupby(["detector", "class"]).sensitivity.mean().unstack(), figdir)
     log(f"figures in {figdir}")
 
 
@@ -666,19 +532,16 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("check-data")
     s.add_argument("--verbose", action="store_true")
-    sub.add_parser("inspect")
     s = sub.add_parser("align")
     s.add_argument("--plots", action="store_true")
     s = sub.add_parser("realdata")
     s.add_argument("--stored", action="store_true")
     s.add_argument("--raw", action="store_true")
     s.add_argument("--out", default=None)
-    for name in ("estimate", "detectors", "validate", "pilot", "grid", "analyze", "power", "figures"):
+    for name in ("estimate", "validate", "pilot", "grid", "analyze", "power", "figures"):
         s = sub.add_parser(name)
-        s.add_argument("--source", choices=["utd", "aww"], default="utd")
+        s.add_argument("--source", choices=["utd"], default="utd")
         s.add_argument("--jobs", type=int, default=1)
-        if name == "detectors":
-            s.add_argument("--reps", type=int, default=3)
         if name == "validate":
             s.add_argument("--gates", nargs="+", default=["G2", "G3", "G4", "G5", "G6", "G7"])
             s.add_argument("--pytest", action="store_true")

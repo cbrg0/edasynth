@@ -1,4 +1,4 @@
-"""Extract the synchronised wrist data of WESAD (docs/EXTERNAL-CHECKS.md, preparation).
+"""Extract the synchronised wrist data of WESAD (docs/PREREGISTRATION.md, last section, preparation).
 
 Run in the folder that holds WESAD.zip; writes wesad-wrist.npz with, per subject, the
 wrist acceleration (32 Hz, 1/64 g), the wrist EDA (4 Hz, µS) and the protocol label
