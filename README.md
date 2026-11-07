@@ -1,5 +1,7 @@
 # edasynth
 
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cbrg0/edasynth/blob/main/notebooks/quickstart.ipynb) Reproduce the main results in the browser in about 15 minutes, nothing to install.
+
 **Does a wrist accelerometer help to detect motion artifacts in skin-conductance
 (EDA) recordings, and under which conditions?**
 
@@ -60,6 +62,7 @@ src/edasynth/             the code, one module per step
 scripts/                  data download; preparation and checks of EDABE and WESAD
 tests/                    unit tests
 configs/default.yaml      every number that can change a result
+notebooks/quickstart.ipynb  the main results in the browser (Colab)
 results/, figures/        the outputs reported in RESULTS.md
 ```
 

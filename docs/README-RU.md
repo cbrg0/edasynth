@@ -1,5 +1,7 @@
 # edasynth: краткое описание на русском
 
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cbrg0/edasynth/blob/main/notebooks/quickstart.ipynb) Главные результаты можно воспроизвести в браузере примерно за 15 минут, ничего не устанавливая.
+
 **Помогает ли акселерометр на запястье находить артефакты движения в сигнале
 электродермальной активности (ЭДА), и при каких условиях?**
 
