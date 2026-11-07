@@ -1,4 +1,4 @@
-# Preregistration of the analysis rules
+# Preregistration
 
 The study computes 300 cells, several measures and several variants. Among so many
 numbers some will look interesting by chance, and an author who chooses the rules
@@ -19,7 +19,7 @@ At the time of the tags the folders had shorter names: the settings were in
 `configs/`, the code in `src/` and the results in `results/`. They were renamed later,
 as the last part of the section "Changes after the tags" describes.
 
-## Settings, code and number of replicates fixed by the tags
+## Preregistered elements
 
 1. The whole settings file, now `settings/default.yaml`. It contains the grid, the
    thresholds of all checks, the random seeds, the settings of the models and the
@@ -30,30 +30,30 @@ as the last part of the section "Changes after the tags" describes.
 3. The number of replicates *R*, which the pilot run determined and wrote to
    `result-tables/pilot-utd-R.json`.
 
-**Steps before and after the tag.** Before the tag, the data were checked, the parameters were
+**Order of work.** Before the tag, the data were checked, the parameters were
 measured, the checks G1 to G7 were run and the pilot was computed; the command
 `make before-tag` does all of this. After the tag, the grid, the variants, the runs
 with noisy labels, the analysis, the power calculation and the figures were computed;
 the command `make after-tag` does this. The checks and the pilot test the generator and
 do not use any result of the grid.
 
-**The primary outcome.** For each cell, the mean gains Δ<sub>A4</sub> and
+**Primary outcome.** For each cell, the mean gains Δ<sub>A4</sub> and
 Δ<sub>B</sub> over the *R* replicates are reported with their 95 % *t*-intervals. A
 cell is useful when the mean gain is at least 0.01 and the lower bound of the interval
 is above zero. All cells are reported, and no single cell is picked out afterwards.
 
-**The secondary outcomes** are reported whatever their values turn out to be. They are
+**Secondary outcomes** are reported whatever their values turn out to be. They are
 the gain Δ<sub>A</sub>, the difference Δ<sub>B</sub> − Δ<sub>A4</sub>, the sensitivity at
 95 % specificity, the share of lost genuine responses, the variants, the agreement with
 the real gain of 0.027 with and without noisy labels, the effect of each parameter
 alone, and the power for 5 to 20 participants.
 
-**The checks before the grid.** The checks G1 to G7 use the thresholds written in the
+**Validation before the grid.** The checks G1 to G7 use the thresholds written in the
 settings file. If a check fails, the generator is corrected, the correction is
 recorded, and all checks are run again. **A threshold is never changed to make a check
 pass.**
 
-## Changes made before the first tag, after the results of checks were seen
+## Changes before the first tag
 
 Each of these changes was caused by a failed check, as section 2 of RESULTS.md shows.
 No threshold was changed.
@@ -63,7 +63,7 @@ No threshold was changed.
 | 1.2.0 | the noise is taken from blocks of the remainder of the decomposition, artifact sizes are stored relative to the signal level, participant S18 is no longer a physiology donor, and response sizes are measured in clean windows only | check G3 failed, the artifact sizes did not match the signal level, and an inspection of the data showed the other two problems |
 | 1.3.0 | artifacts copy the measured course of real episodes, the tonic level follows the donor's own stages, C4 uses a control gain, equivalent cells are computed once, and the power is computed for cells at the quartiles | check G4 failed, some clean signals became negative, check G6 failed, and the full grid would have taken too long |
 
-**Check G5 is an accepted exception.** This was decided on 25 October 2026. Without a
+**Exception for G5.** This was decided on 25 October 2026. Without a
 link between movement and artifacts, no feature set gains, but every set loses
 slightly: FA by 0.032, FA4 by 0.002 and FB by 0.002. The rule of G5 was kept as it was,
 and in the map every gain is also compared with this loss.
@@ -112,7 +112,7 @@ became `program-code`, `configs` became `settings` and `results` became
 `result-tables`. The tags keep the old names. No number changed: one replicate
 recomputed after the renaming equals the reported value exactly.
 
-## Plan of the checks on independent data, 30 October 2026
+## Plan of the external validation
 
 This plan was written before any synthetic data had been compared with EDABE or WESAD
 and before any detector had been applied to them. At that point only the column names
@@ -141,7 +141,7 @@ seen, as well as the list of files in WESAD. Version 1.4.0 stayed unchanged.
   are grouped into rest, which covers the baseline and meditation, and load, which
   covers all other stages.
 
-**Dates of this plan rest on the commits.** The commits with this plan are dated 30 October 2026
+**Limitation.** The commits with this plan are dated 30 October 2026
 at 21:34 and 21:35, hours before the runs. However, they reached GitHub together with
 the results on 31 October. Their timing therefore rests on the dates written in the
 commits, which a reader cannot verify independently, unlike the dates of the tags.

@@ -7,7 +7,7 @@ caused by movement?**
 
 A Russian version of this page is in [study-description/README-RU.md](study-description/README-RU.md).
 
-## Electrodermal activity, its artifacts and the aim of the project
+## Background and aim
 
 Electrodermal activity (EDA) is the change in the electrical conductance of the skin
 that sweat glands produce, and it is used to follow emotional arousal and stress.
@@ -21,7 +21,7 @@ thermometer or a heart-rate sensor.
 This repository covers the first step. It asks whether the accelerometer helps to find
 artifacts and under which conditions it does.
 
-## Benefit of the accelerometer depends on how many artifacts movement causes
+## Results
 
 Zhang et al. (2017) published recordings of 20 people in which experts marked the
 artifacts. On these recordings, a detector that also sees the acceleration finds
@@ -43,7 +43,7 @@ features used in earlier work make the detection worse in this figure and help i
 that no public data set contains, and the next step is a laboratory experiment that
 measures it.
 
-## Model of wristband recordings built from real data, checked and run in 300 scenarios
+## Methodology and validation
 
 1. Real recordings were used to measure how the skin signal behaves, how people move
    and what real artifacts look like.
@@ -61,7 +61,7 @@ measures it.
 The rules of the analysis were fixed and published before the main results were
 obtained. All numbers and their limits are in [study-description/RESULTS.md](study-description/RESULTS.md).
 
-## Folders and files of the repository
+## Repository structure
 
 | Folder or file | What it contains |
 |---|---|
@@ -80,7 +80,7 @@ obtained. All numbers and their limits are in [study-description/RESULTS.md](stu
 | `downloaded-data/` | The downloaded data are placed here; the description in this folder says where they come from. |
 | other files in the main folder | Technical files needed for installing the program, citing it and stating its licence. |
 
-## Repeating the results in the browser or on your own computer
+## Reproducing the results
 
 The easiest way is the **Open in Colab** button at the top of this page. It opens the
 notebook on Google's free computers, so nothing has to be installed. To run the

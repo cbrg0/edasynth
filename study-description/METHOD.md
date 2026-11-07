@@ -1,4 +1,4 @@
-# Method of the study
+# Methodology
 
 This file describes every step of the study, every formula and every number used.
 For each number it says where the number comes from. Some numbers are taken from a
@@ -7,14 +7,14 @@ decisions made in this study. The decisions were written into the settings file
 `settings/default.yaml` before the main results were obtained, as described in
 [PREREGISTRATION.md](PREREGISTRATION.md).
 
-## 1. Question and design of the study
+## 1. Research question and study design
 
-**The question of the study.** Wristbands record the electrodermal activity (EDA) of the skin and,
+**Research question.** Wristbands record the electrodermal activity (EDA) of the skin and,
 at the same time, the acceleration of the wrist. The study asks whether a detector of
 motion artifacts in the EDA signal finds them better when it also sees the
 acceleration than when it sees the EDA alone.
 
-**Why the answer is given under conditions.** The benefit of the accelerometer depends
+**Conditional design.** The benefit of the accelerometer depends
 on how often movement actually disturbs the contact between the skin and the
 electrodes, and on how it disturbs it. No existing data set measures this. The study
 therefore describes the link between movement and artifacts by a few parameters,
@@ -25,9 +25,9 @@ unsuitable, and many movements may not affect the contact at all. The design fol
 these two reasons. It compares four sets of features (section 5) and varies five
 parameters of the link (section 4.4).
 
-## 2. Recordings, expert labels and independent data sets
+## 2. Data
 
-**The UTD recordings.** The main data come from the PhysioNet *Non-EEG Dataset for
+**UTD recordings.** The main data come from the PhysioNet *Non-EEG Dataset for
 Assessment of Neurological Status*, version 1.0.0 (Birjandtalab et al., 2016, 2017).
 It contains recordings of 20 healthy participants. A wristband recorded the
 acceleration of the wrist along three axes in units of g, the skin temperature and the
@@ -39,7 +39,7 @@ because the median values of the participants lie between 0.03 and 7.8, which is
 plausible for this unit. Every channel is checked against the checksum stored in its
 file header. The program reads these files with its modules `data` and `wfdbio`.
 
-**The expert labels.** Zhang et al. (2017) published artifact labels for these
+**Expert labels.** Zhang et al. (2017) published artifact labels for these
 recordings in their repository IdeasLabUT, which is used here at commit `7c4bd46`.
 Three experts looked at every five-second piece of each recording, called a window,
 and marked whether it contains an artifact. In this study a window counts as an
@@ -50,7 +50,7 @@ criteria the experts used was "a sudden change correlated with motion". The labe
 therefore depend partly on movement and cannot serve as a fully independent truth
 about the cause of an artifact.
 
-**Matching the labels to the signal.** The labels are given per window, so the program
+**Label alignment.** The labels are given per window, so the program
 must know which samples of the signal belong to which window. It assumes that window
 number *i* covers the samples 40*i* to 40*i* + 39, because five seconds at 8 samples per
 second are 40 samples. To check this assumption, the program recomputes for every
@@ -61,7 +61,7 @@ by Zhang et al. A participant is accepted when all four correlations are at leas
 and no shift between labels and signal was found. This step is done by the module
 `alignment` and the command `align`.
 
-**EDABE and WESAD as independent data.** Two further data sets are used only for the checks described in
+**Independent data.** Two further data sets are used only for the checks described in
 section 4 of RESULTS.md. EDABE (Llanes-Jurado et al., 2023) contains 43 recordings made
 with a Shimmer3 GSR+ device at 128 samples per second, in which every sample is marked
 as artifact or clean; it has no acceleration. WESAD (Schmidt et al., 2018) contains
@@ -70,7 +70,7 @@ per second, acceleration at 32 samples per second and the stages of the protocol
 without artifact labels. The scripts `edabe_pack.py` and `wesad_pack.py` in the folder
 `data-download-and-external-checks/` prepare these data sets.
 
-## 3. Parameters measured on the recordings
+## 3. Parameter estimation
 
 The command `estimate` (module `estimation`) measures how real recordings behave and
 stores the results in a file called the bank, `result-tables/bank-utd.json` together
@@ -82,7 +82,7 @@ and both neighbouring windows are clean as well. The margin of one window on eac
 follows rule 4 of Kleckner et al. (2018); its application here is a decision of the
 study.
 
-**Noise taken from the remainder of the decomposition.** The usual estimate of measurement noise uses the finest Haar wavelet
+**Noise model.** The usual estimate of measurement noise uses the finest Haar wavelet
 coefficients *d*₁ and computes σ = median|*d*₁| / 0.6745 (Donoho & Johnstone, 1994). On
 the UTD recordings this estimate is zero for every participant, because the noise is
 smaller than the smallest step the device can record. This step, called the
@@ -94,7 +94,7 @@ five-second blocks inside clean rest windows, each block is shifted to a mean of
 and the generator draws blocks at random with replacement. This approach is a decision
 of the study.
 
-**Splitting the signal into a slow and a fast part with cvxEDA.** The method cvxEDA
+**Decomposition (cvxEDA).** The method cvxEDA
 (Greco et al., 2016) describes a clean EDA signal as
 
 $$
@@ -125,7 +125,7 @@ the smallest value of the problem recovered the true τ₀; the program test
 the package `cvxopt`, is not installed, a built-in solver (`decompose.numpySolve`) is
 used.
 
-**Rate and size of responses.** A response is a peak of the fast part that rises at least 0.05 µS above
+**Responses.** A response is a peak of the fast part that rises at least 0.05 µS above
 its surroundings. This minimum size is the accepted one in the literature (Kleckner et
 al., 2018; Boucsein et al., 2012, as summarised by Posada-Quintero & Chon, 2020). The
 sizes of responses are measured only on responses whose start and peak both lie in
@@ -175,14 +175,14 @@ it is in 99 % of the same participant's rest time. Events less than one second a
 are joined into one, and the intensity of an event is its largest jerk. These rules are
 decisions of the study.
 
-**Strength of the walking artifact C4.** On UTD, the fast part of EDA follows the fast
+**Walking artifact gain (C4).** On UTD, the fast part of EDA follows the fast
 part of acceleration with a strength of −0.0009 µS per g, which is far too small to
 produce visible artifacts. The class C4 therefore uses a strength chosen by the study,
 called the control gain, which makes the median C4 artifact 0.1 µS large. C4 serves as
 a positive control, a case in which the right answer is known in advance. It is not a
 claim about how large walking artifacts are in reality.
 
-## 4. Generator of synthetic recordings
+## 4. Synthetic data generation
 
 The generator, in the module `generator`, builds synthetic recordings from the bank.
 
@@ -196,7 +196,7 @@ participant S18. The limit of 0.05 µS is rule 1 of Kleckner et al. (2018), and 
 here is a decision of the study. One run of the generator, called a replicate,
 contains 20 synthetic participants.
 
-**4.2 The clean signal.** The generator builds the clean signal at 64 samples per
+**4.2 Clean signal.** The generator builds the clean signal at 64 samples per
 second and then averages it down to 8 samples per second, the rate of the real device;
 this is a decision of the study. The clean signal has four parts:
 
@@ -223,7 +223,7 @@ magnitude minus its moving average over two seconds, and it appears only inside 
 movement event. A C5 artifact replaces the signal by 0 µS or by the upper limit of the
 device.
 
-**4.4 The link between movement and artifacts.** These five parameters form the axes
+**4.4 Movement–artifact link.** These five parameters form the axes
 of the grid of scenarios:
 
 | Parameter | What it means | Values in the grid |
@@ -236,7 +236,7 @@ of the grid of scenarios:
 
 Artifacts that are not caused by a movement start at random times.
 
-**4.5 How many artifacts, and how windows are labelled.** The generator adds artifacts
+**4.5 Prevalence and labelling.** The generator adds artifacts
 until 3.8 % of the windows contain one, which is the share in the UTD labels (Zhang et
 al., 2017). A sample counts as corrupted when the artifact moves it by at least
 0.05 µS. For a shift of level only the moment of change counts, and the lasting offset
@@ -244,13 +244,13 @@ after it does not; this is a decision of the study. A window is labelled as an
 artifact when any of its samples is corrupted. A variant of the study labels it only
 when more than half of its samples are corrupted.
 
-**Variants of the generator.** Besides the main grid, four variants are computed. In the first, called
+**Variants.** Besides the main grid, four variants are computed. In the first, called
 V2, a loss of contact multiplies the signal instead of adding to it,
 *y* = *y*₀(1 + course), for drops and shifts of level. In the second, 15 % of the windows
 contain artifacts instead of 3.8 %. In the third, a window counts as an artifact only
 when most of it is corrupted. In the fourth, only C4 artifacts appear.
 
-## 5. Features computed for each window
+## 5. Feature extraction
 
 A detector does not look at the raw signal. It looks at a set of numbers computed for
 each five-second window, called features. The module `features` computes them, with
@@ -273,7 +273,7 @@ coherence between the acceleration magnitude and the EDA between 0.5 and 3 Hz.
 All four use only the current window and the five seconds before it, so a wristband
 could compute them in real time.
 
-## 6. Detectors and measures of their quality
+## 6. Detection models and evaluation metrics
 
 The modules `models` and `experiment` train the detectors and measure their quality.
 
@@ -304,7 +304,7 @@ The modules `models` and `experiment` train the detectors and measure their qual
   participants at random with replacement 1 000 times. On synthetic data it is the 95 %
   *t*-interval over the replicates.
 
-## 7. Checks of the generator
+## 7. Generator validation
 
 The command `validate` (module `validation`) runs seven checks before the main
 calculations. If a check fails, the generator is corrected; its threshold is never
@@ -325,7 +325,7 @@ slightly when there is no link. This was accepted as an exception, as recorded i
 PREREGISTRATION.md, and the gains in the map are therefore also compared with that
 loss.
 
-## 8. Grid of scenarios, number of replicates and analysis
+## 8. Experimental design and statistical analysis
 
 The commands `pilot`, `grid`, `analyze` and `power` run the experiment.
 
@@ -354,7 +354,7 @@ The commands `pilot`, `grid`, `analyze` and `power` run the experiment.
   participants are simulated. The power is the share of these studies in which the
   bootstrap interval of the gain lies above zero.
 
-## 9. Limitations of the method
+## 9. Limitations
 
 - The synthetic results hold under the assumed link and the assumed shapes of
   artifacts. They do not say how often movement disturbs the electrode in real people.

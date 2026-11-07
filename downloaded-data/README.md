@@ -1,4 +1,4 @@
-# Data sources and their download
+# Data sources
 
 The data are not stored in the repository. The command `make data` downloads them from
 their sources into this folder and compares every file with a list of checksums. A
