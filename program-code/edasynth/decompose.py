@@ -1,21 +1,9 @@
-"""This module contains the Bateman response and the cvxEDA decomposition of Greco et al.
-(2016).
+"""This file splits an electrodermal signal into its slow level and its fast responses,
+which is needed to measure how real signals behave.
 
-The model describes the signal as y = r + t + e. The fast part r = M A^-1 p is the
-Bateman response, written as a recursive filter, driven by a sparse non-negative input
-p. The slow part t = B l + C d is a smooth cubic curve with pieces joined every 10
-seconds, plus a constant and a linear trend. The remainder e is what the model does not
-explain. The estimate minimises
-
-    0.5 * ||M A^-1 p + B l + C d - y||^2 + alpha * sum(p) + 0.5 * gamma * ||l||^2,  p >= 0.
-
-Two solvers can be used for the same problem. The first is the authors' own code, the
-file cvxEDA.py from https://github.com/lciti/cvxEDA, which needs the package cvxopt. It
-is not copied into this repository; to use it, put the file on the Python path and check
-its licence there. The second is a projected accelerated-gradient solver written for
-this project, which needs no further packages. The test file
-program-tests/testModelsAndDecompose.py checks that it recovers known inputs and, when
-the authors' code is installed, that it reaches the same value of the objective.
+It uses the published method cvxEDA (Greco et al., 2016). The file estimation.py calls
+it for every real recording, and the parts it returns tell the generator how large and
+how frequent the responses are and how the slow level moves.
 """
 
 from __future__ import annotations

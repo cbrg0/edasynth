@@ -1,5 +1,6 @@
-"""These tests belong to check G1. They confirm that the signal model does exactly what its
-formulas say.
+"""This file tests the generator. It checks on small examples that every part of a
+synthetic recording, from the responses to the artifacts and their labels, behaves
+exactly as the method describes.
 """
 
 import numpy as np

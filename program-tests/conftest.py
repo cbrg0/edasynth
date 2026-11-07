@@ -1,5 +1,5 @@
-"""This file prepares shared test data. Tests that need the downloaded data are skipped
-when the data are missing.
+"""This file prepares what the tests share, such as a tiny invented set of participants.
+Tests that need the downloaded data are skipped when the data are missing.
 """
 
 import sys

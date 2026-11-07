@@ -1,8 +1,8 @@
-"""This module reads the settings of the study.
+"""This file reads the settings of the study and is used by every other step.
 
-Every number that can change a result is stored in a YAML file in the folder settings.
-The code contains no thresholds of its own and reads them from the dictionary that this
-module returns.
+All numbers that can change a result, such as thresholds, random seeds and the values of
+the grid, are kept in the file settings/default.yaml. This file loads them so that the
+rest of the program takes every number from one place and never from its own code.
 """
 
 from __future__ import annotations

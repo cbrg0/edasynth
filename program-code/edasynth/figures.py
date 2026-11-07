@@ -1,5 +1,9 @@
-"""This module draws the figures F0 to F6 only from the files in result-tables; nothing is
-edited by hand.
+"""This file is the last step of the program: it draws the figures of the study.
+
+It reads only the tables in result-tables and turns them into the pictures in
+result-figures, so no figure is drawn or edited by hand. The most important one, F0,
+shows how the gain from acceleration depends on the share of artifacts caused by
+movement.
 """
 
 from __future__ import annotations

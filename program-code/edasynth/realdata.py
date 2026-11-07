@@ -1,11 +1,10 @@
-"""This module analyses the real UTD data; no synthetic data are involved.
+"""This file carries out the comparison on real data, which is the starting point of the
+study.
 
-The option stored uses the feature tables published by Zhang et al., which are scaled
-within each participant and use forward differences for the first derivative. It repeats
-their comparison of a detector with 24 EDA features against a detector with these
-features and 4 features of the acceleration magnitude, 28 in total, by logistic
-regression, leaving one participant out. The option raw recomputes the features from the
-PhysioNet signals with this program, which is check G7.
+It trains one detector that sees only the electrodermal activity and one that also sees
+the acceleration, tests both on the real UTD recordings and reports how much the
+acceleration helps. Its outcome is the gain of about 0.027 with an uncertain sign, which
+motivates the rest of the study.
 """
 
 from __future__ import annotations

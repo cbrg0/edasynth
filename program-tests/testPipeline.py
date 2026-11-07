@@ -1,5 +1,5 @@
-"""These tests run the whole chain on the tiny bank: building a data set, evaluating it and
-the controls.
+"""This file tests the whole chain at once on the tiny invented participants, from building
+a data set to evaluating the detectors and running the control checks.
 """
 
 import numpy as np

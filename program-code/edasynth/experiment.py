@@ -1,10 +1,9 @@
-"""This module builds synthetic data sets and evaluates the detectors on them, as sections
-5 to 8 of study-description/METHOD.md describe.
+"""This file runs the main experiment of the study.
 
-One replicate of one cell is a data set of synthetic participants. Their movement donors
-are the real participants, each used once, and their physiology donors are drawn from
-the valid donors so that nobody is paired with themself, as generator.assignDonors does.
-Every model and every feature set is evaluated on it by leaving one participant out.
+For each of the 300 scenarios it builds synthetic data sets 50 times, trains the
+detectors with and without acceleration and records the gain. It then summarises the
+gains, decides in which scenarios the accelerometer is useful, compares them with the
+real data and estimates how many participants a laboratory study would need.
 """
 
 from __future__ import annotations

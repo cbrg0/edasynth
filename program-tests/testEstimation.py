@@ -1,5 +1,5 @@
-"""These tests check that the measurements of section 3 of study-description/METHOD.md run
-on a labelled recording and recover the values that were put into it.
+"""This file tests the measuring step. It builds recordings in which the true values are
+known and checks that estimation.py measures them back correctly.
 """
 
 import numpy as np

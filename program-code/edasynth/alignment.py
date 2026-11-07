@@ -1,18 +1,10 @@
-"""This module checks that the expert labels of Zhang et al. belong to the right parts of
-the raw UTD signals.
+"""This file checks that the expert labels belong to the right parts of the recordings,
+before any analysis starts.
 
-The labels and the signals were published separately, and no document states which label
-window belongs to which piece of signal. Two checks are therefore made for every
-participant. First, the number of complete five-second windows in the signal must equal
-the number of labelled windows of the group with the number of the participant minus
-one. Second, four amplitude features are recomputed from the raw signal and scaled
-within the participant, exactly as in the script of Zhang et al., and each of them must
-correlate with the matching column of the published table at 0.999 or more. If the
-second check fails, shifts of 1 to 10 windows and 0 to 39 samples are tried, and a
-participant who still fails is excluded.
-
-An accepted participant is used with the shift found here, called offsetSamples: every
-later step removes that many samples from the start of the raw recording.
+The labels and the recordings were published separately, and nowhere is it written which
+label window matches which piece of signal. This file recomputes a few simple numbers
+from the signal and compares them with the numbers published together with the labels.
+If they match, the labels are in the right place. All 20 participants passed this check.
 """
 
 from __future__ import annotations

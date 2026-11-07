@@ -1,14 +1,9 @@
-"""This module is a small reader for the PhysioNet WFDB files of the UTD ("noneeg") data
-set.
+"""This file reads the PhysioNet files in which the UTD recordings are stored.
 
-It implements only what the data set needs: signal format 16, which stores 16-bit
-integers with the least significant byte first and the channels interleaved, and
-annotation files in MIT format (.atr). The reader checks every signal against the
-checksum and the first value stored in the header, so a wrong byte order, channel order
-or gain is noticed at once. If the official wfdb package is installed, the test file
-program-tests/testIoAndData.py also compares both readers on the real files.
-
-As usual in WFDB, the physical value is (digital value - baseline) / gain.
+PhysioNet uses its own file format, called WFDB. This file turns it into ordinary
+numbers and checks every signal against the checksum written in the file, so that a
+reading error would be noticed at once. It serves the file data.py and is not called
+directly.
 """
 
 from __future__ import annotations

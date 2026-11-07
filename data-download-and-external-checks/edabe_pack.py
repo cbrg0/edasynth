@@ -1,10 +1,9 @@
-"""This script reduces the EDABE files to 8 samples per second, as the last section of
-study-description/PREREGISTRATION.md describes.
+"""This script prepares the EDABE data set for the external validation.
 
-Run it in the folder that holds the unpacked EDABE data set. It writes the files
-edabe-8hz.npz and edabe-8hz-info.txt. Each block of 16 samples, which turns 128 samples
-per second into 8, is averaged, and a block counts as an artifact when any of its
-samples is labelled.
+EDABE records 128 samples per second, while this study works with 8, so the script
+averages every 16 samples into one and marks a block as an artifact when any of its
+samples was marked. Run it in the folder with the unpacked EDABE data; it writes
+edabe-8hz.npz and edabe-8hz-info.txt.
 """
 
 import glob

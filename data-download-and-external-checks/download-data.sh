@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# This script downloads the two public data sources at fixed versions and checks them.
+# This script is the first step of the study: it downloads the data and checks them.
+# It downloads the two public data sources at fixed versions.
 # The first source is the PhysioNet "Non-EEG Dataset for Assessment of Neurological Status",
 # version 1.0.0, under the Open Data Commons Attribution License 1.0. The second is the
 # repository IdeasLabUT/EDA-Artifact-Detection of Zhang et al. (2017) at commit 7c4bd46,

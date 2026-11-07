@@ -1,18 +1,10 @@
-"""This module computes the features of each window.
+"""This file turns each five-second piece of a recording into a set of numbers, called
+features, which the detectors use.
 
-All features use non-overlapping five-second windows of 40 samples at 8 samples per
-second, the unit used by Taylor et al. (2015) and Zhang et al. (2017). The same
-functions are applied to real and to synthetic recordings.
-
-The set F0 contains the 24 EDA features of Zhang et al. (2017): the mean, the standard
-deviation, the maximum and the minimum of the signal, of its first and second
-derivatives, and of its Haar detail coefficients at levels 3, 2 and 1, which correspond
-to 1, 2 and 4 Hz, in this order. The set FA contains the 96 accelerometer features of
-Zhang et al. (2017), the same statistics for the acceleration magnitude and for each
-axis, in the order of their file "Feature Details.txt". The set FA4 contains the first
-four features of FA, which describe the acceleration magnitude. The set FB contains the
-four coupling features proposed in this study, B1 to B4. They use only the current
-window and the five seconds before it, so they could be computed in real time.
+It computes the 24 features of electrodermal activity and the 96 acceleration features
+of earlier work, the 4 features of movement strength, and the 4 coupling features
+proposed in this study, which ask whether the skin signal changes right after a
+movement. The same code is used for real and synthetic recordings.
 """
 
 from __future__ import annotations

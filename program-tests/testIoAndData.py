@@ -1,5 +1,5 @@
-"""These tests check the readers of WFDB format 16 with its checksum, of MIT annotations
-and of the labels of Zhang et al., and the alignment.
+"""This file tests the reading of the data. It checks the reader of the PhysioNet files,
+the loading of the expert labels and the check that labels and recordings line up.
 """
 
 import numpy as np

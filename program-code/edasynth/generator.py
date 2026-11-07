@@ -1,23 +1,10 @@
-"""This module is the semi-synthetic generator, described in section 4 of
-study-description/METHOD.md together with the link between movement and artifacts.
+"""This file is the heart of the study: it builds synthetic wristband recordings.
 
-Each synthetic participant combines two real people. From the movement donor it takes
-the real accelerometer recording, the protocol stages and the movement events. From a
-different person, the physiology donor, it takes the physiology: tau0, the rates and
-sizes of responses, the shape of the slow level, the noise and the quantisation step.
-The physiology donor is chosen among the donors whose EDA level is valid. Because the
-two donors are different people, every link between movement and EDA in the output is
-created by the generator's parameters and is known exactly.
-
-The clean signal is y0 = s + r + eps. The slow level s and the responses r are built at
-64 samples per second and averaged to 8, and the noise eps consists of blocks of the
-donor's decomposition remainder. The size of an artifact is its relative template size
-times the local level of y0 before the artifact. In the main version the artifacts are
-added, y = y0 + all artifacts; in the variant V2, which applies only to classes C2 and
-C3, the signal is multiplied, y = y0 * (1 - rho). A sample counts as corrupted when the
-artifact moves it by at least the threshold; for the shift of level C3 only the change
-counts and not the lasting offset. A window is labelled as an artifact when any of its
-samples is corrupted or, in a variant, when most of them are.
+Each synthetic person combines the real movements of one participant with the measured
+physiology of another, and the file adds artifacts in a controlled way. Because the file
+places every artifact itself, it knows exactly which artifacts were caused by movement,
+which real recordings never tell. Its outcome is a synthetic recording with true labels
+for every window.
 """
 
 from __future__ import annotations

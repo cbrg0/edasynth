@@ -1,5 +1,6 @@
-"""These tests belong to check G1. They confirm that the features are computed as
-documented, use no future samples and reproduce the published features.
+"""This file tests the features. It checks that they are computed as described, that they
+never use future samples, and that they match the features published by Zhang et al.
+(2017).
 """
 
 import numpy as np

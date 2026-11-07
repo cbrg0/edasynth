@@ -1,14 +1,10 @@
-"""This module loads the two real data sources.
+"""This file is the first step of the program after the download: it loads the real
+recordings and the expert labels.
 
-The UTD recordings come from PhysioNet ("noneeg", version 1.0.0, Birjandtalab et al.,
-2016 and 2017). They contain 20 participants who wore an Affectiva Q Sensor on the
-wrist, which recorded the acceleration along three axes, the skin temperature and the
-EDA 8 times per second. The expert labels for these recordings come from the repository
-of Zhang et al. (2017), with one label for each five-second window.
-
-The AWW recordings ("Alan Walks Wales") are distributed with Zhang et al. (2017). They
-are everyday recordings of one person with the same device and are used only to check
-that the features of this program agree with the published ones, as part of check G1.
+It reads the 20 UTD recordings from PhysioNet, with the acceleration and the
+electrodermal activity of each person, assigns every moment to a stage of the experiment
+and attaches the labels that three experts gave each five-second window. The result is
+one object per person, which all later steps use.
 """
 
 from __future__ import annotations

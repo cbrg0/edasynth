@@ -1,9 +1,9 @@
-"""This module runs the checks G2 to G7 of the generator; check G1 consists of the
-automatic tests.
+"""This file checks that the generator can be trusted, before the main experiment is run.
 
-The thresholds come from the section validation of the settings and were fixed before
-the first run. Each check returns a dictionary with the entry passed and the numbers
-behind the decision, and the command validate writes the report.
+It asks, among other things, whether the generator recovers physiology that was put into
+it, whether a classifier can tell synthetic recordings from real ones, and whether a
+gain appears where none should. Each check has a limit fixed in advance, and the file
+reports whether it passed.
 """
 
 from __future__ import annotations

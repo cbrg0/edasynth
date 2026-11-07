@@ -1,10 +1,10 @@
-"""This module measures the parameters of the generator on real labelled recordings, as
-section 3 of study-description/METHOD.md describes.
+"""This file is the measuring step: it learns from the real recordings everything the
+generator needs.
 
-Everything that the literature does not provide is measured here on real wrist
-recordings: the noise, the quantisation step, the rate and size of responses, the slow
-level, the shapes of artifacts and the movement events. The generator later draws from
-these measured values and does not assume a mathematical distribution for them.
+For every participant it measures the noise, the responses, the slow level, the shape of
+each artifact marked by the experts and the moments of movement. Its outcome is a
+collection of measured values, which the file bank.py stores. Nothing in the generator
+is invented where it could be measured here.
 """
 
 from __future__ import annotations

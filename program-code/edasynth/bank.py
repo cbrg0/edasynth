@@ -1,10 +1,8 @@
-"""This module turns the measurements made on each participant into the input of the
-generator, called the bank.
+"""This file stores the measurements of the previous step in one place, called the bank.
 
-The bank consists of two files. The file with the ending .json holds all measured
-numbers together with their origin. The file with the ending .npz holds the
-accelerometer signals and stage labels of the movement donors and the noise blocks of
-the physiology donors.
+It gathers what estimation.py measured for each participant, groups the artifact shapes
+by type and writes everything to two files in result-tables. The generator later reads
+only this bank and never the raw recordings.
 """
 
 from __future__ import annotations

@@ -1,14 +1,15 @@
-"""This script runs the checks on independent data that the last section of
-study-description/PREREGISTRATION.md plans.
+"""This script carries out the external validation, the last step of the study.
+
+It tests the generator on two data sets it never saw. With EDABE, recordings of another
+device marked by other experts, it checks whether synthetic artifacts look like real
+ones and whether a detector trained only on synthetic data works on real recordings.
+With WESAD, movements of another wristband, it checks whether the main result keeps its
+shape. The outcome is written to result-tables/external-edabe.json and
+result-tables/external-wesad.json.
 
 Usage:
     python data-download-and-external-checks/external_checks.py edabe <edabe-8hz.npz> [--reps 10]
     python data-download-and-external-checks/external_checks.py wesad <wesad-wrist.npz> [--reps 50] [--jobs 2]
-
-The script writes result-tables/external-edabe.json or
-result-tables/external-wesad.json, and for WESAD also a CSV file with every replicate.
-It needs the bank written by the command estimate, result-tables/bank-utd, and, for the
-detector trained on UTD, the raw UTD recordings.
 """
 
 import argparse

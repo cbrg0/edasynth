@@ -1,9 +1,8 @@
-"""This module trains the models, evaluates them on participants they have not seen and
-computes the measures, as section 6 of study-description/METHOD.md describes.
+"""This file trains the detectors and measures how well they find artifacts.
 
-Every evaluation leaves one participant out: the participant being tested never takes
-part in scaling the features, choosing settings or training. The measures are computed
-on the pooled predictions for all participants.
+A detector is always tested on a person it has never seen: it is trained on all
+participants except one and tested on that one, in turn for everybody. The file then
+computes the quality of the detector and the uncertainty of the result.
 """
 
 from __future__ import annotations

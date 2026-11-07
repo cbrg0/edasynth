@@ -1,3 +1,7 @@
+"""This file tests how responses are found in the fast part of the signal. It checks that
+responses put into a synthetic signal are found at the right time and with the right
+height, and that bumps too small to count as responses are ignored."""
+
 import numpy as np
 
 from edasynth.decompose import bateman, hMax

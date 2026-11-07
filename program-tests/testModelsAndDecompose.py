@@ -1,5 +1,6 @@
-"""These tests check that the evaluation never lets the test participant into training and
-that the decomposition recovers known inputs.
+"""This file tests the detectors and the decomposition. It checks that a detector never
+learns from the person it is tested on, that the decomposition recovers known inputs,
+and that the published result on real data is reproduced.
 """
 
 import numpy as np

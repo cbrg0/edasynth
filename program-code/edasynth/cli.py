@@ -1,8 +1,9 @@
-"""This module defines the commands of the program, which are started with python -m
-edasynth followed by the name of a command; the option --help lists them.
+"""This file is the control panel of the program. It does not compute anything itself.
 
-The commands follow the order of the method, and the command make all runs them one
-after another.
+Each command typed in the terminal, such as python -m edasynth grid, arrives here, and
+this file calls the files that do the work in the right order and saves what they
+produce in the folder result-tables. The commands follow the steps of the study, from
+checking the downloaded data to drawing the figures.
 """
 
 from __future__ import annotations

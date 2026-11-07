@@ -1,11 +1,8 @@
-"""This script extracts the synchronised wrist data of WESAD, as the last section of
-study-description/PREREGISTRATION.md describes.
+"""This script prepares the WESAD data set for the external validation.
 
-Run it in the folder that holds WESAD.zip. It writes wesad-wrist.npz, which contains for
-every participant the wrist acceleration at 32 samples per second in units of 1/64 g,
-the wrist EDA at 4 samples per second in microsiemens, and the protocol label, taken at
-every 175th sample of the label recorded at 700 samples per second, which gives 4 labels
-per second.
+It takes from the WESAD archive only what the study needs: the wrist acceleration, the
+wrist electrodermal activity and the stage of the experiment for every participant. Run
+it in the folder with WESAD.zip; it writes wesad-wrist.npz.
 """
 
 import pickle

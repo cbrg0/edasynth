@@ -1,12 +1,11 @@
-"""The edasynth program studies whether a wrist accelerometer helps to detect motion
-artifacts in electrodermal activity (EDA).
+"""This file marks the folder as the Python package edasynth, the program of this study.
 
-The answer depends on how movement and the contact of the electrodes are linked, and
-this link is unknown. The program therefore combines real accelerometer recordings of
-the UTD data set (PhysioNet, "noneeg", version 1.0.0) with synthetic EDA signals whose
-clean part, artifacts and true labels are known exactly, and measures the benefit of the
-accelerometer for many assumed links. The method is described in README.md and in the
-folder study-description.
+The study asks whether the accelerometer of a wristband helps to find motion artifacts
+in electrodermal activity. The program answers it in several steps: it reads real
+recordings, measures how they behave, builds synthetic recordings from these
+measurements, checks that they are realistic, compares detectors with and without
+acceleration in 300 scenarios and draws the figures. Each step lives in its own file in
+this folder.
 """
 
 __version__ = "1.4.1"
