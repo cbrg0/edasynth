@@ -1,17 +1,23 @@
-# Main configuration. Every number that can change a result is here.
-# Values marked "decision" are choices of this project; all others are measured or cited.
-# study-description/METHOD.md explains every value (parameter table in section 11).
-# This file is frozen by the preregistration tag (study-description/PREREGISTRATION.md).
+# This is the main settings file. Every number that can change a result is stored here.
+# A comment says where a value comes from: a cited publication, a measurement on the
+# recordings, or a decision of this study. study-description/METHOD.md explains each value.
+# The file was fixed by the preregistration tags (study-description/PREREGISTRATION.md);
+# only its comments and the folder names in the section paths have changed since.
 
 paths:
-  noneeg: downloaded-data/raw/noneeg-1.0.0           # PhysioNet UTD records (downloaded by data-download-and-external-checks/download-data.sh)
-  zhang: downloaded-data/external/eda-artifact-detection   # Zhang et al. repository at commit 7c4bd46
+  # The PhysioNet UTD recordings, downloaded by data-download-and-external-checks/download-data.sh.
+  noneeg: downloaded-data/raw/noneeg-1.0.0
+  # The repository of Zhang et al. at commit 7c4bd46, downloaded by the same script.
+  zhang: downloaded-data/external/eda-artifact-detection
   results: result-tables
   figures: result-figures
 
 data:
-  excludeSubjects: []          # filled only with documented reasons (alignment failure)
-  alignmentMinR: 0.999        # decision; on AWW the same check gives r = 1.0000
+  # A participant is listed here only for a documented reason, such as a failed alignment.
+  excludeSubjects: []
+  # The smallest accepted correlation in the alignment check; a decision of the study.
+  # On the AWW recordings the same check gives r = 1.0000.
+  alignmentMinR: 0.999
 
 seeds:
   grid: 20261022
@@ -19,65 +25,110 @@ seeds:
   validation: 11
 
 estimation:
-  minResponseAmp: 0.05        # uS, accepted minimum response amplitude (Kleckner et al., 2018; Boucsein et al., 2012, via Posada-Quintero & Chon, 2020)
+  # The smallest size of a response in microsiemens, as accepted in the literature (Kleckner
+  # et al., 2018; Boucsein et al., 2012, as summarised by Posada-Quintero & Chon, 2020).
+  minResponseAmp: 0.05
   cvxeda:
-    backend: auto               # authors' cvxEDA.py if importable (needs cvxopt), else the built-in solver
-    tau1: 0.7                   # s (Greco et al., 2016)
-    tau0Min: 2.0               # s, range of Greco et al. (2016)
+    # The authors' cvxEDA.py is used if it can be imported, which needs cvxopt; otherwise the
+    # built-in solver is used.
+    backend: auto
+    # The fast time constant in seconds, from Greco et al. (2016).
+    tau1: 0.7
+    # The range of the slow time constant in seconds, from Greco et al. (2016).
+    tau0Min: 2.0
     tau0Max: 4.0
-    tau0Step: 0.1              # decision; tau0 chosen by the smallest objective (departs from Greco et al., who used the residual norm)
-    alpha: 8.0e-4               # Greco et al. (2016); z-scoring the input is a decision of this project
+    # The step of the search in seconds; a decision of the study. tau0 is chosen by the
+    # smallest value of the objective, while Greco et al. used the size of the remainder.
+    tau0Step: 0.1
+    # alpha, gamma and the distance between joints come from Greco et al. (2016). Scaling the
+    # input to mean 0 and standard deviation 1 is a decision of the study.
+    alpha: 8.0e-4
     gamma: 1.0e-2
     knotS: 10.0
   tonic:
-    periodMinS: 45            # period range of the synthetic tonic of Greco et al. (2016)
+    # The range of periods of the synthetic slow level of Greco et al. (2016), in seconds.
+    periodMinS: 45
     periodMaxS: 90
-    periodStepS: 1            # decision
-  episodes:                     # artifact-episode measurement and class rules (decision, fixed in advance)
+    # The step of the search in seconds; a decision of the study.
+    periodStepS: 1
+  # How artifact episodes are measured and assigned to classes. These rules are decisions
+  # of the study and were fixed before the data were inspected.
+  episodes:
     baselineS: 2.0
     minAmp: 0.05
     shiftSigma: 3.0
+    # The level in microsiemens below which the signal counts as lost; a decision of the study.
     dropoutLevel: 0.01
-    saturationLevel: 60.0      # uS, upper limit of Kleckner et al. (2018) rule 1; dropoutLevel is a decision
+    # The upper limit in microsiemens, from rule 1 of Kleckner et al. (2018).
+    saturationLevel: 60.0
     flatMinS: 1.0
-    levelFloor: 0.05           # uS; artifact sizes are stored relative to max(local level, levelFloor); floor = lower limit of Kleckner et al. (2018) rule 1, its use here is a decision
+    # Artifact sizes are stored relative to max(local level, levelFloor). The value is the
+    # lower limit of rule 1 of Kleckner et al. (2018); using it here is a decision of the study.
+    levelFloor: 0.05
     pnWalk: 0.5
     walkStages: [physical, walk]
-  donor:                       # who may serve as a physiology donor (decision; study-description/METHOD.md section 4.1)
-    minLevel: 0.05             # uS, lower limit of Kleckner et al. (2018) rule 1
-    maxShareBelow: 0.5         # decision: excluded if more than half of the samples lie below minLevel
+  # Who may serve as a physiology donor; a decision of the study (METHOD.md, section 4.1).
+  donor:
+    # The lower limit in microsiemens, from rule 1 of Kleckner et al. (2018).
+    minLevel: 0.05
+    # A recording is excluded when more than half of its samples lie below minLevel.
+    maxShareBelow: 0.5
   noise:
-    blockS: 5.0                # decision: residual blocks of one window (40 samples)
+    # Each noise block covers one window of five seconds, or 40 samples; a decision of the study.
+    blockS: 5.0
   motion:
-    percentile: 99              # decision; sensitivity at 95 and 99.9
-    minLen: 4                  # samples (0.5 s)
+    # The percentile of the jerk at rest above which a movement event starts; a decision of the
+    # study. The values 95 and 99.9 are foreseen for a check of how much this choice matters.
+    percentile: 99
+    # The shortest event, 4 samples or half a second.
+    minLen: 4
     mergeS: 1.0
   plausibility:
-    maxRatePerMin: 10.0      # decision; warning only, not a gate (literature range to be verified)
+    # A warning is printed above this rate of responses per minute, but the program does not
+    # stop; a decision of the study. The range in the literature has not yet been verified.
+    maxRatePerMin: 10.0
   reference:
-    windowS: [-1.0, 5.0]       # decision
+    # The time around a movement, in seconds, used to describe the UTD labels; a decision.
+    windowS: [-1.0, 5.0]
   c4:
-    smoothS: 2.0               # decision: 'fast part' = signal minus 2-s moving mean
+    # The fast part of a signal is the signal minus its moving mean over 2 seconds; a decision.
+    smoothS: 2.0
     stages: [physical, walk]
 
 generator:
   tau1: 0.7
-  kernelTauMultiple: 10       # Bateman kernel length = 10 tau0 (exp(-10) ~ 5e-5)
-  motionResponseLatencyS: [1.0, 5.0]   # stimulus latency of Boucsein et al. (2012), via Posada-Quintero & Chon (2020); use for movement is an assumption
-  labelThreshold: 0.05         # uS, decision = minimum visible response
-  noise: residualBootstrap     # decision: blocks of the donor's decomposition residual (alternative: gaussian, with the donor's sigma)
-  levelWindowS: 5.0            # decision: local level = median of the clean signal over the 5 s before an artifact
+  # The Bateman response is computed over 10 tau0, after which it has fallen to about 5e-5.
+  kernelTauMultiple: 10
+  # The delay of a response after a stimulus, from Boucsein et al. (2012) as summarised by
+  # Posada-Quintero & Chon (2020). Applying it to movement is an assumption.
+  motionResponseLatencyS: [1.0, 5.0]
+  # A sample counts as corrupted when the artifact moves it by this many microsiemens, the
+  # smallest visible response; a decision of the study.
+  labelThreshold: 0.05
+  # The noise consists of blocks of the donor's decomposition remainder; a decision. The
+  # alternative, gaussian, uses normal noise with the donor's sigma.
+  noise: residualBootstrap
+  # The local level is the median of the clean signal over the 5 seconds before an artifact.
+  levelWindowS: 5.0
   c4:
-    gain: control              # decision: 'control' (G set by controlTargetUs) or 'measured' (G from section 3.8; about 0 on UTD)
-    controlTargetUs: 0.1       # decision: the median movement event gives a C4 artifact of median size 0.1 uS (twice the label threshold)
-  rhoMax: 0.95                 # V2: maximum lost contact fraction
+    # A decision of the study: with control, the gain is set by controlTargetUs; with
+    # measured, it is the gain measured on UTD, which is about zero.
+    gain: control
+    # The median movement event gives a C4 artifact of median size 0.1 microsiemens, twice the
+    # label threshold; a decision of the study.
+    controlTargetUs: 0.1
+  # The largest share of the signal that an artifact can remove.
+  rhoMax: 0.95
   saturationLevel: 60.0
   maxArtifactsPerParticipant: 400
-  allowFallbackTemplates: false   # true only for development runs without measured templates
+  # This is true only for development runs without measured templates.
+  allowFallbackTemplates: false
   fallbackTemplates: {}
 
 features:
-  derivative: central           # as in the published script of Zhang et al.; 'forward' reproduces their stored matrices
+  # Central differences, as in the published script of Zhang et al.; forward differences
+  # reproduce their stored tables.
+  derivative: central
   fb:
     maxLagS: 5.0
     contextS: 5.0
@@ -88,9 +139,15 @@ features:
 models:
   logreg:
     CGrid: [0.01, 0.1, 1.0, 10.0]
-    CSelection: fixed          # decision (1.4.0): C = CDefault as in the real-data comparison (section realdata); before: inner grouped CV over CGrid
-    solver: newton-cholesky     # same L2 objective as lbfgs; ~20x faster on these features (measured)
-    innerFolds: 5              # decision: grouped 5-fold inside each training set ('loso' allowed, ~4x slower)
+    # A decision of version 1.4.0: C is fixed at CDefault, as in the comparison on real data.
+    # Before, C was chosen from CGrid by an inner cross-validation grouped by participant.
+    CSelection: fixed
+    # This solver minimises the same objective as lbfgs and was measured to be about 20 times
+    # faster on these features.
+    solver: newton-cholesky
+    # The inner cross-validation uses 5 folds grouped by participant; a decision. The option
+    # loso is also allowed and is about 4 times slower.
+    innerFolds: 5
     CDefault: 1.0
     classWeight: balanced
     maxIter: 5000
@@ -99,7 +156,8 @@ models:
     classWeight: null
     nJobs: 1
 
-realdata:                       # settings that reproduce the published-feature baseline
+# These settings reproduce the published comparison on real data.
+realdata:
   models:
     logreg: {CGrid: [1.0], CSelection: fixed, innerFolds: 5, CDefault: 1.0, classWeight: balanced, maxIter: 5000, solver: newton-cholesky}
     rf: {nEstimators: 500, classWeight: null, nJobs: -1}
@@ -108,22 +166,31 @@ realdata:                       # settings that reproduce the published-feature 
 analysis:
   specificity: 0.95
   bootstrapN: 1000
-  decision: {minDelta: 0.01}   # accelerometer 'useful' in a cell: mean delta >= 0.01 and lower 95% bound > 0
-  observedDelta: 0.027         # real UTD difference (stored features, logistic regression)
-  labelNoiseKappa: 0.62       # measured Fleiss kappa of the three UTD experts; its use as a target is an assumption
+  # The accelerometer is useful in a cell when the mean gain is at least 0.01 and the lower
+  # bound of the 95 % interval is above zero.
+  decision: {minDelta: 0.01}
+  # The real gain on UTD, with the stored features and logistic regression.
+  observedDelta: 0.027
+  # The measured agreement of the three UTD experts (Fleiss' kappa). Using it as a target for
+  # noisy labels is an assumption.
+  labelNoiseKappa: 0.62
   sensitivityReference: {c: 0.5, kappa: 1.0, deltaMax: 1.0, piR: 0.0}
 
 grid:
   c: [0.0, 0.25, 0.5, 0.75, 1.0]
   kappa: [0.0, 1.0]
-  deltaMax: [1.0, 5.0, 10.0]   # 10 s (1.4.0): beyond the 5-s lag window of the FB features
+  # The value of 10 seconds, added in version 1.4.0, lies beyond the 5-second window of the
+  # coupling features.
+  deltaMax: [1.0, 5.0, 10.0]
   piR: [0.0, 0.5]
-  compositions: [[C1], [C2], [C3], [C5], [C1, C2, C3, C5]]   # last = mixture in measured UTD shares
+  # The last composition is the mixture in the shares measured on UTD.
+  compositions: [[C1], [C2], [C3], [C5], [C1, C2, C3, C5]]
   prevalence: 0.038
 
 variants:
   c: [0.0, 0.5, 1.0]
-  highPrevalence: 0.15         # AWW resting data (Zhang et al., 2017)
+  # The share of artifacts in the AWW resting recordings (Zhang et al., 2017).
+  highPrevalence: 0.15
 
 pilot:
   reps: 10
@@ -143,10 +210,15 @@ validation:
   g2RateMaxRel: 0.2
   g2KsP: 0.05
   c2stAucMax: 0.70
-  realismReps: 10              # decision (1.4.0): median AUC over 10 repetitions; one repetition varied from 0.49 to 0.73 between seeds
-  realism: loso                # decision (1.4.0): G3/G4 with a generator built without the participant it is compared with (leave one participant out); split-half reported too
-  g2Jitter: {tau0Rel: 0.25, tau1Range: [0.35, 1.05]}   # decision (1.4.0): G2 also with responses whose time constants differ from the ones cvxEDA assumes
+  # A decision of version 1.4.0: the median AUC over 10 repetitions is used, because a single
+  # repetition varied from 0.49 to 0.73 between random seeds.
+  realismReps: 10
+  # A decision of version 1.4.0: G3 and G4 use a generator built without the participant it is
+  # compared with. The comparison between halves of the participants is reported as well.
+  realism: loso
+  # A decision of version 1.4.0: G2 is also run with responses whose time constants differ
+  # from the ones cvxEDA assumes.
+  g2Jitter: {tau0Rel: 0.25, tau1Range: [0.35, 1.05]}
   g5MaxAbsDelta: 0.01
   g7Reference: {auprc0: 0.449, auprc1: 0.475, delta: 0.027}
   g7MaxAbsDiff: 0.10
-

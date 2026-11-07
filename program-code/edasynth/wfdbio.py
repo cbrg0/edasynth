@@ -1,13 +1,14 @@
-"""Minimal reader for the PhysioNet WFDB files of the UTD ("noneeg") dataset.
+"""This module is a small reader for the PhysioNet WFDB files of the UTD ("noneeg") data
+set.
 
-Only what the dataset needs is implemented: signal format 16 (little-endian
-16-bit integers, channels interleaved) and MIT-format annotation files (.atr).
-The reader verifies every signal against the checksum and initial value stored in
-the header, so a wrong byte order, channel order or gain is detected immediately.
-If the official ``wfdb`` package is installed, ``program-tests/testIoAndData.py`` also
-compares both readers on the real files.
+It implements only what the data set needs: signal format 16, which stores 16-bit
+integers with the least significant byte first and the channels interleaved, and
+annotation files in MIT format (.atr). The reader checks every signal against the
+checksum and the first value stored in the header, so a wrong byte order, channel order
+or gain is noticed at once. If the official wfdb package is installed, the test file
+program-tests/testIoAndData.py also compares both readers on the real files.
 
-Physical value = (digital value - baseline) / gain   (WFDB convention).
+As usual in WFDB, the physical value is (digital value - baseline) / gain.
 """
 
 from __future__ import annotations
@@ -44,7 +45,7 @@ class SignalSpec:
 
 @dataclass
 class Header:
-    """Parsed WFDB header."""
+    """A WFDB header after parsing."""
 
     record: str
     nSig: int
@@ -63,7 +64,7 @@ class Header:
 
 
 def readHeader(path: str | Path) -> Header:
-    """Parse a ``.hea`` file."""
+    """Parse a .hea file."""
     path = Path(path)
     lines = path.read_text(encoding="utf-8").splitlines()
     comments = [ln[1:].strip() for ln in lines if ln.startswith("#")]
@@ -81,7 +82,7 @@ def readHeader(path: str | Path) -> Header:
             SignalSpec(
                 file=m["file"],
                 fmt=int(m["fmt"]),
-                gain=gain if gain != 0 else 200.0,  # WFDB default gain
+                gain=gain if gain != 0 else 200.0,  # the default gain of WFDB
                 baseline=baseline,
                 units=m["units"] or "mV",
                 adcRes=int(m["res"]),
@@ -95,29 +96,29 @@ def readHeader(path: str | Path) -> Header:
 
 
 def checksum16(digital: np.ndarray) -> int:
-    """16-bit checksum of one signal, written as a signed value (-32768 ... 32767)."""
+    """Return the 16-bit checksum of one signal as a signed value between -32768 and 32767."""
     cs = int(np.sum(digital.astype(np.int64)) % 65536)
     return cs - 65536 if cs > 32767 else cs
 
 
 def checksumsMatch(computed: int, stored: int) -> bool:
-    """Compare checksums modulo 2^16.
+    """Compare two checksums modulo 2^16.
 
-    Header writers store the same 16-bit checksum either signed (-7557) or
-    unsigned (57979); the PhysioNet noneeg headers use the unsigned form.
+    Programs that write headers store the same 16-bit checksum either with a sign, such
+    as -7557, or without, such as 57979. The PhysioNet noneeg headers use the form
+    without a sign.
     """
     return (computed - stored) % 65536 == 0
 
 
 def readRecord(recordPath: str | Path, verify: bool = True) -> tuple[np.ndarray, Header]:
-    """Read a format-16 record.
+    """Read a record in format 16.
 
-    Args:
-        recordPath: path without extension, e.g. ``downloaded-data/raw/noneeg/Subject1_AccTempEDA``.
-        verify: check initial values and checksums against the header.
-
-    Returns:
-        ``(signals, header)`` where ``signals`` has shape (nSamples, nSig) in physical units.
+    The argument recordPath is the path without its ending, for example
+    downloaded-data/raw/noneeg/Subject1_AccTempEDA. The argument verify checks the first
+    values and the checksums against the header. The function returns the signals, with
+    one row per sample and one column per signal in physical units, together with the
+    header.
     """
     recordPath = Path(recordPath)
     hdr = readHeader(recordPath.with_suffix(".hea"))
@@ -144,7 +145,7 @@ def readRecord(recordPath: str | Path, verify: bool = True) -> tuple[np.ndarray,
 
 @dataclass
 class Annotation:
-    """One MIT-format annotation."""
+    """One annotation in MIT format."""
 
     sample: int
     code: int
@@ -155,13 +156,14 @@ class Annotation:
 
 
 def readAnnotations(path: str | Path) -> list[Annotation]:
-    """Read an MIT-format annotation file (e.g. ``.atr``).
+    """Read an annotation file in MIT format, such as a .atr file.
 
-    Format: a stream of 16-bit little-endian words; the top 6 bits hold the code
-    A, the low 10 bits hold I. A=59 (SKIP) is followed by a 32-bit time increment
-    stored as two words, high word first; A=60/61/62 set NUM/SUB/CHAN; A=63 (AUX)
-    is followed by I bytes of text (padded to an even length); A=0 with I=0 ends
-    the file. Any other A is an annotation type with time increment I.
+    The file is a stream of 16-bit words with the least significant byte first. The top
+    6 bits of a word hold the code A and the low 10 bits hold the number I. A = 59
+    (SKIP) is followed by a 32-bit time increment stored as two words, the high word
+    first. A = 60, 61 and 62 set NUM, SUB and CHAN. A = 63 (AUX) is followed by I bytes
+    of text, padded to an even length. A = 0 with I = 0 ends the file. Any other A is an
+    annotation type with the time increment I.
     """
     buf = np.fromfile(Path(path), dtype="<u2")
     out: list[Annotation] = []
@@ -187,7 +189,7 @@ def readAnnotations(path: str | Path) -> list[Annotation]:
             sub = val
         elif a == 62:
             chan = val
-        elif a == 63:  # AUX string attached to the previous annotation
+        elif a == 63:  # a text attached to the previous annotation
             nbytes = val
             nwords = (nbytes + 1) // 2
             raw = buf[i : i + nwords].astype("<u2").tobytes()[:nbytes]

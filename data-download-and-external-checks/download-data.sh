@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Download the two public data sources at fixed versions and verify them.
-#   1. PhysioNet "Non-EEG Dataset for Assessment of Neurological Status" v1.0.0 (ODC-By 1.0)
-#   2. Zhang et al. (2017) repository IdeasLabUT/EDA-Artifact-Detection at commit 7c4bd46 (BSD)
-# Nothing in downloaded-data/raw or downloaded-data/external is ever edited by hand or by code.
-# Requires the package to be installed (pip install -e . or the conda environment).
+# This script downloads the two public data sources at fixed versions and checks them.
+# The first source is the PhysioNet "Non-EEG Dataset for Assessment of Neurological Status",
+# version 1.0.0, under the Open Data Commons Attribution License 1.0. The second is the
+# repository IdeasLabUT/EDA-Artifact-Detection of Zhang et al. (2017) at commit 7c4bd46,
+# under the BSD licence. Nothing in downloaded-data/raw or downloaded-data/external is ever
+# edited, by hand or by code. The program must be installed first, with pip install -e .
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -30,9 +31,9 @@ if [ ! -d "$zhangDir/.git" ]; then
 fi
 git -C "$zhangDir" checkout --quiet "$zhangCommit"
 
-# Both sources are verified by the package itself. PhysioNet's SHA256SUMS.txt
-# separates hash and file name by a single space, which `shasum -c` rejects, so
-# shasum is not used. A failed check stops the script before PROVENANCE.txt is written.
+# The program itself checks both sources. The SHA256SUMS.txt file of PhysioNet separates the
+# checksum and the file name by a single space, which the command shasum -c rejects, so shasum
+# is not used. If a check fails, the script stops before it writes PROVENANCE.txt.
 echo ">> verifying checksums of both sources"
 if ! "${PYTHON:-python}" -m edasynth check-data; then
   echo "checksum verification failed: see the MISSING or MISMATCH lines above" >&2

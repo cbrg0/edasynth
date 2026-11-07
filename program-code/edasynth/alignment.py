@@ -1,15 +1,18 @@
-"""Linking the expert labels (Zhang et al. repository) to the raw UTD signals.
+"""This module checks that the expert labels of Zhang et al. belong to the right parts of
+the raw UTD signals.
 
-Labels and signals were published separately and no document states which
-window belongs to which piece of signal. Two checks are applied per participant:
-1. the number of complete 5-s windows equals the number of labelled windows of
-   group g = subject - 1;
-2. the four amplitude features recomputed from the raw signal and z-scored within
-   the participant (exactly as in Zhang's script) correlate >= 0.999 with the
-   first four columns of the published matrix. If not, shifts of 1-10 windows and
-   0-39 samples are searched; a participant that still fails is excluded.
-Accepted participants are used with the offset found here (``offsetSamples``):
-every later step drops that many samples from the start of the raw record.
+The labels and the signals were published separately, and no document states which label
+window belongs to which piece of signal. Two checks are therefore made for every
+participant. First, the number of complete five-second windows in the signal must equal
+the number of labelled windows of the group with the number of the participant minus
+one. Second, four amplitude features are recomputed from the raw signal and scaled
+within the participant, exactly as in the script of Zhang et al., and each of them must
+correlate with the matching column of the published table at 0.999 or more. If the
+second check fails, shifts of 1 to 10 windows and 0 to 39 samples are tried, and a
+participant who still fails is excluded.
+
+An accepted participant is used with the shift found here, called offsetSamples: every
+later step removes that many samples from the start of the raw recording.
 """
 
 from __future__ import annotations
@@ -29,7 +32,7 @@ def amplitudeZ(eda: np.ndarray, offset: int = 0, nWindows: int | None = None) ->
 
 
 def checkParticipant(eda: np.ndarray, stored4: np.ndarray, threshold: float) -> dict:
-    """Return window counts, best shift and per-feature correlations."""
+    """Return the numbers of windows, the best shift and the correlation of each feature."""
     nLab = stored4.shape[0]
     nRaw = eda.size // WIN
 

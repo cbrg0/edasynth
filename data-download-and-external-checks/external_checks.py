@@ -1,12 +1,14 @@
-"""Checks on independent data, as planned in study-description/PREREGISTRATION.md, last section.
+"""This script runs the checks on independent data that the last section of
+study-description/PREREGISTRATION.md plans.
 
 Usage:
-    python data-download-and-external-checks/external_checks.py edabe <edabe-8hz.npz>  [--reps 10]
+    python data-download-and-external-checks/external_checks.py edabe <edabe-8hz.npz> [--reps 10]
     python data-download-and-external-checks/external_checks.py wesad <wesad-wrist.npz> [--reps 50] [--jobs 2]
 
-Writes result-tables/external-edabe.json or result-tables/external-wesad.json (and a CSV of the
-WESAD replicates). The bank of `estimate` (result-tables/bank-utd) and, for the UTD-trained
-detector, the raw UTD recordings are needed.
+The script writes result-tables/external-edabe.json or
+result-tables/external-wesad.json, and for WESAD also a CSV file with every replicate.
+It needs the bank written by the command estimate, result-tables/bank-utd, and, for the
+detector trained on UTD, the raw UTD recordings.
 """
 
 import argparse
@@ -37,7 +39,9 @@ def setup():
 
 
 def zWithin(X: np.ndarray, g: np.ndarray) -> np.ndarray:
-    """Each feature z-scored within each recording (constant features become 0)."""
+    """Scale each feature within each recording to mean 0 and standard deviation 1;
+    constant features become 0.
+    """
     Z = np.zeros_like(X, dtype=float)
     for k in np.unique(g):
         m = g == k
@@ -46,16 +50,18 @@ def zWithin(X: np.ndarray, g: np.ndarray) -> np.ndarray:
     return Z
 
 
-# ------------------------------------------------------------------ EDABE
 def loadEdabe(path: str, deriv: str):
-    """F0 features, window labels (any labelled sample) and recording index of every EDABE window."""
+    """Return the F0 features, the window labels and the recording number of every EDABE
+    window; a window is an artifact when any of its samples is labelled.
+    """
     z = np.load(path)
     names = sorted({k.rsplit("__", 1)[0] for k in z.files})
     X, y, g, info = [], [], [], []
     for k, name in enumerate(names):
         raw = np.asarray(z[name + "__raw"], float)
         lab = np.asarray(z[name + "__label"], int)
-        nz = np.flatnonzero(raw != 0)  # leading/trailing zeros: device not yet / no longer recording
+        # Zeros at the start and the end mean that the device was not yet or no longer recording.
+        nz = np.flatnonzero(raw != 0)
         if nz.size == 0:
             continue
         raw, lab = raw[nz[0] : nz[-1] + 1], lab[nz[0] : nz[-1] + 1]
@@ -133,9 +139,10 @@ def cmdEdabe(args):
     cli.log(json.dumps({k: v for k, v in out.items() if k not in ("perRecording", "replicates")}, indent=1))
 
 
-# ------------------------------------------------------------------ WESAD
 def wesadMotion(path: str, cfg: dict) -> list[dict]:
-    """WESAD wrist recordings as movement donors (study-description/PREREGISTRATION.md, last section, W1)."""
+    """Prepare the WESAD wrist recordings as movement donors, for check W1 of the last
+    section of study-description/PREREGISTRATION.md.
+    """
     z = np.load(path)
     subjects = sorted({k.split("__")[0] for k in z.files}, key=lambda s: int(s.lstrip("S")))
     motion = []
@@ -190,7 +197,7 @@ def cmdWesad(args):
     grid = cli.readGrid(res / "grid-metrics-utd.csv", cfg)
     rows, cells = [], []
     part = res / "external-wesad.json"
-    if part.exists():  # resume: cells already finished by an interrupted run are kept
+    if part.exists():  # When an interrupted run is continued, the cells it already finished are kept.
         prev = json.loads(part.read_text())
         cells = prev.get("cells", [])
         rows = pd.read_csv(res / "external-wesad-replicates.csv").to_dict("records")
@@ -224,7 +231,8 @@ def cmdWesad(args):
         cell["sameDecisionFB"] = cell["dB_wesad"]["useful"] == cell["dB_utd"]["useful"]
         cells.append(cell)
         cli.log(f"WESAD c={c}: {cell}")
-        pd.DataFrame(rows).to_csv(res / "external-wesad-replicates.csv", index=False)  # kept if a later cell is cut
+        # This file is kept if a later cell is interrupted.
+        pd.DataFrame(rows).to_csv(res / "external-wesad-replicates.csv", index=False)
         (res / "external-wesad.json").write_text(json.dumps({**out, "cells": cells, "partial": True}, indent=1))
     out["cells"] = cells
     out["passed"] = bool(all(c["sameDecisionFB"] for c in cells))

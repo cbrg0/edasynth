@@ -1,8 +1,11 @@
-"""Extract the synchronised wrist data of WESAD (study-description/PREREGISTRATION.md, last section, preparation).
+"""This script extracts the synchronised wrist data of WESAD, as the last section of
+study-description/PREREGISTRATION.md describes.
 
-Run in the folder that holds WESAD.zip; writes wesad-wrist.npz with, per subject, the
-wrist acceleration (32 Hz, 1/64 g), the wrist EDA (4 Hz, µS) and the protocol label
-taken every 175th sample of the 700 Hz label (4 Hz).
+Run it in the folder that holds WESAD.zip. It writes wesad-wrist.npz, which contains for
+every participant the wrist acceleration at 32 samples per second in units of 1/64 g,
+the wrist EDA at 4 samples per second in microsiemens, and the protocol label, taken at
+every 175th sample of the label recorded at 700 samples per second, which gives 4 labels
+per second.
 """
 
 import pickle
@@ -15,7 +18,7 @@ with zipfile.ZipFile("WESAD.zip") as z:
     names = sorted(n for n in z.namelist() if n.endswith(".pkl"))
     for n in names:
         with z.open(n) as f:
-            d = pickle.load(f, encoding="latin1")  # noqa: S301 - the published WESAD files
+            d = pickle.load(f, encoding="latin1")  # noqa: S301 - these are the published WESAD files
         s = d["subject"]
         w = d["signal"]["wrist"]
         out[f"{s}__acc"] = np.asarray(w["ACC"], np.float32)

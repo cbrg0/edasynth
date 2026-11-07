@@ -1,23 +1,23 @@
-"""Semi-synthetic generator (study-description/METHOD.md section 4, including the movement-artifact link).
+"""This module is the semi-synthetic generator, described in section 4 of
+study-description/METHOD.md together with the link between movement and artifacts.
 
-Each synthetic participant combines
-  * the real accelerometer record, protocol stages and motion events of a
-    *motion donor* u(j), and
-  * the physiology (tau0, response rates and sizes, tonic shape, noise,
-    quantisation) of a different *physiology donor* d(j) != u(j), chosen among
-    the donors whose EDA level is valid.
-Because the donors are different people, every link between movement and the
-EDA signal in the output is created by the generator's parameters and is
-therefore known exactly.
+Each synthetic participant combines two real people. From the movement donor it takes
+the real accelerometer recording, the protocol stages and the movement events. From a
+different person, the physiology donor, it takes the physiology: tau0, the rates and
+sizes of responses, the shape of the slow level, the noise and the quantisation step.
+The physiology donor is chosen among the donors whose EDA level is valid. Because the
+two donors are different people, every link between movement and EDA in the output is
+created by the generator's parameters and is known exactly.
 
-Clean signal   y0 = s + r + eps            (s, r on a 64-Hz grid, averaged to 8 Hz; eps =
-                                           blocks of the donor's decomposition residual)
-Artifact size  relative template size x local level of y0 before the artifact
-Artifacts      y  = y0 + sum of all artifacts (variant V1, additive)
-               y  = y0 * (1 - rho)          (variant V2, classes C2/C3 only)
-True label     sample corrupted if the artifact moves it by >= threshold (for the
-               level shift C3 only the transition counts, not the lasting offset);
-               window positive if any (or, as a variant, most) samples are corrupted.
+The clean signal is y0 = s + r + eps. The slow level s and the responses r are built at
+64 samples per second and averaged to 8, and the noise eps consists of blocks of the
+donor's decomposition remainder. The size of an artifact is its relative template size
+times the local level of y0 before the artifact. In the main version the artifacts are
+added, y = y0 + all artifacts; in the variant V2, which applies only to classes C2 and
+C3, the signal is multiplied, y = y0 * (1 - rho). A sample counts as corrupted when the
+artifact moves it by at least the threshold; for the shift of level C3 only the change
+counts and not the lasting offset. A window is labelled as an artifact when any of its
+samples is corrupted or, in a variant, when most of them are.
 """
 
 from __future__ import annotations
@@ -30,19 +30,20 @@ from scipy.signal import fftconvolve
 from .data import WIN, stageType
 from .decompose import bateman, hMax, tPeak
 
-UP = 8  # fine grid = 8 x 8 Hz = 64 Hz
+UP = 8  # The fine grid has 8 x 8 Hz = 64 Hz.
 
 
 @dataclass
 class Condition:
-    """One cell of the grid (study-description/METHOD.md section 8)."""
+    """One cell of the grid, as section 8 of study-description/METHOD.md describes."""
 
-    c: float = 0.5  # share of artifacts caused by movement
-    kappa: float = 1.0  # amplitude ~ (event intensity / median intensity)^kappa
-    deltaMax: float = 1.0  # maximum delay after motion onset, s
-    piR: float = 0.0  # share of motion events followed by a real response
-    classes: tuple = ("C1", "C2", "C3", "C5")  # composition
-    classWeights: tuple | None = None  # None = measured UTD shares
+    c: float = 0.5  # the share of artifacts caused by movement
+    # the size of an artifact is multiplied by (intensity of the event / median intensity) to the power kappa
+    kappa: float = 1.0
+    deltaMax: float = 1.0  # the longest delay after the start of a movement, in seconds
+    piR: float = 0.0  # the share of movement events that are followed by a genuine response
+    classes: tuple = ("C1", "C2", "C3", "C5")  # the classes of artifacts that appear
+    classWeights: tuple | None = None  # None means the shares measured on UTD
     variant: str = "V1"
     prevalence: float = 0.038
     labelRule: str = "any"
@@ -103,20 +104,19 @@ def stepShape(nf: int, fsF: float, t0: float, w: float, height: float):
 
 
 class Generator:
-    """Builds synthetic participants from estimated parameters."""
+    """Build synthetic participants from the measured parameters."""
 
     def __init__(self, library: dict, cfg: dict):
-        self.lib = library  # {"C1": [params...], ..., "classShares": {...}, "G": float, "Gcontrol": float}
+        self.lib = library  # a dictionary with the templates of each class, their shares and the gains G and Gcontrol
         self.cfg = cfg
         self.g = cfg["generator"]
         mode = self.g["c4"]["gain"]
         if mode not in ("control", "measured"):
             raise ValueError(f"unknown C4 gain mode {mode}")
         self.c4Gain = library.get("Gcontrol" if mode == "control" else "G", float("nan"))
-        # set by the G2 check only: per-response variation of the time constants
+        # Only check G2 sets this: each response gets its own time constants.
         self.responseJitter = None
 
-    # ------------------------------------------------------------ clean part
     def clean(self, motion: dict, phys: dict, rng: np.random.Generator, piR: float):
         fs = motion["fs"]
         n = motion["acc"].shape[0]
@@ -124,11 +124,15 @@ class Generator:
         fsF = fs * UP
         stage = motion["stage"]
         tau0, tau1 = phys["tau0"], self.g["tau1"]
-        # tonic (study-description/METHOD.md section 4.2): for each stage of the movement donor the
-        # physiology donor's fit of the same stage (else one of the same type) gives the
-        # level reached at the end of the stage and the oscillation; the trend runs from
-        # the level at the start of the stage to that end level, so the level follows
-        # the donor's own course instead of adding up slopes of unrelated stages
+        # The slow level, as section 4.2 of study-description/METHOD.md describes. For
+        # each stage of the
+        # movement donor, the physiology donor's curve for the same stage, or for a
+        # stage of the same type,
+        # gives the level at the end of the stage and the oscillation. The trend runs
+        # from the level at the
+        # start of the stage to that end level, so the level follows the donor's own
+        # course and does not
+        # add up slopes of unrelated stages.
         s = np.zeros(nf)
         level = None
         for a, b in segments(stage):
@@ -145,17 +149,20 @@ class Generator:
             seg = trend + osc - osc[0]
             s[a * UP : b * UP] = seg
             level = seg[-1]
-        # a line plus a sinusoid can dip below what a skin can show; the tonic is kept at or
-        # above the minimum valid level (Kleckner et al., 2018, rule 1) [decision]
+        # A line plus a sine wave can fall below what skin can show, so the slow level
+        # is kept at or above
+        # the lowest valid level (Kleckner et al., 2018, rule 1); this is a decision of
+        # the study.
         s = np.maximum(s, self.cfg["estimation"]["episodes"]["levelFloor"])
-        # responses: spontaneous (Poisson) and motion-evoked (share piR)
+        # Responses are either spontaneous, as a Poisson process, or evoked by movement,
+        # with the share piR.
         imp = np.zeros(nf)
         responses = []
         areas = np.asarray(phys["areas"], float)
         for a, b in segments(stage):
             typ = stageType(str(stage[a]))
             lam = toNumber(phys["rates"].get(typ, {}).get("ratePerS"))
-            if not np.isfinite(lam):  # donor has no clean time of this stage type: use its other rate
+            if not np.isfinite(lam):  # The donor has no clean time of this type of stage, so its other rate is used.
                 other = [
                     toNumber(v["ratePerS"]) for v in phys["rates"].values() if np.isfinite(toNumber(v["ratePerS"]))
                 ]
@@ -183,14 +190,15 @@ class Generator:
         if self.responseJitter is None:
             h = bateman(np.arange(0, self.g["kernelTauMultiple"] * tau0, 1 / fsF), tau0, tau1)
             rF = fftconvolve(imp, h)[:nf]
-        else:  # each response with its own time constants, so the shape differs from cvxEDA's
+        else:  # Each response gets its own time constants, so its shape differs from the one cvxEDA assumes.
             j = self.responseJitter
             rF = np.zeros(nf)
             for r in responses:
                 t0k = tau0 * (1 + rng.uniform(-j["tau0Rel"], j["tau0Rel"]))
                 t1k = rng.uniform(*j["tau1Range"])
                 hk = bateman(np.arange(0, self.g["kernelTauMultiple"] * t0k, 1 / fsF), t0k, t1k)
-                # same height as the unjittered response of this size
+                # The height stays the same as that of the unchanged response of this
+                # size.
                 hk = hk / hMax(t0k, t1k) * hm
                 idx = int(round(r["t"] * fsF))
                 if idx < nf:
@@ -201,11 +209,12 @@ class Generator:
         return y0, responses
 
     def noise(self, phys: dict, n: int, rng: np.random.Generator) -> np.ndarray:
-        """Measurement noise of the clean signal (study-description/METHOD.md section 4.2).
+        """Return the measurement noise of the clean signal, as section 4.2 of
+        study-description/METHOD.md describes.
 
-        ``residualBootstrap``: blocks of the physiology donor's decomposition
-        residual, drawn with replacement and joined; ``gaussian``: independent
-        normal noise with the donor's sigma.
+        The option residualBootstrap joins blocks of the physiology donor's
+        decomposition remainder, drawn at random with replacement. The option gaussian
+        draws independent normal noise with the donor's sigma.
         """
         mode = self.g["noise"]
         if mode == "gaussian":
@@ -220,13 +229,14 @@ class Generator:
         return blocks[idx].ravel()[:n]
 
     def localLevel(self, y0: np.ndarray, t0: float, fs: float) -> float:
-        """Median of the clean signal over the ``levelWindowS`` before t0, floored."""
+        """Return the median of the clean signal over the levelWindowS seconds before t0,
+        with a lower limit.
+        """
         i0 = min(int(t0 * fs), y0.size - 1)
         w = int(round(self.g["levelWindowS"] * fs))
         lvl = float(np.median(y0[max(0, i0 - w) : i0 + 1]))
         return max(lvl, self.cfg["estimation"]["episodes"]["levelFloor"])
 
-    # ------------------------------------------------------------ artifacts
     def drawTemplate(self, cls: str, rng: np.random.Generator):
         pool = self.lib.get(cls) or []
         if pool:
@@ -241,7 +251,8 @@ class Generator:
 
     def artifactSignal(self, cls, prm, t0, scale, n, fs, y0, acc, ev, variant):
         nf, fsF = n * UP, fs * UP
-        # template sizes are relative to the level before the artifact (section 4.3)
+        # The template sizes are relative to the level before the artifact (section
+        # 4.3).
         lvl = self.localLevel(y0, t0, fs) if cls in ("C1", "C2", "C3") else 1.0
         if cls in ("C1", "C2") and prm.get("trace") is not None:
             return self.transplant(cls, prm, t0, scale, n, fs, y0, lvl, variant)
@@ -262,8 +273,9 @@ class Generator:
             else:
                 piece = size * shape8
             if cls == "C3":
-                # The lasting offset after a contact change is not labelled; only the
-                # transition is (plus the first sample at the new level), as experts do.
+                # The lasting offset after a change of contact is not labelled. Only the
+                # change is, together with
+                # the first sample at the new level, as the experts do.
                 moving = (shape8 > 0) & (shape8 < 1)
                 first = np.argmax(shape8 >= 1) if np.any(shape8 >= 1) else None
                 if first is not None:
@@ -278,18 +290,21 @@ class Generator:
         raise ValueError(cls)
 
     def transplant(self, cls, prm, t0, scale, n, fs, y0, lvl, variant):
-        """Peak or drop with the measured course of a real episode (study-description/METHOD.md section 4.3).
+        """Build a peak or a drop with the measured course of a real episode, as section
+        4.3 of study-description/METHOD.md describes.
 
-        The relative trace, times the movement scaling and bounded below by
-        -rhoMax, is multiplied by the local level (V1) or by the signal itself (V2).
-        Level shifts (C3) are built by :meth:`contactCourse`.
+        The relative course is multiplied by the movement scaling and limited from below
+        by -rhoMax. It is then multiplied by the local level in the main version V1, or
+        by the signal itself in the variant V2. Shifts of level, class C3, are built by
+        contactCourse.
         """
         tr = np.asarray(prm["trace"], float)
         i0 = min(int(round(t0 * fs)), n - 1)
         i1 = min(n, i0 + tr.size)
         rel = np.zeros(n)
         rel[i0:i1] = tr[: i1 - i0]
-        # an artifact can remove at most rhoMax of the signal, also after movement scaling
+        # An artifact can remove at most rhoMax of the signal, also after the movement
+        # scaling.
         rel = np.maximum(rel * scale, -self.g["rhoMax"])
         piece = y0 * rel if variant == "V2" else lvl * rel
         sup = np.zeros(n, bool)
@@ -297,11 +312,13 @@ class Generator:
         return piece, sup
 
     def c3Event(self, prm, t0, scale, n, fs, lvl):
-        """One level shift as (start, relative course during the change, new relative level)."""
+        """Return one shift of level as its start, its relative course during the change
+        and its new relative level.
+        """
         i0 = min(int(round(t0 * fs)), n - 1)
         if prm.get("trace") is not None:
             course = np.asarray(prm["trace"], float)
-        else:  # simple shape: linear ramp of width w to the shift
+        else:  # The simple shape is a straight ramp of width w up to the shift.
             k = max(1, int(np.ceil(prm["w"] * fs)))
             course = prm["relDelta"] * np.arange(1, k + 1) / k
         course = course[: n - i0] * scale
@@ -309,17 +326,19 @@ class Generator:
         return {"i0": i0, "course": course, "new": new, "lvl": lvl}
 
     def contactCourse(self, c3, n, y0, variant):
-        """Offset produced by all level shifts, and the samples labelled as corrupted.
+        """Return the offset produced by all shifts of level, and the samples labelled as
+        corrupted.
 
-        The level after a shift (the contact state) replaces the previous state instead
-        of adding to it, so shifts do not accumulate [decision, 1.4.0]. During a shift
-        the signal moves from the previous state to the measured course of the episode
-        (linear blend over the episode); only that change is labelled, the lasting
-        offset afterwards is not. Relative values are bounded below by -rhoMax.
+        The level after a shift, called the contact state, replaces the previous state
+        instead of adding to it, so shifts do not pile up; this is a decision made in
+        version 1.4.0. During a shift the signal moves from the previous state to the
+        measured course of the episode, blended linearly over the episode. Only that
+        change is labelled, and the lasting offset after it is not. Relative values are
+        limited from below by -rhoMax.
         """
         lo = -self.g["rhoMax"]
         sup = np.zeros(n, bool)
-        state = np.zeros(n)  # in uS for V1, relative to y0 for V2
+        state = np.zeros(n)  # in microsiemens for V1, and relative to y0 for V2
         for e in sorted(c3, key=lambda e: e["i0"]):
             unit = 1.0 if variant == "V2" else e["lvl"]
             i0 = e["i0"]
@@ -341,7 +360,7 @@ class Generator:
         y0, responses = self.clean(motion, phys, rng, cond.piR)
         thr = self.g["labelThreshold"]
         art = np.zeros(n)
-        support = np.zeros(n, bool)  # samples labelled as corrupted
+        support = np.zeros(n, bool)  # the samples labelled as corrupted
         artByCls: dict[str, np.ndarray] = {}
         replace = np.zeros(n, bool)
         replaceVal = np.zeros(n)
@@ -353,7 +372,7 @@ class Generator:
         shares = np.asarray(shares, float)
         shares = shares / shares.sum() if shares.sum() > 0 else np.full(len(cond.classes), 1 / len(cond.classes))
 
-        c3 = []  # level shifts, combined by contactCourse
+        c3 = []  # Shifts of level are combined by contactCourse.
         c3sup = np.zeros(n, bool)
 
         def positiveWindows():
@@ -365,7 +384,8 @@ class Generator:
         while lab.mean() < cond.prevalence and tries < self.g["maxArtifactsPerParticipant"]:
             tries += 1
             cls = cond.classes[rng.choice(len(cond.classes), p=shares)]
-            # C4 has no template: its shape is G * (fast part of |a|) inside a motion event
+            # C4 has no template; its shape is G times the fast part of the acceleration
+            # magnitude inside a movement event.
             prm, src = ({}, "modelG") if cls == "C4" else self.drawTemplate(cls, rng)
             ev = None
             if cls == "C4":
@@ -390,7 +410,8 @@ class Generator:
                 c3.append(self.c3Event(prm, t0, scale, n, fs, self.localLevel(y0, t0, fs)))
                 unused, c3sup = self.contactCourse(c3, n, y0, cond.variant)
             else:
-                # sizes refer to the level of the clean signal, so artifacts add instead of compounding
+                # Sizes refer to the level of the clean signal, so artifacts add up
+                # instead of multiplying each other.
                 piece, sup = self.artifactSignal(cls, prm, t0, scale, n, fs, y0, acc, ev, cond.variant)
                 art += piece
                 support |= sup
@@ -412,8 +433,9 @@ class Generator:
             art = art + off
             artByCls["C3"] = c3sup
         y = y0 + art
-        # together the artifacts can remove at most rhoMax of the signal, and the signal
-        # cannot exceed the upper range limit of the sensor (Kleckner et al., 2018, rule 1)
+        # Together the artifacts can remove at most rhoMax of the signal, and the signal
+        # cannot exceed the
+        # upper limit of the sensor's range (Kleckner et al., 2018, rule 1).
         y = np.clip(y, (1 - self.g["rhoMax"]) * y0, self.g["saturationLevel"])
         y[replace] = replaceVal[replace]
         classWindows = {c: windowLabels(a, nw, "any") for c, a in artByCls.items()}
@@ -448,7 +470,9 @@ class Generator:
 
 
 def toNumber(x) -> float:
-    """Number from the bank; JSON null (missing estimate) becomes NaN."""
+    """Return a number from the bank; a JSON null, which marks a missing estimate, becomes
+    NaN.
+    """
     return float("nan") if x is None else float(x)
 
 
@@ -462,19 +486,23 @@ def windowLabels(mask: np.ndarray, nw: int, rule: str) -> np.ndarray:
 
 
 def fastAcceleration(acc: np.ndarray, fs: float, smoothS: float) -> np.ndarray:
-    """|a| minus its moving mean over ``smoothS`` seconds (the shape of class C4)."""
+    """Return the acceleration magnitude minus its moving mean over smoothS seconds, which
+    is the shape of class C4.
+    """
     k = int(round(smoothS * fs))
     mag = np.sqrt((acc**2).sum(1))
     return mag - np.convolve(mag, np.ones(k) / k, "same")
 
 
 def c4ControlGain(motion: list[dict], smoothS: float, targetUs: float) -> float:
-    """Gain that gives the median movement event a C4 artifact of median size ``targetUs``.
+    """Return the gain that gives the median movement event a C4 artifact of the median
+    size targetUs.
 
-    For every movement event of every movement donor the median of |fast
-    acceleration| inside the event is taken; the gain is the target divided by the
-    median of these values (study-description/METHOD.md section 4.3). Used because the gain
-    measured on UTD is about 0, so C4 would produce no artifact [decision].
+    For every movement event of every movement donor, the median of the absolute fast
+    acceleration inside the event is taken, and the gain is the target divided by the
+    median of these values, as section 4.3 of study-description/METHOD.md describes.
+    This control gain is used because the gain measured on UTD is about zero, so C4
+    would produce no artifacts; it is a decision of the study.
     """
     per = []
     for m in motion:
@@ -485,12 +513,13 @@ def c4ControlGain(motion: list[dict], smoothS: float, targetUs: float) -> float:
 
 
 def assignDonors(motion: list[dict], phys: list[dict], rng: np.random.Generator, maxTries: int = 10000) -> np.ndarray:
-    """Physiology donor index for every movement donor (study-description/METHOD.md section 4.1).
+    """Return the index of the physiology donor for every movement donor, as section 4.1 of
+    study-description/METHOD.md describes.
 
-    Only valid physiology donors are used and nobody is paired with themself.
-    When every donor is valid this is a derangement, so each physiology donor is
-    used once. Otherwise the valid donors are dealt out in random order, each at
-    most one time more often than any other.
+    Only valid physiology donors are used, and nobody is paired with themself. When
+    every donor is valid, the pairing is a derangement, so each physiology donor is used
+    once. Otherwise the valid donors are dealt out in random order, and none is used
+    more than once more often than any other.
     """
     n = len(motion)
     valid = np.array([i for i, p in enumerate(phys) if p.get("validDonor", True)])
@@ -510,7 +539,9 @@ def assignDonors(motion: list[dict], phys: list[dict], rng: np.random.Generator,
 
 
 def derangement(n: int, rng: np.random.Generator) -> np.ndarray:
-    """Random permutation with no fixed point (physiology donor != motion donor)."""
+    """Return a random permutation in which no element stays in its place, so that no
+    physiology donor is paired with themself.
+    """
     while True:
         p = rng.permutation(n)
         if not np.any(p == np.arange(n)):

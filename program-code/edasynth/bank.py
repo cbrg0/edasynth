@@ -1,8 +1,10 @@
-"""Turning per-participant estimates into the generator's inputs ("bank").
+"""This module turns the measurements made on each participant into the input of the
+generator, called the bank.
 
-Output: ``<name>.json`` (all estimated numbers with provenance) and ``<name>.npz``
-(accelerometer arrays and stage labels of the motion donors, residual blocks of
-the physiology donors).
+The bank consists of two files. The file with the ending .json holds all measured
+numbers together with their origin. The file with the ending .npz holds the
+accelerometer signals and stage labels of the movement donors and the noise blocks of
+the physiology donors.
 """
 
 from __future__ import annotations
@@ -34,11 +36,13 @@ physKeys = (
 
 
 def buildLibrary(estimates: list[dict], cfg: dict, log=None) -> dict:
-    """Artifact templates, class shares and walking gain from the participants' estimates.
+    """Build the artifact templates, the shares of the artifact classes and the walking
+    gain from the measurements of all participants.
 
-    Episodes that start below the minimum valid level (Kleckner et al., 2018, rule 1)
-    have no meaningful relative size; they are left out of the templates and shares.
-    Also used by the realism checks with half of the participants (study-description/METHOD.md section 7).
+    Episodes that start below the lowest valid EDA level (rule 1 of Kleckner et al.,
+    2018) have no meaningful size relative to the level, so they are left out of the
+    templates and of the shares. The realism checks also call this function with half of
+    the participants, as section 7 of study-description/METHOD.md describes.
     """
     floor = cfg["estimation"]["episodes"]["levelFloor"]
     allEpisodes = [ep for e in estimates for ep in e["episodes"]]
@@ -62,7 +66,7 @@ def buildLibrary(estimates: list[dict], cfg: dict, log=None) -> dict:
 def gitCommit() -> str:
     try:
         return subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
-    except Exception:  # noqa: BLE001 - provenance is best effort
+    except Exception:  # noqa: BLE001 - recording the program version is helpful but not essential
         return "unknown"
 
 
@@ -80,7 +84,7 @@ def buildBank(recordings: list[Recording], cfg: dict, source: str, out: str | Pa
 
         estimates = Parallel(n_jobs=nJobs)(delayed(estimateParticipant)(rec, cfg) for rec in recordings)
     arrays = {}
-    for e in estimates:  # residual blocks go to the .npz, not into the JSON
+    for e in estimates:  # The noise blocks are stored in the .npz file and not in the JSON file.
         arrays[f"resid{e['pid']}"] = np.asarray(e.pop("residual"), float)
     library = buildLibrary(estimates, cfg, log)
     phys = [{k: e[k] for k in physKeys} for e in estimates]
@@ -115,7 +119,9 @@ def buildBank(recordings: list[Recording], cfg: dict, source: str, out: str | Pa
 
 
 def toJson(obj) -> str:
-    """JSON with NaN/inf written as null (standard JSON has no NaN)."""
+    """Write JSON in which missing or infinite numbers become null, because standard JSON
+    has no NaN.
+    """
     import math
 
     def clean(o):

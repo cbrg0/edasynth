@@ -1,8 +1,10 @@
-"""Reduce the EDABE CSV files to 8 Hz (study-description/PREREGISTRATION.md, last section, preparation).
+"""This script reduces the EDABE files to 8 samples per second, as the last section of
+study-description/PREREGISTRATION.md describes.
 
-Run in the folder that holds the unpacked EDABE data set; writes edabe-8hz.npz and
-edabe-8hz-info.txt. A block of 16 samples (128 Hz -> 8 Hz) is averaged; it counts as
-artifact when any of its samples is labelled.
+Run it in the folder that holds the unpacked EDABE data set. It writes the files
+edabe-8hz.npz and edabe-8hz-info.txt. Each block of 16 samples, which turns 128 samples
+per second into 8, is averaged, and a block counts as an artifact when any of its
+samples is labelled.
 """
 
 import glob

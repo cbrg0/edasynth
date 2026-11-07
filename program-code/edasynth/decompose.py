@@ -1,22 +1,21 @@
-"""Bateman response and the cvxEDA decomposition (Greco et al., 2016).
+"""This module contains the Bateman response and the cvxEDA decomposition of Greco et al.
+(2016).
 
-Model: y = r + t + e, with phasic r = M A^-1 p (ARMA form of the Bateman
-response driven by a sparse non-negative input p), tonic t = B l + C d (cubic
-B-spline with 10-s knot spacing plus offset and linear trend) and residual e.
-The estimate minimises
+The model describes the signal as y = r + t + e. The fast part r = M A^-1 p is the
+Bateman response, written as a recursive filter, driven by a sparse non-negative input
+p. The slow part t = B l + C d is a smooth cubic curve with pieces joined every 10
+seconds, plus a constant and a linear trend. The remainder e is what the model does not
+explain. The estimate minimises
 
     0.5 * ||M A^-1 p + B l + C d - y||^2 + alpha * sum(p) + 0.5 * gamma * ||l||^2,  p >= 0.
 
-Two backends solve the same problem:
-
-``cvxeda``  the authors' reference implementation, file ``cvxEDA.py`` from
-            https://github.com/lciti/cvxEDA (needs cvxopt). It is not copied
-            here: put the file on the Python path yourself (see README) and
-            check its licence there. Imported as ``cvxEDA`` (or ``cvxeda``).
-``numpy``   a projected accelerated-gradient solver written for this project,
-            dependency-free. ``program-tests/testModelsAndDecompose.py`` checks that it recovers
-            known inputs and, when ``cvxeda`` is installed, that it reaches the same
-            objective value as the reference.
+Two solvers can be used for the same problem. The first is the authors' own code, the
+file cvxEDA.py from https://github.com/lciti/cvxEDA, which needs the package cvxopt. It
+is not copied into this repository; to use it, put the file on the Python path and check
+its licence there. The second is a projected accelerated-gradient solver written for
+this project, which needs no further packages. The test file
+program-tests/testModelsAndDecompose.py checks that it recovers known inputs and, when
+the authors' code is installed, that it reaches the same value of the objective.
 """
 
 from __future__ import annotations
@@ -27,27 +26,31 @@ from scipy.linalg import cho_factor, cho_solve
 from scipy.signal import lfilter
 
 
-# ----------------------------------------------------------------- Bateman
 def bateman(t: np.ndarray, tau0: float, tau1: float = 0.7) -> np.ndarray:
-    """h(t) = (exp(-t/tau0) - exp(-t/tau1)) u(t)  (Greco et al., 2016, eq. 4)."""
+    """Return the Bateman function h(t) = (exp(-t/tau0) - exp(-t/tau1)) for t >= 0 and zero
+    before, as in equation 4 of Greco et al. (2016).
+    """
     t = np.asarray(t, dtype=float)
-    tp = np.maximum(t, 0.0)  # avoid overflow of exp(-t/tau) for negative t
+    tp = np.maximum(t, 0.0)  # This prevents exp(-t/tau) from overflowing for negative t.
     return np.where(t >= 0, np.exp(-tp / tau0) - np.exp(-tp / tau1), 0.0)
 
 
 def tPeak(tau0: float, tau1: float = 0.7) -> float:
-    """Time of the maximum of the Bateman function: ln(tau0/tau1) tau0 tau1 / (tau0 - tau1)."""
+    """Return the time at which the Bateman function reaches its maximum, ln(tau0/tau1)
+    tau0 tau1 / (tau0 - tau1).
+    """
     return float(np.log(tau0 / tau1) * tau0 * tau1 / (tau0 - tau1))
 
 
 def hMax(tau0: float, tau1: float = 0.7) -> float:
-    """Height of the Bateman function at its peak."""
+    """Return the height of the Bateman function at its maximum."""
     return float(bateman(np.array([tPeak(tau0, tau1)]), tau0, tau1)[0])
 
 
-# ----------------------------------------------------------------- operators
 def armaCoefficients(delta: float, tau0: float, tau1: float) -> np.ndarray:
-    """Denominator of the bilinear-transformed Bateman filter (paper eqs. 5-7)."""
+    """Return the denominator of the Bateman filter after the bilinear transform, as in
+    equations 5 to 7 of the paper.
+    """
     a1 = 1.0 / min(tau1, tau0)
     a0 = 1.0 / max(tau1, tau0)
     return np.array(
@@ -60,10 +63,10 @@ def armaCoefficients(delta: float, tau0: float, tau1: float) -> np.ndarray:
 
 
 def splineBasis(n: int, delta: float, knotS: float = 10.0) -> sparse.csc_matrix:
-    """Cubic B-spline regressors with knots every ``knotS`` seconds.
+    """Return the columns of a smooth cubic curve with joints every knotS seconds.
 
-    The cubic B-spline is obtained by convolving two triangles of half-width
-    equal to the knot spacing; columns are centred on the knots 0, k, 2k, ...
+    Each cubic piece is obtained by convolving two triangles whose half-width equals the
+    distance between joints. The columns are centred on the joints 0, k, 2k and so on.
     """
     k = int(round(knotS / delta))
     knots = np.arange(0, n + k // 2, k)
@@ -84,7 +87,7 @@ def splineBasis(n: int, delta: float, knotS: float = 10.0) -> sparse.csc_matrix:
 
 
 class Phasic:
-    """K p = M A^-1 p and its transpose, applied by recursive filtering."""
+    """Apply K p = M A^-1 p and its transpose by recursive filtering."""
 
     def __init__(self, ar: np.ndarray):
         self.ar = ar
@@ -96,7 +99,7 @@ class Phasic:
     def __call__(self, p: np.ndarray) -> np.ndarray:
         return lfilter(self.ma, [1.0], self.q(p))
 
-    def T(self, r: np.ndarray) -> np.ndarray:  # noqa: N802 - transpose operator
+    def T(self, r: np.ndarray) -> np.ndarray:  # noqa: N802 - the name stands for the transposed operator
         z = lfilter(self.ma, [1.0], r[::-1])
         return lfilter([1.0], self.ar, z)[::-1]
 
@@ -112,10 +115,10 @@ def numpySolve(y, delta, tau0, tau1, alpha, gamma, knotS, maxIter, tol, p0=None)
     G[np.arange(nB), np.arange(nB)] += gamma
     chol = cho_factor(G)
 
-    def tonic(res):  # exact minimiser over (l, d) given the residual y - K p
+    def tonic(res):  # the exact best (l, d) for the remainder y - K p
         return cho_solve(chol, W.T @ res)
 
-    # Lipschitz constant of p -> K^T K p by power iteration
+    # The Lipschitz constant of p -> K^T K p is found by power iteration.
     v = np.random.default_rng(0).standard_normal(n)
     for iteration in range(50):
         v = K.T(K(v))
@@ -135,7 +138,8 @@ def numpySolve(y, delta, tau0, tau1, alpha, gamma, knotS, maxIter, tol, p0=None)
         z = tonic(res)
         grad = -K.T(res - W @ z)
         x = np.maximum(yPt - (grad + alpha) / L, 0.0)
-        # gradient-based adaptive restart (O'Donoghue & Candes, 2015)
+        # The acceleration is restarted when the gradient points back (O'Donoghue &
+        # Candes, 2015).
         if np.dot(yPt - x, x - xPrev) > 0:
             tK = 1.0
         tNext = 0.5 * (1 + np.sqrt(1 + 4 * tK**2))
@@ -150,16 +154,19 @@ def numpySolve(y, delta, tau0, tau1, alpha, gamma, knotS, maxIter, tol, p0=None)
     f, z = obj(p)
     r = K(p)
     t = W @ z
-    # optimality check (KKT for p >= 0): gradient ~0 where p > 0, gradient >= 0 where p = 0
+    # Optimality for p >= 0: the gradient is about 0 where p > 0 and not negative where
+    # p = 0.
     g = -K.T(y - r - t) + alpha
     kkt = float(np.max(np.abs(np.where(p > 0, g, np.minimum(g, 0.0)))))
     return {"r": r, "p": p, "t": t, "e": y - r - t, "obj": f, "iterations": it + 1, "kkt": kkt}
 
 
 def referenceModule():
-    """The reference cvxEDA implementation, if the user has put it on the path."""
+    """Return the authors' cvxEDA code if the user has put it on the Python path, and None
+    otherwise.
+    """
     try:
-        import cvxEDA as mod  # type: ignore  # noqa: N813 - name of the authors' file
+        import cvxEDA as mod  # type: ignore  # noqa: N813 - this is the name of the authors' file
 
         return mod
     except ImportError:
@@ -181,7 +188,9 @@ def decompose(
     tol: float = 1e-10,
     p0: np.ndarray | None = None,
 ) -> dict:
-    """Decompose an (already z-scored) signal; returns r, p, t, e, obj and the backend used."""
+    """Decompose a signal that is already scaled to mean 0 and standard deviation 1, and
+    return r, p, t, e, the value of the objective and the solver used.
+    """
     y = np.asarray(y, dtype=float)
     if backend in ("auto", "cvxeda"):
         try:

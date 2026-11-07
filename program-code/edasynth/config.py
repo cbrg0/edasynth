@@ -1,7 +1,8 @@
-"""Configuration loading.
+"""This module reads the settings of the study.
 
-Every number that changes a result lives in a YAML file under ``settings/``.
-Code never hard-codes thresholds; it reads them from the dictionary returned here.
+Every number that can change a result is stored in a YAML file in the folder settings.
+The code contains no thresholds of its own and reads them from the dictionary that this
+module returns.
 """
 
 from __future__ import annotations
@@ -16,14 +17,11 @@ repoRoot = Path(__file__).resolve().parents[2]
 
 
 def loadConfig(path: str | Path | None = None, overrides: dict | None = None) -> dict:
-    """Load a YAML config and apply optional nested overrides.
+    """Read a YAML settings file and apply optional nested changes on top of it.
 
-    Args:
-        path: config file; defaults to ``settings/default.yaml`` in the repository.
-        overrides: nested dict merged on top of the file (used by tests).
-
-    Returns:
-        Plain nested dict.
+    The argument path names the settings file; without it, settings/default.yaml in the
+    repository is used. The argument overrides is a nested dictionary that is merged
+    over the file; the tests use it. The function returns an ordinary nested dictionary.
     """
     path = Path(path) if path else repoRoot / "settings" / "default.yaml"
     with path.open(encoding="utf-8") as fh:
@@ -35,7 +33,7 @@ def loadConfig(path: str | Path | None = None, overrides: dict | None = None) ->
 
 
 def merge(base: dict, extra: dict) -> dict:
-    """Return a deep copy of ``base`` with ``extra`` merged in recursively."""
+    """Return a deep copy of base into which extra has been merged at every level."""
     out = copy.deepcopy(base)
     for key, val in extra.items():
         if isinstance(val, dict) and isinstance(out.get(key), dict):
@@ -46,22 +44,27 @@ def merge(base: dict, extra: dict) -> dict:
 
 
 def key(*parts) -> str:
-    """Join name parts without separators, capitalising every part after the first.
+    """Join parts of a name without separators and capitalise every part after the first.
 
-    ``key("auprc", "F0")`` gives ``"auprcF0"``; used for result columns and keys.
+    For example, key("auprc", "F0") gives "auprcF0". The names of the result columns are
+    built this way.
     """
     words = [str(p) for p in parts if str(p)]
     return words[0] + "".join(w[:1].upper() + w[1:] for w in words[1:]) if words else ""
 
 
 def resolve(cfg: dict, key: str) -> Path:
-    """Resolve a path entry from ``cfg['paths']`` relative to the repository root."""
+    """Turn a path from the section paths of the settings into a full path inside the
+    repository.
+    """
     p = Path(cfg["paths"][key])
     return p if p.is_absolute() else repoRoot / p
 
 
 def get(cfg: dict, dotted: str, default: Any = None) -> Any:
-    """Read ``cfg['a']['b']`` as ``get(cfg, 'a.b')``."""
+    """Read a nested setting by a dotted name, so that get(cfg, 'a.b') returns
+    cfg['a']['b'].
+    """
     node: Any = cfg
     for part in dotted.split("."):
         if not isinstance(node, dict) or part not in node:

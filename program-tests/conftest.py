@@ -1,4 +1,6 @@
-"""Shared fixtures. Tests that need downloaded data are skipped when it is absent."""
+"""This file prepares shared test data. Tests that need the downloaded data are skipped
+when the data are missing.
+"""
 
 import sys
 from pathlib import Path
@@ -27,9 +29,9 @@ def cfg():
 
 @pytest.fixture
 def toyBank():
-    """A tiny, fully synthetic bank: 4 'participants' with made-up physiology.
+    """Return a tiny bank of four invented participants with made-up physiology.
 
-    Used only to exercise code paths; its numbers are not estimates of anything.
+    It is used only to run the code; its numbers are not estimates of anything.
     """
     rng = np.random.default_rng(0)
     fs = 8.0
@@ -60,7 +62,7 @@ def toyBank():
             }
         )
     lib = {
-        # sizes relative to the local level (about 2 uS in this bank)
+        # sizes relative to the local level, which is about 2 microsiemens in this bank
         "C1": [{"relA": 0.25, "tauR": 0.5, "tauF": 1.0}],
         "C2": [{"relDepth": 0.2, "w": 0.125, "D": 2.0}],
         "C3": [{"relDelta": 0.15, "w": 0.5}],

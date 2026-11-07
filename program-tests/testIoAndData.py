@@ -1,4 +1,6 @@
-"""Readers: WFDB format 16 with checksum, MIT annotations, Zhang labels, alignment."""
+"""These tests check the readers of WFDB format 16 with its checksum, of MIT annotations
+and of the labels of Zhang et al., and the alignment.
+"""
 
 import numpy as np
 import pytest
@@ -35,8 +37,9 @@ def testFormat16RoundtripAndChecksum(tmp_path):
 
 
 def testChecksumAcceptsUnsignedHeaderValue(tmp_path):
-    # PhysioNet noneeg headers store checksums as unsigned 16-bit numbers (e.g. 57979 for -7557)
-    dig = np.full((10, 1), 30000)  # sum 300000 -> 300000 mod 65536 = 37856, signed -27680
+    # The PhysioNet noneeg headers store checksums without a sign, for example 57979 for
+    # -7557.
+    dig = np.full((10, 1), 30000)  # The sum 300000 gives 300000 mod 65536 = 37856, which is -27680 with a sign.
     writeRecord(tmp_path, dig, [1.0], [0], ["ay"], unsignedChecksum=True)
     assert " 37856 " in (tmp_path / "rec.hea").read_text()
     sig, hdr = readRecord(tmp_path / "rec")
@@ -80,7 +83,7 @@ def testMitAnnotationReader(tmp_path):
     words.append((63 << 10) | len(text))
     padded = text + b"\x00" * (len(text) % 2)
     words.extend(np.frombuffer(padded, dtype="<u2").tolist())
-    words.append((59 << 10))  # SKIP, then 32-bit increment high word first
+    words.append((59 << 10))  # SKIP, followed by a 32-bit increment with the high word first
     big = 5000
     words.extend([big >> 16, big & 0xFFFF])
     ann(1, 20)

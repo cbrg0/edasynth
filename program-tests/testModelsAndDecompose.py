@@ -1,4 +1,6 @@
-"""Evaluation never leaks the test participant; the decomposition recovers known inputs."""
+"""These tests check that the evaluation never lets the test participant into training and
+that the decomposition recovers known inputs.
+"""
 
 import numpy as np
 import pytest
@@ -15,7 +17,7 @@ def testLosoPredictionsIgnoreTheTestParticipantsLabels(cfg):
     y = (X[:, 0] + 0.5 * rng.standard_normal(600) > 1).astype(int)
     p1, unused = losoPredict(X, y, g, "logreg", cfg)
     y2 = y.copy()
-    y2[g == 2] = 1 - y2[g == 2]  # change labels of participant 2 only
+    y2[g == 2] = 1 - y2[g == 2]  # Only the labels of participant 2 change.
     p2, unused = losoPredict(X, y2, g, "logreg", cfg)
     assert np.allclose(p1[g == 2], p2[g == 2])
     assert not np.allclose(p1[g != 2], p2[g != 2])
@@ -69,7 +71,10 @@ def testNumpyAndReferenceBackendsReachTheSameObjective():
 @needsZhang
 @pytest.mark.slow
 def testReproducesPublishedFeatureBaseline(cfg):
-    """EDA-only 0.449 vs EDA + |a| 0.475 (logistic regression, LOSO, stored features)."""
+    """Reproduce the published comparison on the stored features: AUPRC 0.449 with EDA only
+    and 0.475 with the acceleration magnitude added, by logistic regression leaving one
+    participant out.
+    """
     from edasynth.config import merge
     from edasynth.data import loadUtdLabels, loadUtdStoredFeatures
     from edasynth.realdata import compare

@@ -1,8 +1,9 @@
-"""Trained models, out-of-participant evaluation and metrics (study-description/METHOD.md section 6).
+"""This module trains the models, evaluates them on participants they have not seen and
+computes the measures, as section 6 of study-description/METHOD.md describes.
 
-All evaluation is leave-one-participant-out (LOSO): the test participant never
-contributes to scaling, hyper-parameter choice or fitting. Metrics are computed on
-the pooled out-of-fold predictions. See study-description/METHOD.md section 6.
+Every evaluation leaves one participant out: the participant being tested never takes
+part in scaling the features, choosing settings or training. The measures are computed
+on the pooled predictions for all participants.
 """
 
 from __future__ import annotations
@@ -64,7 +65,9 @@ def chooseC(X, y, groups, cfg, seed):
 
 
 def losoPredict(X: np.ndarray, y: np.ndarray, groups: np.ndarray, model: str, cfg: dict, seed: int = 0):
-    """Out-of-participant predicted probabilities for every window."""
+    """Return, for every window, the probability of an artifact predicted by a model that
+    never saw this window's participant.
+    """
     preds = np.zeros(y.size)
     chosen = []
     for tr, te in LeaveOneGroupOut().split(X, y, groups):
@@ -82,7 +85,6 @@ def losoPredict(X: np.ndarray, y: np.ndarray, groups: np.ndarray, model: str, cf
     return preds, chosen
 
 
-# ---------------------------------------------------------------- metrics
 def auprc(y, s) -> float:
     return float(average_precision_score(y, s)) if y.sum() else float("nan")
 
@@ -92,7 +94,9 @@ def auroc(y, s) -> float:
 
 
 def thresholdAtSpecificity(y, s, spec: float = 0.95) -> float:
-    """Score threshold giving the requested specificity on the negatives."""
+    """Return the score threshold at which the requested share of clean windows is
+    recognised as clean.
+    """
     neg = np.sort(s[y == 0])
     return float(np.quantile(neg, spec)) if neg.size else float("inf")
 
@@ -104,7 +108,9 @@ def sensitivityAtSpecificity(y, s, spec: float = 0.95) -> float:
 
 
 def bootstrapParticipants(y, sA, sB, groups, nBoot: int, seed: int, metric=auprc):
-    """Percentile CI of metric(sB) - metric(sA), resampling participants."""
+    """Return the percentile interval of metric(sB) - metric(sA), obtained by drawing
+    participants at random with replacement.
+    """
     rng = np.random.default_rng(seed)
     ug = np.unique(groups)
     idxByG = {g: np.where(groups == g)[0] for g in ug}

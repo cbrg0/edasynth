@@ -1,4 +1,6 @@
-"""Estimation (study-description/METHOD.md section 3) runs on a labelled recording and recovers what was planted."""
+"""These tests check that the measurements of section 3 of study-description/METHOD.md run
+on a labelled recording and recover the values that were put into it.
+"""
 
 import numpy as np
 import pytest
@@ -82,8 +84,8 @@ def testNoiseSigmaRecoversWhiteNoise():
 def testEpisodeClassificationRules(cfg):
     n = 40 * 60
     y = np.full(n, 3.0)
-    y[400:440] -= 0.5  # contact drop that returns
-    y[1600:] += 0.4  # lasting level shift
+    y[400:440] -= 0.5  # a drop of contact after which the signal returns
+    y[1600:] += 0.4  # a shift of level that lasts
     lab = np.zeros((60, 3), int)
     lab[10, :] = 1
     lab[40, :] = 1
@@ -128,13 +130,14 @@ def testResidualBlocksComeFromCleanRestWindowsAndAreCentred():
     clean = np.array([True, False, True, True, True, True])
     out = residualBlocks(r, resid, clean, 5.0)
     assert out["source"] == "cleanRest"
-    assert out["blocks"].shape == (2, 40)  # windows 0 and 2; window 1 is not clean, 3-5 are load
-    assert np.allclose(out["blocks"].mean(1), 0.0)  # window offsets 0 and 2 removed
+    # Windows 0 and 2 are clean, window 1 is not, and windows 3 to 5 belong to a load stage.
+    assert out["blocks"].shape == (2, 40)
+    assert np.allclose(out["blocks"].mean(1), 0.0)  # The windows at offsets 0 and 2 are removed.
     assert np.allclose(np.abs(out["blocks"]), 0.01)
     out = residualBlocks(r, resid, np.array([False, False, False, True, True, False]), 5.0)
     assert out["source"] == "cleanAllFallback" and out["blocks"].shape == (2, 40)
     with pytest.raises(ValueError):
-        residualBlocks(r, resid, clean, 3.0)  # 24 samples do not divide a 40-sample window
+        residualBlocks(r, resid, clean, 3.0)  # 24 samples do not fill a 40-sample window.
 
 
 def testTemplateSizesAreRelativeToTheLevelBeforeTheEpisode():
@@ -143,7 +146,7 @@ def testTemplateSizesAreRelativeToTheLevelBeforeTheEpisode():
     assert templateParameters({**ep, "cls": "C2"}, 0.05)["relDepth"] == pytest.approx(0.2)
     assert templateParameters({**ep, "cls": "C3"}, 0.05)["relDelta"] == pytest.approx(0.1)
     low = templateParameters({**ep, "cls": "C3", "level": 0.01}, 0.05)
-    assert low["relDelta"] == pytest.approx(0.3 / 0.05)  # the floor applies below 0.05 uS
+    assert low["relDelta"] == pytest.approx(0.3 / 0.05)  # The lower limit applies below 0.05 microsiemens.
 
 
 def testEpisodesStoreTheLevelBeforeAndAfter(cfg):
@@ -162,15 +165,15 @@ def testDonorLevelCheckFollowsTheMinimumLevelRule(cfg):
     ok = donorLevelCheck(np.r_[np.full(60, 0.04), np.full(40, 1.0)], cfg)
     assert ok["shareBelowMinLevel"] == pytest.approx(0.6) and not ok["validDonor"]
     ok = donorLevelCheck(np.r_[np.full(50, 0.04), np.full(50, 1.0)], cfg)
-    assert ok["validDonor"]  # exactly half below is still accepted
+    assert ok["validDonor"]  # Exactly half of the samples below the limit is still accepted.
 
 
 def testResponseSizesComeOnlyFromCleanWindows():
     clean = np.array([True, False, True, True])
     ev = [
-        {"onset": 5, "peak": 20},  # all in window 0: kept
-        {"onset": 30, "peak": 45},  # peak in the artifact window 1: dropped
-        {"onset": 50, "peak": 60},  # onset in window 1: dropped
-        {"onset": 90, "peak": 130},  # windows 2 and 3: kept
+        {"onset": 5, "peak": 20},  # Everything lies in window 0, so the response is kept.
+        {"onset": 30, "peak": 45},  # The peak lies in the artifact window 1, so the response is dropped.
+        {"onset": 50, "peak": 60},  # The onset lies in window 1, so the response is dropped.
+        {"onset": 90, "peak": 130},  # Windows 2 and 3 are clean, so the response is kept.
     ]
     assert [e["onset"] for e in cleanEvents(ev, clean)] == [5, 90]

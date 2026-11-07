@@ -1,4 +1,4 @@
-# Preregistration
+# Preregistration of the analysis rules
 
 The study computes 300 cells, several measures and several variants. Among so many
 numbers some will look interesting by chance, and an author who chooses the rules
@@ -19,7 +19,7 @@ At the time of the tags the folders had shorter names: the settings were in
 `configs/`, the code in `src/` and the results in `results/`. They were renamed later,
 as the last part of the section "Changes after the tags" describes.
 
-## What is fixed
+## Settings, code and number of replicates fixed by the tags
 
 1. The whole settings file, now `settings/default.yaml`. It contains the grid, the
    thresholds of all checks, the random seeds, the settings of the models and the
@@ -30,7 +30,7 @@ as the last part of the section "Changes after the tags" describes.
 3. The number of replicates *R*, which the pilot run determined and wrote to
    `result-tables/pilot-utd-R.json`.
 
-**The order of work.** Before the tag, the data were checked, the parameters were
+**Steps before and after the tag.** Before the tag, the data were checked, the parameters were
 measured, the checks G1 to G7 were run and the pilot was computed; the command
 `make before-tag` does all of this. After the tag, the grid, the variants, the runs
 with noisy labels, the analysis, the power calculation and the figures were computed;
@@ -141,7 +141,7 @@ seen, as well as the list of files in WESAD. Version 1.4.0 stayed unchanged.
   are grouped into rest, which covers the baseline and meditation, and load, which
   covers all other stages.
 
-**The limit of this evidence.** The commits with this plan are dated 30 October 2026
+**Dates of this plan rest on the commits.** The commits with this plan are dated 30 October 2026
 at 21:34 and 21:35, hours before the runs. However, they reached GitHub together with
 the results on 31 October. Their timing therefore rests on the dates written in the
 commits, which a reader cannot verify independently, unlike the dates of the tags.

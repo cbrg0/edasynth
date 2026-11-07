@@ -1,4 +1,6 @@
-"""End-to-end on the toy bank: data set, evaluation, controls."""
+"""These tests run the whole chain on the tiny bank: building a data set, evaluating it and
+the controls.
+"""
 
 import numpy as np
 import pytest
@@ -140,4 +142,4 @@ def testRealismGeneratorNeverSeesTheComparedParticipant(toyBank, cfg):
     sub = withoutParticipants(bank, {"T0", "T3"}, cfg)
     assert [m["pid"] for m in sub["motion"]] == ["T1", "T2"]
     assert [p["pid"] for p in sub["phys"]] == ["T1", "T2"]
-    assert sub["library"]["C1"] == [] and len(sub["library"]["C2"]) == 1  # T0's and T3's episodes are gone
+    assert sub["library"]["C1"] == [] and len(sub["library"]["C2"]) == 1  # The episodes of T0 and T3 are gone.

@@ -1,11 +1,11 @@
-# Results
+# Results of the study
 
 This file reports what was measured, what it means and what it does not show. Where a
 statement is a hypothesis and was not tested, it is called a hypothesis. The measures
-used here are explained in [section 6 of METHOD.md](METHOD.md#6-models-and-measures),
+used here are explained in [section 6 of METHOD.md](METHOD.md#6-detectors-and-measures-of-their-quality),
 and the files with all numbers are in the folder `result-tables/`.
 
-## 1. Real data: does acceleration help on the UTD recordings?
+## 1. Detectors with and without acceleration on the real UTD recordings
 
 The first comparison uses the feature tables published by Zhang et al. (2017). They
 cover 9 211 five-second windows from 20 participants, of which 349, or 3.79 %, were
@@ -28,12 +28,13 @@ finds no consistent gain across them (*p* = 0.76). When the acceleration is shuf
 in time within each participant, so that it no longer belongs to the EDA, the mean
 gain over 20 shuffles is −0.001. A detector that guesses would score 0.038.
 
-**What this means.** The real data show neither a gain nor its absence: any gain from
-slightly below zero to about +0.06 agrees with them. They also cannot say whether the
-accelerometer helps against real disturbances of the contact, because one of the
-criteria the experts used refers to movement, so the labels are not independent of it.
+**The real data leave the question open.** They show neither a gain nor its absence:
+any gain from slightly below zero to about +0.06 agrees with them. They also cannot
+say whether the accelerometer helps against real disturbances of the contact, because
+one of the criteria the experts used refers to movement, so the labels are not
+independent of it.
 
-## 2. Can the generator be trusted?
+## 2. Results of the checks of the generator
 
 Before the main calculations, the final version of the generator, 1.4.0, had to pass
 the checks described in section 7 of METHOD.md. All of them were run on the UTD
@@ -50,7 +51,7 @@ recordings.
 | G6, finding a link that was built in | passed: with C4 artifacts only, Δ<sub>B</sub> = +0.008 with an interval from +0.006 to +0.010; with the mixture at *c* = 1, Δ<sub>B</sub> = +0.050 with an interval from +0.040 to +0.060 |
 | G7, agreement with the published result on real data | passed, as the last row of the table in section 1 shows |
 
-**How the generator reached this state.** The first version that worked on the raw
+**Corrections of the generator after failed checks.** The first version that worked on the raw
 files, 1.1.2, failed two checks badly: a classifier told synthetic clean windows from
 real ones with an AUC of 0.98 and synthetic artifact windows with 0.95. Every failure
 led to a recorded correction of the generator. A threshold was never changed.
@@ -63,14 +64,14 @@ led to a recorded correction of the generator. A threshold was never changed.
 | 1.3.0 | C4 uses a control gain, and the tonic level follows the donor's own stages | in G6 no C4 artifacts appeared, and some clean signals became negative |
 | 1.4.0 | shifts of level change a contact state, realism is judged with a generator that never saw the compared participant, G2 also uses varied response shapes, and delays reach 10 seconds | an error found in the grid of version 1.3.0, described next, and three checks that had been circular |
 
-**A withdrawn run.** The main grid was first computed with version 1.3.0, and its
+**The withdrawn grid of version 1.3.0.** The main grid was first computed with version 1.3.0, and its
 summary was seen. While an odd result was being checked, an error was found:
 overlapping artifacts multiplied each other, and in some cells about 20 % of the
 samples became more than twice as large as the 99th percentile of the clean signal.
 That grid is not used, and everything below comes from version 1.4.0. The changes made
 after seeing it are listed in [PREREGISTRATION.md](PREREGISTRATION.md).
 
-**A caution.** The realism of artifact windows is close to its limit. Single
+**Realism of artifact windows close to its limit.** The realism of artifact windows is close to its limit. Single
 repetitions reach an AUC of 0.73. A version of the check that builds the generator
 from one half of the participants and compares it with the other half fails in one
 direction, with 0.76. The main reason is participant S10, whose recording has a
@@ -78,7 +79,7 @@ coarser quantisation step of 0.006 µS instead of about 0.001 µS. The scheme in
 the compared participant is left out, and the median over 10 repetitions, were chosen
 after this was seen.
 
-## 3. The synthetic map
+## 3. Gain from acceleration in the 300 scenarios
 
 The map was computed with version 1.4.0, which is fixed by the tag `prereg-synth-v3`.
 It has 300 cells, of which 226 were computed and the rest copied, as explained in
@@ -136,7 +137,7 @@ labels are made as noisy as the experts' labels, with an agreement of κ ≈ 0.6
 holds for 8 of the 60 cells, all with *c* = 1. No cell with *c* of 0.5 or less agrees
 with the real data.
 
-**3.6 Variants.** The variants of section 4.5 of METHOD.md were computed for up to
+**3.6 Variants of the grid.** The variants of section 4.5 of METHOD.md were computed for up to
 three values of *c*. The half-widths of their 95 % intervals are at most 0.004.
 
 | Variant | *c* | Δ<sub>A4</sub> | Δ<sub>B</sub> |
@@ -159,7 +160,7 @@ share is uncertain by up to 0.07.
 | κ = 0, δ<sub>max</sub> = 1 s, π<sub>r</sub> = 0.5 | FB and FA4 | 0.12 and 0.02 | 0.34 and 0.08 | 0.44 and 0.16 | 0.62 and 0.34 |
 | κ = 1, δ<sub>max</sub> = 5 s, π<sub>r</sub> = 0 | FB and FA4 | 0.14 and 0.00 | 0.62 and 0.04 | 0.94 and 0.18 | 1.00 and 0.26 |
 
-## 4. Checks on data the generator never saw
+## 4. Checks on EDABE and WESAD, which the generator never saw
 
 These checks were planned before they were run, as the last section of
 PREREGISTRATION.md describes. They are run by
@@ -167,7 +168,7 @@ PREREGISTRATION.md describes. They are run by
 `wesad` and the prepared data file, and they write `result-tables/external-edabe.json`
 and `result-tables/external-wesad.json`.
 
-**EDABE.** This data set has 43 recordings from a Shimmer device, marked by other
+**EDABE, another device with other experts.** This data set has 43 recordings from a Shimmer device, marked by other
 experts and without acceleration. It contains 53 590 windows, and 19.1 % of them
 contain an artifact. Because different devices give different signal levels, each
 feature was scaled within each recording, as planned. The results without this
@@ -182,7 +183,7 @@ scaling are given as well.
 For comparison, a detector trained on the real UTD recordings reaches 0.537 on EDABE,
 a detector trained on EDABE itself reaches 0.611, and guessing reaches 0.191.
 
-**WESAD.** In check W1, the movements of the UTD participants were replaced by the
+**WESAD, movements of another wristband.** In check W1, the movements of the UTD participants were replaced by the
 wrist movements of 15 WESAD participants, recorded with an Empatica E4. The cell used
 is the mixture with κ = 1, δ<sub>max</sub> = 1 s and π<sub>r</sub> = 0, run 50 times with
 15 participants each. WESAD contains fewer movement events than UTD, with a median of
@@ -197,7 +198,7 @@ is the mixture with κ = 1, δ<sub>max</sub> = 1 s and π<sub>r</sub> = 0, run 5
 Values in bold are useful by the decision rule. The coupling features are useful in
 exactly the same cells with both kinds of movement, so the check passed.
 
-## 5. What it means
+## 5. Conclusions about the accelerometer
 
 - **One quantity decides the answer.** It is the share *c* of artifacts that movement
   actually causes. It matters about four times more than any other parameter of the
@@ -220,7 +221,7 @@ exactly the same cells with both kinds of movement, so the check passed.
 - **The next step** is a laboratory study that measures *c*. For the coupling features
   it needs about 15 to 20 participants.
 
-## 6. What these results do not show
+## 6. Limits of these results
 
 - They do not show how often movement disturbs the electrode in real life. The map
   gives the answer for each assumed value of *c*.

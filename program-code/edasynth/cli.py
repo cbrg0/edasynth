@@ -1,6 +1,8 @@
-"""Command-line entry point: ``python -m edasynth <command>`` (see ``--help``).
+"""This module defines the commands of the program, which are started with python -m
+edasynth followed by the name of a command; the option --help lists them.
 
-Commands follow the order of the method; ``make all`` runs them in sequence.
+The commands follow the order of the method, and the command make all runs them one
+after another.
 """
 
 from __future__ import annotations
@@ -39,12 +41,12 @@ def resultsDir(cfg) -> Path:
     return p
 
 
-# ------------------------------------------------------------------ data
 def cmdCheckData(cfg, args):
-    """Verify SHA-256 checksums of the downloaded files."""
+    """Check the SHA-256 checksums of the downloaded files."""
     bad = 0
     lists = (
-        ("noneeg", resolve(cfg, "noneeg") / "SHA256SUMS.txt"),  # official list shipped with the data
+        # The first list of checksums is the official one that comes with the data.
+        ("noneeg", resolve(cfg, "noneeg") / "SHA256SUMS.txt"),
         ("zhang", Path(cfg["repoRoot"]) / "downloaded-data/checksums/zhang-eda-artifact-detection-7c4bd46.sha256"),
     )
     for source, listfile in lists:
@@ -86,7 +88,9 @@ def utd(cfg, withLabels=True):
 
 
 def utdAligned(cfg):
-    """UTD recordings accepted by `align`, with the alignment offset applied."""
+    """Return the UTD recordings that the command align accepted, with the shift it found
+    already applied.
+    """
     path = resultsDir(cfg) / "alignment.csv"
     if not path.exists():
         raise SystemExit("result-tables/alignment.csv not found: run `python -m edasynth align` first")
@@ -97,7 +101,9 @@ def utdAligned(cfg):
 
 
 def cmdAlign(cfg, args):
-    """Check that the expert labels line up with the raw signals (study-description/METHOD.md section 2.4)."""
+    """Check that the expert labels line up with the raw signals, as section 2 of
+    study-description/METHOD.md describes.
+    """
     from .alignment import checkParticipant
     from .data import loadUtdLabels, loadUtdStoredFeatures
 
@@ -148,9 +154,10 @@ def cmdAlign(cfg, args):
     log(f"written {out}; accepted {int(df.accepted.sum())}/{len(df)}")
 
 
-# ------------------------------------------------------------------ real data
 def cmdRealdata(cfg, args):
-    """Baseline on real UTD: stored features (reproduction) and/or raw recomputation (G7)."""
+    """Compare the detectors on the real UTD data, with the published features and, when
+    requested, with the features recomputed from the raw signals, which is check G7.
+    """
     from .data import loadUtdLabels, loadUtdStoredFeatures
     from .features import f0, fa4
     from .realdata import compare, shuffledControl, singleFeatureAuprc
@@ -175,7 +182,8 @@ def cmdRealdata(cfg, args):
         accRows, edaRows, yy, gg = [], [], [], []
         for r in utdAligned(cfg):
             nw = r.labels3.shape[0]
-            # z-scored within participant, as in the published feature matrices
+            # Each feature is scaled within each participant, as in the published
+            # feature tables.
             edaRows.append(np.nan_to_num(stats.zscore(f0(r.eda, cfg["features"]["derivative"])[:nw], axis=0)))
             accRows.append(np.nan_to_num(stats.zscore(fa4(r.acc)[:nw], axis=0)))
             yy.append(r.majority())
@@ -207,9 +215,10 @@ def realdataCfg(cfg):
     return merge(cfg, {"models": cfg["realdata"]["models"]})
 
 
-# ------------------------------------------------------------------ estimation
 def cmdEstimate(cfg, args):
-    """Estimate generator parameters (study-description/METHOD.md section 3) and write the bank."""
+    """Measure the parameters of the generator, as section 3 of study-description/METHOD.md
+    describes, and write the bank.
+    """
     from .bank import buildBank
 
     recs = utdAligned(cfg)
@@ -232,7 +241,6 @@ def loadSourceBank(cfg, args):
     return loadBank(resultsDir(cfg) / f"bank-{args.source}", cfg)
 
 
-# ------------------------------------------------------------------ validation
 def cmdValidate(cfg, args):
     from . import validation as V
 
@@ -244,7 +252,7 @@ def cmdValidate(cfg, args):
     seed = cfg["seeds"]["validation"]
     out = resultsDir(cfg) / f"validation-{args.source}.json"
 
-    def save():  # written after every gate, so a crash later does not lose finished gates
+    def save():  # The report is written after every check, so that a later crash does not lose the finished checks.
         writeJson(out, rep)
 
     if "G2" in args.gates:
@@ -275,7 +283,6 @@ def cmdValidate(cfg, args):
     log(f"written {out}")
 
 
-# ------------------------------------------------------------------ experiment
 def runJobs(cfg, bank, jobs, nJobs, outCsv, models, labelNoise=None):
     from joblib import Parallel, delayed
 
@@ -305,8 +312,10 @@ def runJobs(cfg, bank, jobs, nJobs, outCsv, models, labelNoise=None):
                 row["version"] = __version__
                 rows.append(row)
         df = pd.DataFrame(rows)
-        # rows of different cells can have different columns (e.g. detC2* only for
-        # mixtures), so the file is rewritten with aligned columns instead of appended
+        # Rows of different cells can have different columns; for example, the columns
+        # for class C2
+        # exist only in mixture cells. The file is therefore rewritten with aligned
+        # columns instead of extended.
         if outCsv.exists():
             df = pd.concat([pd.read_csv(outCsv), df], ignore_index=True, sort=False)
         tmp = outCsv.with_suffix(".tmp")
@@ -333,13 +342,17 @@ def cmdPilot(cfg, args):
 
 
 def gridCells(cfg, variants: bool, labelNoise: bool):
-    """Cells to compute for `grid`, `grid --variants` and `grid --label-noise`."""
+    """Return the cells that the command grid computes, with or without the options
+    --variants and --label-noise.
+    """
     from .experiment import gridToRun, variantConditions
 
     conds = variantConditions(cfg) if variants else gridToRun(cfg)
     if labelNoise:
-        # only the mixture cells enter the label-noise analysis (goal 5); since 1.3.1
-        # the other compositions are not computed (study-description/PREREGISTRATION.md, changes after the tag)
+        # Only the mixture cells enter the analysis with noisy labels, so since version
+        # 1.3.1 the other
+        # compositions are not computed (see the changes after the tags in
+        # study-description/PREREGISTRATION.md).
         mix = tuple(cfg["grid"]["compositions"][-1])
         conds = [c for c in conds if tuple(c.classes) == mix]
     return conds
@@ -381,7 +394,7 @@ def cmdAnalyze(cfg, args):
     )
     comp.to_csv(res / f"compatibility-{args.source}.csv")
     ln = res / f"grid-labelnoise-metrics-{args.source}.csv"
-    if ln.exists():  # goal 5 with noisy training labels
+    if ln.exists():  # the agreement with the real data when the training labels are noisy
         dn = readGrid(ln, cfg)
         compN = compatibility(
             dn[dn.classes == "+".join(cfg["grid"]["compositions"][-1])],
@@ -444,7 +457,9 @@ def cmdPower(cfg, args):
 
 
 def readGrid(path: Path, cfg: dict) -> pd.DataFrame:
-    """Logistic-regression rows of a grid file, with the equivalent cells filled in."""
+    """Read the rows of the logistic regression from a grid file and fill in the cells that
+    are equivalent to computed ones.
+    """
     from .experiment import expandGrid
 
     df = pd.read_csv(path)
@@ -452,11 +467,13 @@ def readGrid(path: Path, cfg: dict) -> pd.DataFrame:
 
 
 def selectPowerConditions(comp: pd.DataFrame, k: int) -> pd.DataFrame:
-    """k compatible cells spread evenly over their mean gain dB (study-description/METHOD.md section 8).
+    """Choose k cells that agree with the real data and are spread evenly over their mean
+    gain dB, as section 8 of study-description/METHOD.md describes.
 
-    Sorted by mean dB, the cells at the quantiles 1/(k+1), ..., k/(k+1) are taken, so the
-    power is computed for small, middle and large gains that agree with the real data
-    instead of the first cells in grid order [decision].
+    The cells are sorted by their mean dB, and the cells at the quantiles 1/(k+1) to
+    k/(k+1) are taken. The power is thus computed for a small, a middle and a large gain
+    that agree with the real data, instead of for the first cells in the order of the
+    grid. This rule is a decision of the study.
     """
     comp = comp.sort_values("dB").reset_index(drop=True)
     if len(comp) <= k:
@@ -480,7 +497,7 @@ def cmdFigures(cfg, args):
     reals = utdAligned(cfg)
     real = next(r for r in reals if r.pid == syn.meta["physiologyDonor"])
     F.f1RealVsSynthetic(real, syn, figdir)
-    # F2: each class on the same clean segment
+    # Figure F2 adds each class of artifacts to the same clean segment.
     gen = Generator(bank["library"], cfg)
     rng = np.random.default_rng(7)
     m = bank["motion"][0]
@@ -515,7 +532,7 @@ def cmdFigures(cfg, args):
     gm = res / f"grid-metrics-{args.source}.csv"
     if sj.exists():
         s = pd.read_csv(sj)
-        F.f4Map(s, figdir)  # one file per composition; the mixture is the main map
+        F.f4Map(s, figdir)  # One file is drawn for each composition, and the mixture is the main map.
         F.f0Summary(s, figdir, cfg["analysis"]["observedDelta"])
     if gm.exists():
         df = readGrid(gm, cfg)
@@ -524,7 +541,6 @@ def cmdFigures(cfg, args):
     log(f"figures in {figdir}")
 
 
-# ------------------------------------------------------------------ main
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="edasynth", description=__doc__)
     ap.add_argument("--config", default=None, help="YAML config (default settings/default.yaml)")

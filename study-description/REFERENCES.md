@@ -6,7 +6,7 @@ source was compared with the text of the source. "Checked" means that it was.
 "Background" means that the source is cited for a general point that was not compared
 with its text again. The references follow the APA style, 7th edition.
 
-## What each source contributes
+## Use of each source
 
 | Source | What it is used for | Compared with the text |
 |---|---|---|

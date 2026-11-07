@@ -1,11 +1,11 @@
-"""Analyses of the real UTD data (no synthetic data involved).
+"""This module analyses the real UTD data; no synthetic data are involved.
 
-``stored``  uses the feature matrices published by Zhang et al. (z-scored within
-            participant, first derivative by forward difference) and reproduces the
-            baseline comparison EDA-only (24 features) vs EDA + 4 acceleration-
-            magnitude features (28), logistic regression, leave-one-participant-out.
-``raw``     recomputes the features from the PhysioNet signals with this
-            package (validation check G7).
+The option stored uses the feature tables published by Zhang et al., which are scaled
+within each participant and use forward differences for the first derivative. It repeats
+their comparison of a detector with 24 EDA features against a detector with these
+features and 4 features of the acceleration magnitude, 28 in total, by logistic
+regression, leaving one participant out. The option raw recomputes the features from the
+PhysioNet signals with this program, which is check G7.
 """
 
 from __future__ import annotations
@@ -47,7 +47,9 @@ def compare(X0, X1, y, g, cfg, model="logreg", seed=0) -> dict:
 
 
 def shuffledControl(xEda, xAcc, y, g, cfg, nShuffles: int, seed: int) -> dict:
-    """Permute the acceleration rows within each participant: alignment is destroyed."""
+    """Shuffle the rows of acceleration features within each participant, so that they no
+    longer belong to their windows.
+    """
     rng = np.random.default_rng(seed)
     p0, unused = losoPredict(xEda, y, g, "logreg", cfg, seed)
     base = auprc(y, p0)
@@ -63,5 +65,7 @@ def shuffledControl(xEda, xAcc, y, g, cfg, nShuffles: int, seed: int) -> dict:
 
 
 def singleFeatureAuprc(X, y) -> list[float]:
-    """AUPRC of each feature used alone as a score (larger value = more artifact-like)."""
+    """Return the AUPRC of each feature used alone as a score, where a larger value means
+    more like an artifact.
+    """
     return [auprc(y, X[:, k]) for k in range(X.shape[1])]
