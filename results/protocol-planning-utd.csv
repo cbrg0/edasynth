@@ -1,0 +1,13 @@
+condition,nParticipants,powerDA4,powerDB
+c=1.0|kappa=1.0|dmax=1.0|piR=0.5|cls=C1+C2+C3+C5|V1|prev=0.038|any,5,0.06,0.08
+c=1.0|kappa=1.0|dmax=1.0|piR=0.5|cls=C1+C2+C3+C5|V1|prev=0.038|any,10,0.14,0.38
+c=1.0|kappa=1.0|dmax=1.0|piR=0.5|cls=C1+C2+C3+C5|V1|prev=0.038|any,15,0.18,0.64
+c=1.0|kappa=1.0|dmax=1.0|piR=0.5|cls=C1+C2+C3+C5|V1|prev=0.038|any,20,0.34,0.72
+c=1.0|kappa=0.0|dmax=1.0|piR=0.5|cls=C1+C2+C3+C5|V1|prev=0.038|any,5,0.02,0.12
+c=1.0|kappa=0.0|dmax=1.0|piR=0.5|cls=C1+C2+C3+C5|V1|prev=0.038|any,10,0.08,0.34
+c=1.0|kappa=0.0|dmax=1.0|piR=0.5|cls=C1+C2+C3+C5|V1|prev=0.038|any,15,0.16,0.44
+c=1.0|kappa=0.0|dmax=1.0|piR=0.5|cls=C1+C2+C3+C5|V1|prev=0.038|any,20,0.34,0.62
+c=1.0|kappa=1.0|dmax=5.0|piR=0.0|cls=C1+C2+C3+C5|V1|prev=0.038|any,5,0.0,0.14
+c=1.0|kappa=1.0|dmax=5.0|piR=0.0|cls=C1+C2+C3+C5|V1|prev=0.038|any,10,0.04,0.62
+c=1.0|kappa=1.0|dmax=5.0|piR=0.0|cls=C1+C2+C3+C5|V1|prev=0.038|any,15,0.18,0.94
+c=1.0|kappa=1.0|dmax=5.0|piR=0.0|cls=C1+C2+C3+C5|V1|prev=0.038|any,20,0.26,1.0

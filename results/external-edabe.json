@@ -1,0 +1,378 @@
+{
+ "recordings": 43,
+ "windows": 53590,
+ "artifactWindowShare": 0.1910990856503079,
+ "perRecording": [
+  {
+   "name": "Test__afegip_expert1",
+   "windows": 1252,
+   "dropped": 0,
+   "artifactShare": 0.5583067092651757
+  },
+  {
+   "name": "Test__ajeric_expert2",
+   "windows": 1277,
+   "dropped": 0,
+   "artifactShare": 0.24667188723570868
+  },
+  {
+   "name": "Test__ekamis_expert2",
+   "windows": 1361,
+   "dropped": 0,
+   "artifactShare": 0.21748714180749448
+  },
+  {
+   "name": "Test__iguted_expert1",
+   "windows": 1313,
+   "dropped": 0,
+   "artifactShare": 0.24295506473724296
+  },
+  {
+   "name": "Test__inefoh_expert1",
+   "windows": 1337,
+   "dropped": 0,
+   "artifactShare": 0.11817501869857891
+  },
+  {
+   "name": "Test__otafeh_expert1",
+   "windows": 1192,
+   "dropped": 0,
+   "artifactShare": 0.07466442953020135
+  },
+  {
+   "name": "Test__oxused_expert2",
+   "windows": 1195,
+   "dropped": 0,
+   "artifactShare": 0.3205020920502092
+  },
+  {
+   "name": "Test__pqbqpr_expert2",
+   "windows": 1531,
+   "dropped": 0,
+   "artifactShare": 0.16721097322011758
+  },
+  {
+   "name": "Test__uhepah_expert1",
+   "windows": 1204,
+   "dropped": 0,
+   "artifactShare": 0.12541528239202657
+  },
+  {
+   "name": "Test__ukudab_expert2",
+   "windows": 1429,
+   "dropped": 0,
+   "artifactShare": 0.27571728481455565
+  },
+  {
+   "name": "Train__ahixac_expert1",
+   "windows": 1301,
+   "dropped": 0,
+   "artifactShare": 0.12067640276710223
+  },
+  {
+   "name": "Train__akakip_expert2",
+   "windows": 1204,
+   "dropped": 0,
+   "artifactShare": 0.07641196013289037
+  },
+  {
+   "name": "Train__aqamom_expert2",
+   "windows": 1180,
+   "dropped": 0,
+   "artifactShare": 0.14152542372881355
+  },
+  {
+   "name": "Train__aretez_expert1",
+   "windows": 1171,
+   "dropped": 0,
+   "artifactShare": 0.007685738684884714
+  },
+  {
+   "name": "Train__asifex_expert2",
+   "windows": 1143,
+   "dropped": 0,
+   "artifactShare": 0.10148731408573929
+  },
+  {
+   "name": "Train__axeyoh_expert2",
+   "windows": 1133,
+   "dropped": 0,
+   "artifactShare": 0.06531332744924978
+  },
+  {
+   "name": "Train__efawep_expert2",
+   "windows": 1222,
+   "dropped": 0,
+   "artifactShare": 0.12847790507364976
+  },
+  {
+   "name": "Train__egemow_expert2",
+   "windows": 1302,
+   "dropped": 0,
+   "artifactShare": 0.445468509984639
+  },
+  {
+   "name": "Train__ejofeq_expert2",
+   "windows": 1050,
+   "dropped": 0,
+   "artifactShare": 0.2
+  },
+  {
+   "name": "Train__erecij_expert1",
+   "windows": 1252,
+   "dropped": 0,
+   "artifactShare": 0.43690095846645366
+  },
+  {
+   "name": "Train__esirur_expert1",
+   "windows": 1264,
+   "dropped": 0,
+   "artifactShare": 0.24367088607594936
+  },
+  {
+   "name": "Train__ewehov_expert2",
+   "windows": 1410,
+   "dropped": 0,
+   "artifactShare": 0.05319148936170213
+  },
+  {
+   "name": "Train__exozef_expert2",
+   "windows": 1216,
+   "dropped": 0,
+   "artifactShare": 0.16611842105263158
+  },
+  {
+   "name": "Train__idagah_expert2",
+   "windows": 1181,
+   "dropped": 0,
+   "artifactShare": 0.1380186282811177
+  },
+  {
+   "name": "Train__ihikay_expert1",
+   "windows": 1382,
+   "dropped": 0,
+   "artifactShare": 0.6208393632416788
+  },
+  {
+   "name": "Train__ihinot_expert1",
+   "windows": 1277,
+   "dropped": 0,
+   "artifactShare": 0.32184808144087707
+  },
+  {
+   "name": "Train__imocac_expert2",
+   "windows": 1180,
+   "dropped": 0,
+   "artifactShare": 0.07457627118644068
+  },
+  {
+   "name": "Train__iqiyat_expert2",
+   "windows": 1174,
+   "dropped": 0,
+   "artifactShare": 0.368824531516184
+  },
+  {
+   "name": "Train__obujoh_expert2",
+   "windows": 1280,
+   "dropped": 0,
+   "artifactShare": 0.23203125
+  },
+  {
+   "name": "Train__ohayeh_expert1",
+   "windows": 1264,
+   "dropped": 0,
+   "artifactShare": 0.00949367088607595
+  },
+  {
+   "name": "Train__ohufow_expert1",
+   "windows": 1289,
+   "dropped": 0,
+   "artifactShare": 0.017843289371605897
+  },
+  {
+   "name": "Train__ojotew_expert1",
+   "windows": 1240,
+   "dropped": 0,
+   "artifactShare": 0.2887096774193548
+  },
+  {
+   "name": "Train__onivuk_expert1",
+   "windows": 1172,
+   "dropped": 0,
+   "artifactShare": 0.03839590443686007
+  },
+  {
+   "name": "Train__opunad_expert1",
+   "windows": 1228,
+   "dropped": 0,
+   "artifactShare": 0.10586319218241043
+  },
+  {
+   "name": "Train__otecab_expert2",
+   "windows": 1180,
+   "dropped": 0,
+   "artifactShare": 0.020338983050847456
+  },
+  {
+   "name": "Train__otuqom_expert1",
+   "windows": 1446,
+   "dropped": 0,
+   "artifactShare": 0.14453665283540804
+  },
+  {
+   "name": "Train__owegud_expert2",
+   "windows": 1228,
+   "dropped": 0,
+   "artifactShare": 0.05374592833876222
+  },
+  {
+   "name": "Train__oxisux_expert1",
+   "windows": 1070,
+   "dropped": 0,
+   "artifactShare": 0.2719626168224299
+  },
+  {
+   "name": "Train__tchgij_expert2",
+   "windows": 1168,
+   "dropped": 0,
+   "artifactShare": 0.11643835616438356
+  },
+  {
+   "name": "Train__ufoyek_expert2",
+   "windows": 1240,
+   "dropped": 0,
+   "artifactShare": 0.031451612903225803
+  },
+  {
+   "name": "Train__uqozew_expert1",
+   "windows": 1361,
+   "dropped": 0,
+   "artifactShare": 0.14474650991917706
+  },
+  {
+   "name": "Train__urogif_expert1",
+   "windows": 1184,
+   "dropped": 0,
+   "artifactShare": 0.589527027027027
+  },
+  {
+   "name": "Train__uzefow_expert1",
+   "windows": 1107,
+   "dropped": 0,
+   "artifactShare": 0.008130081300813009
+  }
+ ],
+ "reps": 10,
+ "E1z": {
+  "median": 0.677821025320938,
+  "min": 0.651237063379244,
+  "max": 0.7176978126129355,
+  "passed": true
+ },
+ "E1raw": {
+  "median": 0.7436725923630847,
+  "min": 0.681442229670483,
+  "max": 0.7811502383354006
+ },
+ "E2z": {
+  "median": 0.5460570489024552,
+  "min": 0.5292765556398265,
+  "max": 0.5833281383950679,
+  "passed": true
+ },
+ "E2raw": {
+  "median": 0.9143674043260039,
+  "min": 0.8849290604990401,
+  "max": 0.928576570616097
+ },
+ "E3a": {
+  "median": 0.5562986157726785,
+  "min": 0.537358610757385,
+  "max": 0.5827231543557868
+ },
+ "E3b": 0.5373150188122308,
+ "E3c": 0.6106289374478605,
+ "E3passed": true,
+ "replicates": [
+  {
+   "rep": 0,
+   "E1z": 0.6707525557149617,
+   "E2z": 0.5451017352880557,
+   "E1raw": 0.7433949509137479,
+   "E2raw": 0.919883192108895,
+   "E3a": 0.5478333368542335
+  },
+  {
+   "rep": 1,
+   "E1z": 0.7002775007144569,
+   "E2z": 0.5485888487463148,
+   "E1raw": 0.7450055750650169,
+   "E2raw": 0.9132183113253332,
+   "E3a": 0.574422035824953
+  },
+  {
+   "rep": 2,
+   "E1z": 0.6771392559520167,
+   "E2z": 0.5292765556398265,
+   "E1raw": 0.7543558301206899,
+   "E2raw": 0.928576570616097,
+   "E3a": 0.5569506736014898
+  },
+  {
+   "rep": 3,
+   "E1z": 0.7061910264417813,
+   "E2z": 0.5521420565427183,
+   "E1raw": 0.7811502383354006,
+   "E2raw": 0.9021721647050787,
+   "E3a": 0.5634512782757504
+  },
+  {
+   "rep": 4,
+   "E1z": 0.6785027946898592,
+   "E2z": 0.5833281383950679,
+   "E1raw": 0.7579394191605348,
+   "E2raw": 0.9095357369699327,
+   "E3a": 0.5609289790682838
+  },
+  {
+   "rep": 5,
+   "E1z": 0.7176978126129355,
+   "E2z": 0.5572165684758958,
+   "E1raw": 0.7063607270955539,
+   "E2raw": 0.9082783992930215,
+   "E3a": 0.5482719447747119
+  },
+  {
+   "rep": 6,
+   "E1z": 0.6626711861271812,
+   "E2z": 0.5409315152400549,
+   "E1raw": 0.681442229670483,
+   "E2raw": 0.9155164973266748,
+   "E3a": 0.5827231543557868
+  },
+  {
+   "rep": 7,
+   "E1z": 0.651237063379244,
+   "E2z": 0.5419104637852562,
+   "E1raw": 0.7302478143075781,
+   "E2raw": 0.9213467631674317,
+   "E3a": 0.5556465579438672
+  },
+  {
+   "rep": 8,
+   "E1z": 0.6515858714081544,
+   "E2z": 0.532442451635315,
+   "E1raw": 0.7041877758995229,
+   "E2raw": 0.9186532373117814,
+   "E3a": 0.5507393262875583
+  },
+  {
+   "rep": 9,
+   "E1z": 0.6943135724665385,
+   "E2z": 0.5470123625168548,
+   "E1raw": 0.7439502338124215,
+   "E2raw": 0.8849290604990401,
+   "E3a": 0.537358610757385
+  }
+ ]
+}
