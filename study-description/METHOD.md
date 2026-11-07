@@ -1,12 +1,5 @@
 # Methodology
 
-This file describes every step of the study, every formula and every number used.
-For each number it says where the number comes from. Some numbers are taken from a
-cited publication, some were measured on the recordings by the program, and some are
-decisions made in this study. The decisions were written into the settings file
-`settings/default.yaml` before the main results were obtained, as described in
-[PREREGISTRATION.md](PREREGISTRATION.md).
-
 ## 1. Research question and study design
 
 **Research question.** Wristbands record the electrodermal activity (EDA) of the skin and,
