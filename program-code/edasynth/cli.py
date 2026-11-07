@@ -42,6 +42,13 @@ def resultsDir(cfg) -> Path:
     return p
 
 
+def runsDir(cfg) -> Path:
+    """Return the subfolder of result-tables that holds the tables with one row per run."""
+    p = resultsDir(cfg) / "individual-runs"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
 def cmdCheckData(cfg, args):
     bad = 0
     lists = (
@@ -343,7 +350,7 @@ def cmdGrid(cfg, args):
     name = "variants" if args.variants else "grid"
     if args.labelNoise:
         name += "-labelnoise"
-    out = resultsDir(cfg) / f"{name}-metrics-{args.source}.csv"
+    out = runsDir(cfg) / f"{name}-metrics-{args.source}.csv"
     runJobs(cfg, bank, jobs, args.jobs, out, models, cfg["analysis"]["labelNoiseKappa"] if args.labelNoise else None)
     log(f"written {out}")
 
@@ -352,7 +359,7 @@ def cmdAnalyze(cfg, args):
     from .experiment import compatibility, summarise
 
     res = resultsDir(cfg)
-    df = readGrid(res / f"grid-metrics-{args.source}.csv", cfg)
+    df = readGrid(runsDir(cfg) / f"grid-metrics-{args.source}.csv", cfg)
     by = ["c", "kappa", "deltaMax", "piR", "classes"]
     parts = []
     for d in ("dA", "dA4", "dB", "dBMinusDA4"):
@@ -367,7 +374,7 @@ def cmdAnalyze(cfg, args):
         ["c", "kappa", "deltaMax", "piR"],
     )
     comp.to_csv(res / f"compatibility-{args.source}.csv")
-    ln = res / f"grid-labelnoise-metrics-{args.source}.csv"
+    ln = runsDir(cfg) / f"grid-labelnoise-metrics-{args.source}.csv"
     if ln.exists():
         dn = readGrid(ln, cfg)
         compN = compatibility(
@@ -415,7 +422,7 @@ def cmdPower(cfg, args):
     res = resultsDir(cfg)
     comp = pd.read_csv(res / f"compatibility-{args.source}.csv")
     mix = tuple(cfg["grid"]["compositions"][-1])
-    gm = readGrid(res / f"grid-metrics-{args.source}.csv", cfg)
+    gm = readGrid(runsDir(cfg) / f"grid-metrics-{args.source}.csv", cfg)
     gm = gm[gm.classes == "+".join(mix)]
     by = ["c", "kappa", "deltaMax", "piR"]
     comp = comp[comp.compatible].merge(gm.groupby(by, as_index=False)["dB"].mean(), on=by)
@@ -491,7 +498,7 @@ def cmdFigures(cfg, args):
         if "G3" in v:
             F.f3Realism(v["G3"], f0Names, figdir)
     sj = res / f"grid-summary-{args.source}.csv"
-    gm = res / f"grid-metrics-{args.source}.csv"
+    gm = runsDir(cfg) / f"grid-metrics-{args.source}.csv"
     if sj.exists():
         s = pd.read_csv(sj)
         F.f4Map(s, figdir)

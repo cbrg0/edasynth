@@ -191,7 +191,7 @@ def cmdWesad(args):
         "wesadEventsPerMinMedian": float(np.median([m["eventsPerMin"] for m in motion])),
     }
     wbank = {**bank, "motion": [{k: m[k] for k in ("pid", "fs", "acc", "stage", "events", "qAcc")} for m in motion]}
-    grid = cli.readGrid(res / "grid-metrics-utd.csv", cfg)
+    grid = cli.readGrid(cli.runsDir(cfg) / "grid-metrics-utd.csv", cfg)
     rows, cells = [], []
     part = res / "external-wesad.json"
     if part.exists():

@@ -9,9 +9,11 @@ result-figures/*
 !result-tables/realdata.json
 !result-tables/validation-utd.json
 !result-tables/pilot-utd-R.json
-!result-tables/grid-metrics-utd.csv
-!result-tables/grid-labelnoise-metrics-utd.csv
-!result-tables/variants-metrics-utd.csv
+!result-tables/individual-runs/
+result-tables/individual-runs/*
+!result-tables/individual-runs/grid-metrics-utd.csv
+!result-tables/individual-runs/grid-labelnoise-metrics-utd.csv
+!result-tables/individual-runs/variants-metrics-utd.csv
 !result-tables/grid-summary-utd.csv
 !result-tables/compatibility-utd.csv
 !result-tables/compatibility-labelnoise-utd.csv

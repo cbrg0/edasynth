@@ -71,7 +71,7 @@ obtained. All numbers and their limits are in [study-description/RESULTS.md](stu
 | `study-description/REFERENCES.md` | The literature. |
 | `study-description/README-RU.md` | This page in Russian. |
 | `result-figures/` | The figures of the study. |
-| `result-tables/` | The tables with all results, from which the program draws the figures. |
+| `result-tables/` | The tables with all results, from which the program draws the figures; the subfolder `individual-runs` holds one row for every single run, and its files are too large for GitHub to display, so they open with the Raw button or after downloading. |
 | `run-in-browser/` | A notebook that repeats the main results in a web browser. |
 | `program-code/edasynth/` | The program that carries out the study. |
 | `program-tests/` | Automatic tests that check the program. |
