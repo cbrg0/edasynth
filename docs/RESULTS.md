@@ -29,7 +29,7 @@ criterion refers to movement, so the labels are not independent of it.
 
 ## 2. Is the generator trustworthy?
 
-All checks on UTD with the final version 1.4.0 (Linux, 28 October 2026):
+All checks on UTD with the final version 1.4.0:
 
 | Check | Result |
 |---|---|
@@ -68,7 +68,7 @@ leave-one-out scheme and the median over 10 repetitions were chosen after seeing
 ## 3. The synthetic map
 
 Version 1.4.0, tag `prereg-synth-v3`. 300 cells (226 computed), 50 replicates of 20
-synthetic participants each (11 300 rows, macOS, 28–30 October 2026). Outputs
+synthetic participants each (11 300 rows). Outputs
 `grid-summary-utd.csv`, `compatibility*.csv`, `sensitivity-utd.csv`.
 
 **3.1 Where the accelerometer is useful** (mean Δ ≥ 0.01 and lower bound > 0), cells out

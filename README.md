@@ -1,6 +1,6 @@
 # edasynth
 
-[![tests](https://github.com/cbrg0/edasynth/actions/workflows/ci.yml/badge.svg)](https://github.com/cbrg0/edasynth/actions/workflows/ci.yml) [![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE) [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cbrg0/edasynth/blob/main/notebooks/quickstart.ipynb)
+[![tests](https://github.com/cbrg0/edasynth/actions/workflows/ci.yml/badge.svg)](https://github.com/cbrg0/edasynth/actions/workflows/ci.yml) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cbrg0/edasynth/blob/main/notebooks/quickstart.ipynb)
 
 **Can the accelerometer of a wristband help to recognise skin-conductance artifacts
 caused by movement?**
@@ -74,21 +74,14 @@ obtained. All numbers and their limits are in [docs/RESULTS.md](docs/RESULTS.md)
 | `tests/` | automatic tests of the program |
 | `scripts/` | programs that download the data and prepare EDABE and WESAD |
 | `configs/` | all settings that can change a result |
-| `data/` | instructions and checksums for the downloaded data; the data themselves are not stored here |
+| `data/` | where the data come from and how they are downloaded |
 | other files in the main folder | technical files for installation, citation and the licence |
 
 ## Running it
 
-The simplest way is the **Open in Colab** button at the top of the page: the notebook
-runs in the browser in about 15 minutes and needs no installation. On your own
-computer with Python 3.11 or newer:
-
-```bash
-git clone https://github.com/cbrg0/edasynth.git && cd edasynth
-pip install -e ".[dev]"
-make test   # tests of the program
-make help   # all other steps
-```
+The **Open in Colab** button at the top of the page repeats the main results in the
+browser in about 15 minutes without any installation. To run everything on your own
+computer, install the program with `pip install -e ".[dev]"` and see `make help`.
 
 ## Authorship and licence
 

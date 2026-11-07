@@ -110,7 +110,7 @@ def assignStages(n: int, annotations: list, stages: list[str] = utdStages) -> np
     else:
         raise ValueError(
             f"{len(t)} annotations; expected {len(stages)} or {len(stages) - 1}. "
-            "Inspect the .atr file (python -m edasynth inspect) and adjust the stage list."
+            "Check the .atr annotation file and adjust the stage list."
         )
     out = np.empty(n, dtype=object)
     starts = [*starts, n]
